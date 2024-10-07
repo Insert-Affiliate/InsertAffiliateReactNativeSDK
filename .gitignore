@@ -1,0 +1,79 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Dependency directories
+node_modules/
+.pnp/
+.pnp.js
+
+# Output directories
+dist/
+build/
+coverage/
+out/
+.tmp/
+
+# Cache
+.npm/
+.cache/
+.parcel-cache/
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Test and coverage results
+coverage/
+.jest/
+.nyc_output/
+
+# Miscellaneous
+*.tgz
+*.zip
+*.tar
+*.tar.gz
+
+# Babel cache
+.cache/
+.babelrc
+
+# TypeScript
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm/
+
+# Yarn integrity files
+.yarn-integrity
+.yarn-cache/
+yarn.lock
+
+# eslint cache
+.eslintcache
+
+# Storybook files
+.storybook/
+
+# Prettier
+.prettiercache
