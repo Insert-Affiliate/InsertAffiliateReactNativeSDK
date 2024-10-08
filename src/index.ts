@@ -1,4 +1,4 @@
-import BranchIapProvider from "./BranchIapProvider";
-import useBranchIapProvider from "./useBranchIapProvider";
+import DeepLinkIapProvider from "./DeepLinkIapProvider";
+import useDeepLinkIapProvider from "./useDeepLinkIapProvider";
 
-export { BranchIapProvider, useBranchIapProvider };
+export { DeepLinkIapProvider, useDeepLinkIapProvider };

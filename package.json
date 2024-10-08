@@ -1,5 +1,5 @@
 {
-  "name": "react-native-branch-iaptic",
+  "name": "insert-affiliate-react-native-sdk",
   "version": "1.0.0",
   "description": "A package that will give context having implementation of react-native-branch and react-native-iap and iaptic validate api.",
   "main": "dist/index.js",

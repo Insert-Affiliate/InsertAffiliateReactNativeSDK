@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useEffect, useState } from "react";
 import {
   Purchase,
   Subscription,
@@ -12,7 +12,7 @@ import branch from "react-native-branch";
 import axios from "axios";
 
 // TYPES USED IN THIS PROVIDER
-type T_BRANCH_IAP_PROVIDER = {
+type T_DEEPLINK_IAP_PROVIDER = {
   children: React.ReactNode;
   iapSkus: string[];
   iapticAppId: string;
@@ -20,7 +20,7 @@ type T_BRANCH_IAP_PROVIDER = {
   iapticAppSecret: string;
 };
 
-type T_BRANCH_IAP_CONTEXT = {
+type T_DEEPLINK_IAP_CONTEXT = {
   iapLoading: boolean;
   alreadyPurchased: boolean;
   subscriptions: Subscription[];
@@ -32,7 +32,7 @@ type T_BRANCH_IAP_CONTEXT = {
 };
 
 // STARTING CONTEXT IMPLEMENTATION
-export const BranchIapContext = createContext<T_BRANCH_IAP_CONTEXT>({
+export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   iapLoading: false,
   alreadyPurchased: false,
   isIapticValidated: undefined,
@@ -43,7 +43,7 @@ export const BranchIapContext = createContext<T_BRANCH_IAP_CONTEXT>({
   handleBuySubscription: (productId: string, offerToken?: string) => {},
 });
 
-const BranchIapProvider: React.FC<T_BRANCH_IAP_PROVIDER> = ({
+const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   children,
   iapSkus,
   iapticAppId,
@@ -276,7 +276,7 @@ const BranchIapProvider: React.FC<T_BRANCH_IAP_PROVIDER> = ({
   }, []);
 
   return (
-    <BranchIapContext.Provider
+    <DeepLinkIapContext.Provider
       value={{
         iapLoading,
         alreadyPurchased,
@@ -289,8 +289,8 @@ const BranchIapProvider: React.FC<T_BRANCH_IAP_PROVIDER> = ({
       }}
     >
       {children}
-    </BranchIapContext.Provider>
+    </DeepLinkIapContext.Provider>
   );
 };
 
-export default withIAPContext(BranchIapProvider);
+export default withIAPContext(DeepLinkIapProvider);

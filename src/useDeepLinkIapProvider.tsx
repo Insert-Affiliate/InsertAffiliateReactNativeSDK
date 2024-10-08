@@ -1,7 +1,7 @@
 import { useContext } from "react";
-import { BranchIapContext } from "./BranchIapProvider";
+import { DeepLinkIapContext } from "./DeepLinkIapProvider";
 
-const useBranchIapProvider = () => {
+const useDeepLinkIapProvider = () => {
   const {
     alreadyPurchased,
     handleBuySubscription,
@@ -11,7 +11,7 @@ const useBranchIapProvider = () => {
     subscriptions,
     userId,
     userPurchase,
-  } = useContext(BranchIapContext);
+  } = useContext(DeepLinkIapContext);
 
   return {
     alreadyPurchased,
@@ -25,4 +25,4 @@ const useBranchIapProvider = () => {
   };
 };
 
-export default useBranchIapProvider;
+export default useDeepLinkIapProvider;

@@ -17,21 +17,22 @@ These are the dependencies you need to install before using this package:
 You have to do the following steps to use this package:
 
 <ol>
-<li>install the package <code>npm install react-native-branch-iaptic</code></li>
+<li>install the package <code>npm install insert-affiliate-react-native-sdk</code></li>
 <li>Import context from react-native-branch--iaptic <code>import {
-  BranchIapProvider,
-} from 'react-native-branch-iaptic';</code></li>
+   DeepLinkIapProvider
+} from 'insert-affiliate-react-native-sdk';</code></li>
 <li>Now wrap your applcation with above context like</li>
 
 ```
-    <BranchIapProvider
+    <DeepLinkIapProvider
       iapSkus={IAP_SKUS}
       iapticAppId="IAPTIC_APPLICATION_IDENTIFIER"
       iapticAppName="IAPTIC_APP_NAME"
       iapticAppSecret="IAPTIC_SECRET_KEY">
       <Child />
-    </BranchIapProvider>    
+    </DeepLinkIapProvider>
 ```
+
 <li>If you check above you, need to pass context properties as shown above</li>
 
 <li>For your reference, here is the complete example of its usgae</li>
@@ -41,9 +42,9 @@ import React from 'react';
 import {ActivityIndicator, Button, StyleSheet, Text, View} from 'react-native';
 import {IAP_SKUS} from './app/config/constants';
 import {
-  BranchIapProvider,
-  useBranchIapProvider,
-} from 'react-native-branch-iaptic';
+  DeepLinkIapProvider, 
+  useDeepLinkIapProvider
+} from 'insert-affiliate-react-native-sdk';
 
 const Child = () => {
   const {
@@ -54,7 +55,7 @@ const Child = () => {
     userId,
     userPurchase,
     isIapticValidated,
-  } = useBranchIapProvider();
+  } = useDeepLinkIapProvider();
   return (
     <View style={styles.mainContainer}>
       {referrerLink ? (
@@ -91,13 +92,13 @@ const Child = () => {
 
 const App = () => {
   return (
-    <BranchIapProvider
+    <DeepLinkIapProvider
       iapSkus={IN_APP_PURCHASES_IDS}
       iapticAppId="IAPTIC_APP_BUNDLE_IDENTIFIER"
       iapticAppName="IAPTIC_APP_NAME"
       iapticAppSecret="IAPTIC_APP_SECRET_KEY">
       <Child />
-    </BranchIapProvider>
+    </DeepLinkIapProvider>
   );
 };
 
