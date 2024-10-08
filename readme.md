@@ -18,7 +18,7 @@ You have to do the following steps to use this package:
 
 <ol>
 <li>install the package <code>npm install insert-affiliate-react-native-sdk</code></li>
-<li>Import context from react-native-branch--iaptic <code>import {
+<li>Import Provider from insert-affiliate-react-native-sdk <code>import {
    DeepLinkIapProvider
 } from 'insert-affiliate-react-native-sdk';</code></li>
 <li>Now wrap your applcation with above context like</li>
