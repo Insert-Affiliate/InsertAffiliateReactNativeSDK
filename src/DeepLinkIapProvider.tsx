@@ -10,6 +10,7 @@ import {
 import { isPlay } from "react-native-iap/src/internal";
 import branch from "react-native-branch";
 import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // TYPES USED IN THIS PROVIDER
 type T_DEEPLINK_IAP_PROVIDER = {
@@ -29,6 +30,12 @@ type T_DEEPLINK_IAP_CONTEXT = {
   userId: string;
   isIapticValidated: boolean | undefined;
   handleBuySubscription: (productId: string, offerToken?: string) => void;
+};
+
+const ASYNC_KEYS = {
+  REFERRER_LINK: "@app_referrer_link",
+  USER_PURCHASE: "@app_user_purchase",
+  USER_ID: "@app_user_id",
 };
 
 // STARTING CONTEXT IMPLEMENTATION
@@ -71,13 +78,46 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     currentPurchaseError,
   } = useIAP();
 
-  //   Function to show log, warn and error
+  // ASYNC FUNCTIONS
+  const saveValueInAsync = async (key: string, value: string) => {
+    await AsyncStorage.setItem(key, value);
+  };
+
+  const getValueFromAsync = async (key: string) => {
+    const response = await AsyncStorage.getItem(key);
+    return response;
+  };
+
+  const clearAsyncStorage = async () => {
+    await AsyncStorage.clear();
+  };
+
+  // EFFECT TO FETCH USER ID AND REF LINK
+  // IF ALREADY EXISTS IN ASYNC STORAGE
+  useEffect(() => {
+    const fetchAsyncEssentials = async () => {
+      try {
+        const uId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
+        const refLink = await getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
+
+        if (uId && refLink) {
+          setUserId(uId);
+          setReferrerLink(refLink);
+        }
+      } catch (error) {
+        errorLog(`ERROR ~ fetchAsyncEssentials: ${error}`);
+      }
+    };
+
+    fetchAsyncEssentials();
+  }, []);
+
+  //   FUNCTION TO SHOW LOG, ERROR and WARN
   const errorLog = (message: string, type?: "error" | "warn" | "log") => {
     switch (type) {
       case "error":
         console.error(`ENCOUNTER ERROR ~ ${message}`);
         break;
-
       case "warn":
         console.warn(`ENCOUNTER WARNING ~ ${message}`);
         break;
@@ -114,7 +154,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       } else {
         if (params["~referring_link"]) {
           setReferrerLink(params["~referring_link"]);
-          setUserId(generateUserID());
+          const userId = generateUserID();
+          setUserId(userId);
+          await saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
+          await saveValueInAsync(
+            ASYNC_KEYS.REFERRER_LINK,
+            params["~referring_link"]
+          );
         } else
           errorLog(
             `branchSubscription: Params does't have referring_link`,
@@ -175,7 +221,12 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   const handlePurchaseValidation = async (jsonIapPurchase: Purchase) => {
     try {
-      if (!userId || !referrerLink) return;
+      if (!userId || !referrerLink) {
+        errorLog(
+          `WANR ~ handlePurchaseValidation: Continue without IAPTIC VALIDATION`
+        );
+        return;
+      }
 
       await axios({
         url: `https://validator.iaptic.com/v1/validate`,
@@ -216,6 +267,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
             isConsumable: true,
           });
 
+          await clearAsyncStorage();
+          setUserId("");
+          setReferrerLink("");
           setIapLoading(false);
         }
       } catch (error) {
