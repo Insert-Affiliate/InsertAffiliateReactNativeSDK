@@ -223,31 +223,47 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     try {
       if (!userId || !referrerLink) {
         errorLog(
-          `WANR ~ handlePurchaseValidation: Continue without IAPTIC VALIDATION`
+          `WANR ~ handlePurchaseValidation: No Referrer Link or User ID for validation`
         );
-        return;
-      }
 
-      await axios({
-        url: `https://validator.iaptic.com/v1/validate`,
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${btoa(iapticAppName + ":" + iapticAppSecret)}`,
-        },
-        data: {
-          id: iapticAppId,
-          type: "application",
-          transaction: {
+        await axios({
+          url: `https://validator.iaptic.com/v1/validate`,
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${btoa(iapticAppName + ":" + iapticAppSecret)}`,
+          },
+          data: {
             id: iapticAppId,
-            type: "ios-appstore",
-            appStoreReceipt: jsonIapPurchase.transactionReceipt,
+            type: "application",
+            transaction: {
+              id: iapticAppId,
+              type: "ios-appstore",
+              appStoreReceipt: jsonIapPurchase.transactionReceipt,
+            },
           },
-          additionalData: {
-            applicationUsername: `${referrerLink}/${userId}`,
+        });
+        setIapticValidated(true);
+      } else {
+        await axios({
+          url: `https://validator.iaptic.com/v1/validate`,
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${btoa(iapticAppName + ":" + iapticAppSecret)}`,
           },
-        },
-      });
-      setIapticValidated(true);
+          data: {
+            id: iapticAppId,
+            type: "application",
+            transaction: {
+              id: iapticAppId,
+              type: "ios-appstore",
+              appStoreReceipt: jsonIapPurchase.transactionReceipt,
+            },
+            additionalData: {
+              applicationUsername: `${referrerLink}/${userId}`,
+            },
+          },
+        });
+      }
     } catch (error) {
       errorLog(`handlePurchaseValidation: ${error}`, "error");
       setIapticValidated(false);

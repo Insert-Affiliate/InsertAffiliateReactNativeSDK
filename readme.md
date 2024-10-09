@@ -36,27 +36,35 @@ Import the provider from the package:
 import { DeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 ```
 
-## Wrapping Your Application
+## 1. Wrapping Your Application (App.tsx)
 ### Wrap your application with the provider, passing the required context properties:
 
+In the below code, please remember to replace {{ your_iaptic_app_id }} [{"{{ your_iaptic_app_name }}"}](https://www.iaptic.com/account) and [{"{{ your_iaptic_secret_key }}"}](https://www.iaptic.com/settings) with your own Iaptic variables.  
+
+
+Swap out the values for "your_iaptic_app_id", "your_iaptic_app_name" and "your_iaptic_app_secret"
 ```javascript
-<DeepLinkIapProvider
-  iapSkus={IAP_SKUS}
-  iapticAppId="IAPTIC_APPLICATION_IDENTIFIER"
-  iapticAppName="IAPTIC_APP_NAME"
-  iapticAppSecret="IAPTIC_SECRET_KEY">
-  <Child />
-</DeepLinkIapProvider>
+const App = () => {
+  return (
+    <DeepLinkIapProvider
+      iapSkus={IAP_SKUS}
+      iapticAppId="{{ your_iaptic_app_id }}"
+      iapticAppName="{{ your_iaptic_app_name }}"
+      iapticAppSecret="{{ your_iaptic_app_id }}">
+      <Child />
+    </DeepLinkIapProvider>
+  );
+};
 ```
 
-## Example Implementation
+## 2. When the User Makes a Purchase, Call Our SDK's "handleBuySubscription"
 Here’s a complete example of how to use the SDK:
 
+In the code below, please remember to update your IAP_SKUS with the comma separated list of your in app purchase SKU's.
 
 ```javascript
 import React from 'react';
 import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
-import { IAP_SKUS } from './app/config/constants';
 import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
 const Child = () => {
@@ -70,17 +78,15 @@ const Child = () => {
     isIapticValidated,
   } = useDeepLinkIapProvider();
 
+  export const IAP_SKUS = Platform.select({
+    android: [''], // Here, put a comma separated list of the In App Purchase SKU's
+    ios: [''], // Here, put a comma separated list of the In App Purchase SKU's
+  }) as string[];
+
+
   return (
-    <View style={styles.mainContainer}>
-      {referrerLink ? (
-        <>
-          <Text style={styles.msg}>{`Referrer Link:\n${referrerLink}`}</Text>
-          <Text style={styles.msg}>{`User ID:\n${userId}`}</Text>
-        </>
-      ) : (
-        <Text>{`Please open the app using a branch link`}</Text>
-      )}
-      {referrerLink && subscriptions.length ? (
+    <View>
+      {subscriptions.length ? (
         <Button
           disabled={iapLoading}
           title={
@@ -90,13 +96,10 @@ const Child = () => {
           }
           onPress={() => {
             if (iapLoading) return;
-            if (!userPurchase) handleBuySubscription(subscriptions[0].productId);
+            if (!userPurchase) handleBuySubscription(subscriptions[0].productId); //
           }}
         />
       ) : null}
-      {isIapticValidated && (
-        <Text style={styles.msg}>{`You are IAPTIC Validated`}</Text>
-      )}
       {iapLoading && <ActivityIndicator size={'small'} color={'black'} />}
     </View>
   );
@@ -104,8 +107,9 @@ const Child = () => {
 
 const App = () => {
   return (
+    // Wrapped application code from the previous step...
     <DeepLinkIapProvider
-      iapSkus={IN_APP_PURCHASES_IDS}
+      iapSkus={IAP_SKUS}
       iapticAppId="IAPTIC_APP_BUNDLE_IDENTIFIER"
       iapticAppName="IAPTIC_APP_NAME"
       iapticAppSecret="IAPTIC_APP_SECRET_KEY">
@@ -113,21 +117,6 @@ const App = () => {
     </DeepLinkIapProvider>
   );
 };
-
-const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    rowGap: 12,
-  },
-  msg: {
-    fontFamily: 'Courier New',
-    fontSize: 14,
-    color: 'black',
-    textAlign: 'center',
-  },
-});
 
 export default App;
 ```
