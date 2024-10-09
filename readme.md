@@ -1,50 +1,63 @@
-# Introdcution
+# InsertAffiliateReactNative SDK
 
-A library that will provide a React Context provider through which you can wrap your whole application and can use the implementation of in app purchases and branch links.
+## Overview
 
-# Peer Dependencies
+The InsertAffiliateReactNative SDK is designed for React Native applications, providing seamless integration with the Insert Affiliate platform. This SDK enables functionalities such as managing affiliate links, handling in-app purchases (IAP), and utilizing deep links.
 
-These are the dependencies you need to install before using this package:
+## Features
 
-<ul>
-<li><a href="https://www.npmjs.com/package/react-native-iap">react-native-iap</a></li>
-<li><a href="https://www.npmjs.com/package/react-native-branch">react-native-branch</a></li>
-<li><a href="https://www.npmjs.com/package/axios">axios</a></li>
-</ul>
+- **Unique Device Identification**: Generates and stores a short unique device ID to identify users effectively.
+- **Affiliate Identifier Management**: Set and retrieve the affiliate identifier based on user-specific links.
+- **In-App Purchase (IAP) Initialization**: Easily reinitialize in-app purchases with validation options using the affiliate identifier.
+- **Offer Code Handling**: Fetch offer codes from the Insert Affiliate API and open redeem URLs directly in the App Store.
 
-# How to use
+## Peer Dependencies
 
-You have to do the following steps to use this package:
+Before using this package, ensure you have the following dependencies installed:
 
-<ol>
-<li>install the package <code>npm install insert-affiliate-react-native-sdk</code></li>
-<li>Import Provider from insert-affiliate-react-native-sdk <code>import {
-   DeepLinkIapProvider
-} from 'insert-affiliate-react-native-sdk';</code></li>
-<li>Now wrap your applcation with above context like</li>
+- [react-native-iap](https://www.npmjs.com/package/react-native-iap)
+- [react-native-branch](https://www.npmjs.com/package/react-native-branch)
+- [axios](https://www.npmjs.com/package/axios)
 
-```
-    <DeepLinkIapProvider
-      iapSkus={IAP_SKUS}
-      iapticAppId="IAPTIC_APPLICATION_IDENTIFIER"
-      iapticAppName="IAPTIC_APP_NAME"
-      iapticAppSecret="IAPTIC_SECRET_KEY">
-      <Child />
-    </DeepLinkIapProvider>
+## Installation
+
+To integrate the InsertAffiliateReactNative SDK into your project, run:
+
+```bash
+npm install insert-affiliate-react-native-sdk
 ```
 
-<li>If you check above you, need to pass context properties as shown above</li>
+## Usage
+### Importing the SDK
+Import the provider from the package:
 
-<li>For your reference, here is the complete example of its usgae</li>
 
+```javascript
+import { DeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 ```
+
+## Wrapping Your Application
+### Wrap your application with the provider, passing the required context properties:
+
+```javascript
+<DeepLinkIapProvider
+  iapSkus={IAP_SKUS}
+  iapticAppId="IAPTIC_APPLICATION_IDENTIFIER"
+  iapticAppName="IAPTIC_APP_NAME"
+  iapticAppSecret="IAPTIC_SECRET_KEY">
+  <Child />
+</DeepLinkIapProvider>
+```
+
+## Example Implementation
+Here’s a complete example of how to use the SDK:
+
+
+```javascript
 import React from 'react';
-import {ActivityIndicator, Button, StyleSheet, Text, View} from 'react-native';
-import {IAP_SKUS} from './app/config/constants';
-import {
-  DeepLinkIapProvider, 
-  useDeepLinkIapProvider
-} from 'insert-affiliate-react-native-sdk';
+import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
+import { IAP_SKUS } from './app/config/constants';
+import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
 const Child = () => {
   const {
@@ -56,6 +69,7 @@ const Child = () => {
     userPurchase,
     isIapticValidated,
   } = useDeepLinkIapProvider();
+
   return (
     <View style={styles.mainContainer}>
       {referrerLink ? (
@@ -64,7 +78,7 @@ const Child = () => {
           <Text style={styles.msg}>{`User ID:\n${userId}`}</Text>
         </>
       ) : (
-        <Text>{`Please open app using branch link`}</Text>
+        <Text>{`Please open the app using a branch link`}</Text>
       )}
       {referrerLink && subscriptions.length ? (
         <Button
@@ -72,13 +86,11 @@ const Child = () => {
           title={
             userPurchase
               ? `Successfully Purchased`
-              : // @ts-ignore
-                `Click to Buy (${subscriptions[0].localizedPrice} / ${subscriptions[0].subscriptionPeriodUnitIOS})`
+              : `Click to Buy (${subscriptions[0].localizedPrice} / ${subscriptions[0].subscriptionPeriodUnitIOS})`
           }
           onPress={() => {
             if (iapLoading) return;
-            else if (userPurchase) {
-            } else handleBuySubscription(subscriptions[0].productId);
+            if (!userPurchase) handleBuySubscription(subscriptions[0].productId);
           }}
         />
       ) : null}
@@ -118,7 +130,5 @@ const styles = StyleSheet.create({
 });
 
 export default App;
-
 ```
 
-</ol>
