@@ -267,9 +267,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
             isConsumable: true,
           });
 
-          await clearAsyncStorage();
-          setUserId("");
-          setReferrerLink("");
           await saveValueInAsync(
             ASYNC_KEYS.USER_PURCHASE,
             JSON.stringify(currentPurchase)
