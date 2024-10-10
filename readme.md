@@ -39,7 +39,7 @@ import { DeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 ## 1. Integrating the Provider in Your Application (`App.tsx`)
 ### Step 1: Wrap Your Application with the Iaptic Provider and Pass Context Properties
 
-- Replace `{{ your_iaptic_app_id }}` with your **Iaptic App ID**.
+- Replace `{{ your_iaptic_app_id }}` with your **Iaptic App ID**. You can find this [here](https://www.iaptic.com/account).
 - Replace `{{ your_iaptic_app_name }}` with your **Iaptic App Name**. You can find this [here](https://www.iaptic.com/account).
 - Replace `{{ your_iaptic_secret_key }}` with your **Iaptic Secret Key**. You can find this [here](https://www.iaptic.com/settings).
 
