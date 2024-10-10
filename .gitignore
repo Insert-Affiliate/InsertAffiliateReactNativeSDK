@@ -77,3 +77,4 @@ yarn.lock
 
 # Prettier
 .prettiercache
+package-lock.json
