@@ -2,13 +2,13 @@
 
 ## Overview
 
-The InsertAffiliateReactNative SDK is designed for React Native applications, providing seamless integration with the Insert Affiliate platform. This SDK enables functionalities such as managing affiliate links, handling in-app purchases (IAP), and utilizing deep links.
+The **InsertAffiliateReactNative SDK** is designed for React Native applications, providing seamless integration with the [Insert Affiliate platform](https://insertaffiliate.com). This SDK enables functionalities such as managing affiliate links, handling in-app purchases (IAP), and utilizing deep links. For more details and to access the Insert Affiliate dashboard, visit [app.insertaffiliate.com](https://app.insertaffiliate.com).
 
 ## Features
 
 - **Unique Device Identification**: Generates and stores a short unique device ID to identify users effectively.
 - **Affiliate Identifier Management**: Set and retrieve the affiliate identifier based on user-specific links.
-- **In-App Purchase (IAP) Initialization**: Easily reinitialize in-app purchases with validation options using the affiliate identifier.
+- **In-App Purchase (IAP) Initialisation**: Easily reinitialise in-app purchases with validation options using the affiliate identifier.
 - **Offer Code Handling**: Fetch offer codes from the Insert Affiliate API and open redeem URLs directly in the App Store.
 
 ## Peer Dependencies
