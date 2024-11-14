@@ -49,7 +49,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   referrerLink: "",
   userId: "",
   handleBuySubscription: (productId: string, offerToken?: string) => {},
-  trackEvent: async (eventName: string) => {},
+  // trackEvent: async (eventName: string) => {},
 });
 
 const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
@@ -313,28 +313,28 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     checkCurrentPurchaseError();
   }, [currentPurchaseError]);
 
-  const trackEvent = async (eventName: string) => {
-    if (!referrerLink || !userId) {
-      errorLog("[Insert Affiliate] No affiliate identifier found. Set referrer link before tracking events.");
-      return;
-    }
+  // const trackEvent = async (eventName: string) => {
+  //   if (!referrerLink || !userId) {
+  //     errorLog("[Insert Affiliate] No affiliate identifier found. Set referrer link before tracking events.");
+  //     return;
+  //   }
   
-    try {
-      await axios.post("https://api.insertaffiliate.com/v1/trackEvent", {
-        eventName,
-        deepLinkParam: `${referrerLink}/${userId}`,
-      });
-      console.log("[Insert Affiliate] Event tracked successfully");
-    } catch (error) {
-      if (error instanceof Error) {
-        console.log("[Insert Affiliate] Failed to track event: ", error.message);
-        errorLog(`[Insert Affiliate] Failed to track event: ${error.message}`, "error");
-      } else {
-        console.log("[Insert Affiliate] Failed to track event: An unknown error occurred");
-        errorLog("[Insert Affiliate] Failed to track event: An unknown error occurred", "error");
-      }
-    }
-  };
+  //   try {
+  //     await axios.post("https://api.insertaffiliate.com/v1/trackEvent", {
+  //       eventName,
+  //       deepLinkParam: `${referrerLink}/${userId}`,
+  //     });
+  //     console.log("[Insert Affiliate] Event tracked successfully");
+  //   } catch (error) {
+  //     if (error instanceof Error) {
+  //       console.log("[Insert Affiliate] Failed to track event: ", error.message);
+  //       errorLog(`[Insert Affiliate] Failed to track event: ${error.message}`, "error");
+  //     } else {
+  //       console.log("[Insert Affiliate] Failed to track event: An unknown error occurred");
+  //       errorLog("[Insert Affiliate] Failed to track event: An unknown error occurred", "error");
+  //     }
+  //   }
+  // };
   
 
   /**
@@ -383,7 +383,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         referrerLink,
         userId,
         handleBuySubscription,
-        trackEvent,
+        // trackEvent,
       }}
     >
       {children}
