@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
-    "target": "ES6",
+    "outDir": "./dist",
     "module": "commonjs",
-    "outDir": "dist",
+    "target": "es6",
+    "moduleResolution": "node",
+    "lib": ["dom", "es6", "ES2017"],
+    "jsx": "react",
     "declaration": true,
-    "declarationDir": "dist",
-    "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
-    "jsx": "react-native",
-    "lib": ["esnext", "dom"]
+    "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }

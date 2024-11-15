@@ -230,7 +230,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           url: `https://validator.iaptic.com/v1/validate`,
           method: "POST",
           headers: {
-            Authorization: `Basic ${btoa(iapticAppName + ":" + iapticAppSecret)}`,
+            Authorization: `Basic ${btoa(
+              iapticAppName + ":" + iapticAppSecret
+            )}`,
           },
           data: {
             id: iapticAppId,
@@ -248,7 +250,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           url: `https://validator.iaptic.com/v1/validate`,
           method: "POST",
           headers: {
-            Authorization: `Basic ${btoa(iapticAppName + ":" + iapticAppSecret)}`,
+            Authorization: `Basic ${btoa(
+              iapticAppName + ":" + iapticAppSecret
+            )}`,
           },
           data: {
             id: iapticAppId,
