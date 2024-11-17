@@ -52,7 +52,7 @@ const App = () => {
       iapSkus={IAP_SKUS}
       iapticAppId="{{ your_iaptic_app_id }}"
       iapticAppName="{{ your_iaptic_app_name }}"
-      iapticAppPublicKey="{{ your_iaptic_public_key }}">
+      iapticPublicKey="{{ your_iaptic_public_key }}">
       <Child />
     </DeepLinkIapProvider>
   );
@@ -114,7 +114,7 @@ const App = () => {
       iapSkus={IAP_SKUS}
       iapticAppId="your_iaptic_app_id"
       iapticAppName="your_iaptic_app_name"
-      iapticAppPublicKey="your_iaptic_public_key">
+      iapticPublicKey="your_iaptic_public_key">
       <Child />
     </DeepLinkIapProvider>
   );
