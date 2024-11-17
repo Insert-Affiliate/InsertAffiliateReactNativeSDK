@@ -112,9 +112,9 @@ const App = () => {
     // Wrapped application code from the previous step...
     <DeepLinkIapProvider
       iapSkus={IAP_SKUS}
-      iapticAppId="IAPTIC_APP_BUNDLE_IDENTIFIER"
-      iapticAppName="IAPTIC_APP_NAME"
-      iapticAppPublicKey="IAPTIC_APP_SECRET_KEY">
+      iapticAppId="your_iaptic_app_id"
+      iapticAppName="your_iaptic_app_name"
+      iapticAppPublicKey="your_iaptic_public_key">
       <Child />
     </DeepLinkIapProvider>
   );
