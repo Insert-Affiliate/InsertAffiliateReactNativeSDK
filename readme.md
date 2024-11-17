@@ -41,7 +41,7 @@ import { DeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
 - Replace `{{ your_iaptic_app_id }}` with your **Iaptic App ID**. You can find this [here](https://www.iaptic.com/account).
 - Replace `{{ your_iaptic_app_name }}` with your **Iaptic App Name**. You can find this [here](https://www.iaptic.com/account).
-- Replace `{{ your_iaptic_secret_key }}` with your **Iaptic Secret Key**. You can find this [here](https://www.iaptic.com/settings).
+- Replace `{{ your_iaptic_public_key }}` with your **Iaptic Public Key**. You can find this [here](https://www.iaptic.com/settings).
 
 Here's the code with placeholders for you to swap out:
 
@@ -52,7 +52,7 @@ const App = () => {
       iapSkus={IAP_SKUS}
       iapticAppId="{{ your_iaptic_app_id }}"
       iapticAppName="{{ your_iaptic_app_name }}"
-      iapticAppSecret="{{ your_iaptic_app_id }}">
+      iapticAppPublicKey="{{ your_iaptic_public_key }}">
       <Child />
     </DeepLinkIapProvider>
   );
@@ -114,7 +114,7 @@ const App = () => {
       iapSkus={IAP_SKUS}
       iapticAppId="IAPTIC_APP_BUNDLE_IDENTIFIER"
       iapticAppName="IAPTIC_APP_NAME"
-      iapticAppSecret="IAPTIC_APP_SECRET_KEY">
+      iapticAppPublicKey="IAPTIC_APP_SECRET_KEY">
       <Child />
     </DeepLinkIapProvider>
   );

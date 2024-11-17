@@ -18,7 +18,7 @@ type T_DEEPLINK_IAP_PROVIDER = {
   iapSkus: string[];
   iapticAppId: string;
   iapticAppName: string;
-  iapticAppSecret: string;
+  iapticAppPublicKey: string;
 };
 
 type T_DEEPLINK_IAP_CONTEXT = {
@@ -55,7 +55,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   iapSkus,
   iapticAppId,
   iapticAppName,
-  iapticAppSecret,
+  iapticAppPublicKey,
 }) => {
   // LOCAL STATES
   const [iapLoading, setIapLoading] = useState<boolean>(false);
@@ -231,7 +231,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           method: "POST",
           headers: {
             Authorization: `Basic ${btoa(
-              iapticAppName + ":" + iapticAppSecret
+              iapticAppName + ":" + iapticAppPublicKey
             )}`,
           },
           data: {
@@ -251,7 +251,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           method: "POST",
           headers: {
             Authorization: `Basic ${btoa(
-              iapticAppName + ":" + iapticAppSecret
+              iapticAppName + ":" + iapticAppPublicKey
             )}`,
           },
           data: {
