@@ -9,6 +9,7 @@ import {
 } from "react-native-iap";
 import { isPlay } from "react-native-iap/src/internal";
 import branch from "react-native-branch";
+import { Platform } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -30,6 +31,22 @@ type T_DEEPLINK_IAP_CONTEXT = {
   userId: string;
   isIapticValidated: boolean | undefined;
   handleBuySubscription: (productId: string, offerToken?: string) => void;
+};
+
+type RequestBody = {
+  id: string;
+  type: string;
+  transaction?: {
+    id: string;
+    type: string;
+    appStoreReceipt?: string; // iOS-specific
+    purchaseToken?: string; // Android-specific
+    receipt?: string; // Android-specific
+    signature?: string; // Android-specific
+  };
+  additionalData?: {
+    applicationUsername: string;
+  };
 };
 
 const ASYNC_KEYS = {
@@ -221,55 +238,66 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   const handlePurchaseValidation = async (jsonIapPurchase: Purchase) => {
     try {
-      if (!userId || !referrerLink) {
-        errorLog(
-          `WANR ~ handlePurchaseValidation: No Referrer Link or User ID for validation`
-        );
-
-        await axios({
-          url: `https://validator.iaptic.com/v1/validate`,
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${btoa(
-              iapticAppName + ":" + iapticPublicKey
-            )}`,
-          },
-          data: {
-            id: iapticAppId,
-            type: "application",
-            transaction: {
-              id: iapticAppId,
-              type: "ios-appstore",
-              appStoreReceipt: jsonIapPurchase.transactionReceipt,
-            },
-          },
-        });
+      const baseRequestBody: RequestBody = {
+        id: iapticAppId,
+        type: "application",
+      };
+  
+      let transaction;
+  
+      if (Platform.OS === "ios") {
+        transaction = {
+          id: iapticAppId,
+          type: "ios-appstore",
+          appStoreReceipt: jsonIapPurchase.transactionReceipt,
+        };
+      } else {
+        const receiptJson = JSON.parse(atob(jsonIapPurchase.transactionReceipt || ""));
+        transaction = {
+          id: receiptJson.orderId, // Extracted orderId
+          type: "android-playstore",
+          purchaseToken: receiptJson.purchaseToken, // Extracted purchase token
+          receipt: jsonIapPurchase.transactionReceipt, // Full receipt (Base64)
+          signature: receiptJson.signature, // Receipt signature
+        };
+      }
+  
+      const requestBody = {
+        ...baseRequestBody,
+        transaction,
+      };
+  
+      if (userId && referrerLink) {
+        requestBody.additionalData = {
+          applicationUsername: `${referrerLink}/${userId}`,
+        };
+      }
+  
+      // Send validation request to server
+      const response = await axios({
+        url: `https://validator.iaptic.com/v1/validate`,
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${btoa(`${iapticAppName}:${iapticPublicKey}`)}`,
+          "Content-Type": "application/json",
+        },
+        data: requestBody,
+      });
+  
+      if (response.status === 200) {
+        console.log("Validation successful:", response.data);
         setIapticValidated(true);
       } else {
-        await axios({
-          url: `https://validator.iaptic.com/v1/validate`,
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${btoa(
-              iapticAppName + ":" + iapticPublicKey
-            )}`,
-          },
-          data: {
-            id: iapticAppId,
-            type: "application",
-            transaction: {
-              id: iapticAppId,
-              type: "ios-appstore",
-              appStoreReceipt: jsonIapPurchase.transactionReceipt,
-            },
-            additionalData: {
-              applicationUsername: `${referrerLink}/${userId}`,
-            },
-          },
-        });
+        console.error("Validation failed:", response.data);
+        setIapticValidated(false);
       }
     } catch (error) {
-      errorLog(`handlePurchaseValidation: ${error}`, "error");
+      if (error instanceof Error) {
+        console.error(`handlePurchaseValidation Error: ${error.message}`);
+      } else {
+        console.error(`handlePurchaseValidation Unknown Error: ${JSON.stringify(error)}`);
+      }
+
       setIapticValidated(false);
     }
   };
