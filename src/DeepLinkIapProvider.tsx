@@ -31,6 +31,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   userId: string;
   isIapticValidated: boolean | undefined;
   handleBuySubscription: (productId: string, offerToken?: string) => void;
+  trackEvent: (eventName: string) => Promise<void>;
 };
 
 type RequestBody = {
@@ -65,6 +66,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   referrerLink: "",
   userId: "",
   handleBuySubscription: (productId: string, offerToken?: string) => {},
+  trackEvent: async (eventName: string) => {},
 });
 
 const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
@@ -372,6 +374,40 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
+  const trackEvent = async (eventName: string): Promise<void> => {
+    try {
+      if (!referrerLink || !userId) {
+        console.warn(
+          "[Insert Affiliate] No affiliate identifier found. Please set one before tracking events."
+        );
+        return;
+      }
+
+      const payload = {
+        eventName,
+        deepLinkParam: `${referrerLink}/${userId}`, // Similar to Swift SDK
+      };
+
+      const response = await axios.post(
+        "https://api.insertaffiliate.com/v1/trackEvent",
+        payload,
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      if (response.status === 200) {
+        console.log("[Insert Affiliate] Event tracked successfully");
+      } else {
+        console.error(
+          `[Insert Affiliate] Failed to track event with status code: ${response.status}`
+        );
+      }
+    } catch (error) {
+      console.error("[Insert Affiliate] Error tracking event:", error);
+    }
+  };
+
   useEffect(() => {
     return () => {
       endConnection();
@@ -389,6 +425,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         referrerLink,
         userId,
         handleBuySubscription,
+        trackEvent,
       }}
     >
       {children}
