@@ -122,3 +122,45 @@ const App = () => {
 export default App;
 ```
 
+
+## Event Tracking (Beta)
+
+The **InsertAffiliateReactNative SDK** now includes a beta feature for event tracking. You can use this feature to track specific user actions within your app. However, please note that this feature is currently in beta, and while we aim to secure its functionality, we cannot guarantee that it is fully resistant to tampering or manipulation at this stage.
+
+### Using `trackEvent`
+
+To track an event, then use the `trackEvent` function. Make sure to open an Affiliate's deep link before tracking the event; otherwise, event tracking won’t work. Here’s an example:
+
+```javascript
+const {
+  referrerLink,
+  subscriptions,
+  iapLoading,
+  handleBuySubscription,
+  userId,
+  userPurchase,
+  isIapticValidated,
+  trackEvent, // Required for trackEvent
+} = useDeepLinkIapProvider();
+
+<Button
+  title={'track event'}
+  onPress={() => {
+    trackEvent('event_name')
+      .then(() => console.log('Event tracked successfully!'))
+  }}
+/>
+```
+
+### Example Usage
+Set the Affiliate Identifier (required for tracking):
+
+```swift
+InsertAffiliateSwift.setInsertAffiliateIdentifier(referringLink: "your_affiliate_link")
+```
+
+#### Track an Event:
+
+```swift
+InsertAffiliateSwift.trackEvent(eventName: "user_signup")
+```

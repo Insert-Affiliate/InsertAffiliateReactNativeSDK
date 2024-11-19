@@ -380,7 +380,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         console.warn(
           "[Insert Affiliate] No affiliate identifier found. Please set one before tracking events."
         );
-        return;
+        return Promise.resolve();
       }
 
       const payload = {
@@ -405,6 +405,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
     } catch (error) {
       console.error("[Insert Affiliate] Error tracking event:", error);
+      return Promise.reject(error);
     }
   };
 
