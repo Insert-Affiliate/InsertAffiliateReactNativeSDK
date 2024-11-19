@@ -151,16 +151,3 @@ const {
   }}
 />
 ```
-
-### Example Usage
-Set the Affiliate Identifier (required for tracking):
-
-```swift
-InsertAffiliateSwift.setInsertAffiliateIdentifier(referringLink: "your_affiliate_link")
-```
-
-#### Track an Event:
-
-```swift
-InsertAffiliateSwift.trackEvent(eventName: "user_signup")
-```
