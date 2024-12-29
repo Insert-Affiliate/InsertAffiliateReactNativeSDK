@@ -23,7 +23,6 @@ node_modules/
 .pnp.js
 
 # Output directories
-dist/
 build/
 coverage/
 out/

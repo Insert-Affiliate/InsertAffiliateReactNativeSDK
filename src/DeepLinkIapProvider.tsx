@@ -160,6 +160,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   //   BRANCH IMPLEMENTATION
   useEffect(() => {
+    console.log("Insert Affiliate - using local version!!")
     const branchSubscription = branch.subscribe(async ({ error, params }) => {
       if (error) {
         errorLog(`branchSubscription: ${JSON.stringify(error)}`, "error");
@@ -271,7 +272,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   
       if (userId && referrerLink) {
         requestBody.additionalData = {
-          applicationUsername: `${referrerLink}/${userId}`,
+          applicationUsername: `${referrerLink}-${userId}`,
         };
       }
   
