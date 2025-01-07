@@ -8,7 +8,6 @@ import {
   withIAPContext,
 } from "react-native-iap";
 import { isPlay } from "react-native-iap/src/internal";
-import branch from "react-native-branch";
 import { Platform } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -32,6 +31,11 @@ type T_DEEPLINK_IAP_CONTEXT = {
   isIapticValidated: boolean | undefined;
   handleBuySubscription: (productId: string, offerToken?: string) => void;
   trackEvent: (eventName: string) => Promise<void>;
+  setInsertAffiliateIdentifier: (
+    referringLink: string,
+    completion: (shortLink: string | null) => void
+  ) => Promise<void>;
+  initialize: (code: string | null) => Promise<void>;
 };
 
 type RequestBody = {
@@ -67,6 +71,11 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   userId: "",
   handleBuySubscription: (productId: string, offerToken?: string) => {},
   trackEvent: async (eventName: string) => {},
+  setInsertAffiliateIdentifier: async (
+    referringLink: string,
+    completion: (shortLink: string | null) => void
+  ) => {},
+  initialize: async (code: string | null) => {},
 });
 
 const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
@@ -85,6 +94,31 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const [userPurchase, setUserPurchase] = useState<Purchase | null>(null);
   const [referrerLink, setReferrerLink] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
+
+  const [companyCode, setCompanyCode] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+
+  const initialize = async (code: string | null): Promise<void> => {
+    if (isInitialized) {
+      console.error("[Insert Affiliate] SDK is already initialized.");
+      return;
+    }
+  
+    if (code && code.trim() !== "") {
+      setCompanyCode(code);
+      setIsInitialized(true);
+      console.log(`[Insert Affiliate] SDK initialized with company code: ${code}`);
+    } else {
+      console.warn("[Insert Affiliate] SDK initialized without a company code.");
+      setIsInitialized(true);
+    }
+  };  
+
+  const reset = (): void => {
+    setCompanyCode(null);
+    setIsInitialized(false);
+    console.log("[Insert Affiliate] SDK has been reset.");
+  };
 
   const {
     connected,
@@ -157,43 +191,121 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
     return uniqueId;
   };
+  
+  // Helper function to determine if a link is a short code
+  const isShortCode = (referringLink: string): boolean => {
+    // Example check: short codes are less than 10 characters
+    return referringLink.length < 10;
+  };
+
+  const setInsertAffiliateIdentifier = async (
+    referringLink: string,
+    completion: (shortLink: string | null) => void
+  ) => {
+    try {
+      let userId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
+      if (!userId) {
+        userId = generateUserID();
+        await saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
+        setUserId(userId);
+      }
+
+      if (!referringLink) {
+        console.warn("[Insert Affiliate] Referring link is invalid.");
+        await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+        completion(null);
+        return;
+      }
+      
+      if (!isInitialized || !companyCode) {
+        console.error("[Insert Affiliate] SDK is not initialized. Please initialize the SDK with a valid company code.");
+        completion(null);
+        return;
+      }
+      
+      if (!companyCode || companyCode.trim() === "") {
+        console.error(
+          "[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code."
+        );
+        completion(null);
+        return;
+      }
+  
+      // Check if referring link is already a short code, if so save it and stop here.
+      if (isShortCode(referringLink)) {
+        console.log("[Insert Affiliate] Referring link is already a short code.");
+        await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+        completion(referringLink);
+        return;
+      }
+  
+      // If the code is not already a short code, encode it raedy to send to our endpoint to return the short code. Save it before making the call in case something goes wrong
+      // Encode the referring link
+      const encodedAffiliateLink = encodeURIComponent(referringLink);
+      if (!encodedAffiliateLink) {
+        console.error("[Insert Affiliate] Failed to encode affiliate link.");
+        await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+        completion(null);
+        return;
+      }
+  
+      // Create the request URL
+      const urlString = `http://192.168.1.154:3001/V1/convert-deep-link-to-short-link?companyId=${companyCode}&deepLinkUrl=${encodedAffiliateLink}`;
+      const response = await axios.get(urlString, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+  
+      // Call to the backend for the short code and save the resolse in valid
+      if (response.status === 200 && response.data.shortLink) {
+        const shortLink = response.data.shortLink;
+        console.log("[Insert Affiliate] Short link received:", shortLink);
+        await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, shortLink);
+        setReferrerLink(shortLink);
+        completion(shortLink);
+      } else {
+        console.warn("[Insert Affiliate] Unexpected response format.");
+        await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+        completion(null);
+      }
+    } catch (error) {
+      console.error("[Insert Affiliate] Error:", error);
+      completion(null);
+    }
+  };
 
   //   BRANCH IMPLEMENTATION
-  useEffect(() => {
-    console.log("Insert Affiliate - using local version!!")
-    const branchSubscription = branch.subscribe(async ({ error, params }) => {
-      if (error) {
-        errorLog(`branchSubscription: ${JSON.stringify(error)}`, "error");
-        return;
-      } else if (!params) {
-        errorLog(`branchSubscription: params does not exits`, "warn");
-        return;
-      } else if (!params["+clicked_branch_link"]) {
-        errorLog(`branchSubscription: Not a branch link`, "warn");
-        return;
-      } else {
-        if (params["~referring_link"]) {
-          setReferrerLink(params["~referring_link"]);
-          const userId = generateUserID();
-          setUserId(userId);
-          await saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
-          await saveValueInAsync(
-            ASYNC_KEYS.REFERRER_LINK,
-            params["~referring_link"]
-          );
-        } else
-          errorLog(
-            `branchSubscription: Params does't have referring_link`,
-            "warn"
-          );
-      }
-    });
-    return () => {
-      if (branchSubscription) {
-        branchSubscription();
-      }
-    };
-  }, []);
+  // useEffect(() => {
+  //   console.log("Insert Affiliate - using local version!!")
+  //   const branchSubscription = branch.subscribe(async ({ error, params }) => {
+  //     if (error) {
+  //       errorLog(`branchSubscription: ${JSON.stringify(error)}`, "error");
+  //       return;
+  //     } else if (!params) {
+  //       errorLog(`branchSubscription: params does not exits`, "warn");
+  //       return;
+  //     } else if (!params["+clicked_branch_link"]) {
+  //       errorLog(`branchSubscription: Not a branch link`, "warn");
+  //       return;
+  //     } else {
+  //       if (params["~referring_link"]) {
+  //         setInsertAffiliateIdentifier(params["~referring_link"], (shortLink) => {
+  //           console.log("Insert Affiliate - setInsertAffiliateIdentifier: ", params["~referring_link"], " - Stored shortLink ", shortLink);
+  //         });
+  //       } else
+  //         errorLog(
+  //           `branchSubscription: Params does't have referring_link`,
+  //           "warn"
+  //         );
+  //     }
+  //   });
+  //   return () => {
+  //     if (branchSubscription) {
+  //       branchSubscription();
+  //     }
+  //   };
+  // }, []);
 
   //   IN APP PURCHASE IMPLEMENTATION STARTS
 
@@ -428,6 +540,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         userId,
         handleBuySubscription,
         trackEvent,
+        setInsertAffiliateIdentifier,
+        initialize,
       }}
     >
       {children}

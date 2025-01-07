@@ -12,6 +12,7 @@ const useDeepLinkIapProvider = () => {
     userId,
     userPurchase,
     trackEvent,
+    initialize
   } = useContext(DeepLinkIapContext);
 
   return {
@@ -23,7 +24,8 @@ const useDeepLinkIapProvider = () => {
     userId,
     isIapticValidated,
     userPurchase,
-    trackEvent
+    trackEvent,
+    initialize
   };
 };
 
