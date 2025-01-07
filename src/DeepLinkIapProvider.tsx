@@ -36,6 +36,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
     completion: (shortLink: string | null) => void
   ) => Promise<void>;
   initialize: (code: string | null) => Promise<void>;
+  isInitialized: boolean;
 };
 
 type RequestBody = {
@@ -76,6 +77,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
     completion: (shortLink: string | null) => void
   ) => {},
   initialize: async (code: string | null) => {},
+  isInitialized: false
 });
 
 const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
@@ -542,6 +544,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         trackEvent,
         setInsertAffiliateIdentifier,
         initialize,
+        isInitialized
       }}
     >
       {children}

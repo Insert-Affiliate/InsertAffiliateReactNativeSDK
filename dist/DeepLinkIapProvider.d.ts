@@ -19,6 +19,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
     trackEvent: (eventName: string) => Promise<void>;
     setInsertAffiliateIdentifier: (referringLink: string, completion: (shortLink: string | null) => void) => Promise<void>;
     initialize: (code: string | null) => Promise<void>;
+    isInitialized: boolean;
 };
 export declare const DeepLinkIapContext: React.Context<T_DEEPLINK_IAP_CONTEXT>;
 declare const _default: (props: T_DEEPLINK_IAP_PROVIDER) => React.JSX.Element;

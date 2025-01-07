@@ -60,6 +60,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     trackEvent: (eventName) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifier: (referringLink, completion) => __awaiter(void 0, void 0, void 0, function* () { }),
     initialize: (code) => __awaiter(void 0, void 0, void 0, function* () { }),
+    isInitialized: false
 });
 const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, iapticPublicKey, }) => {
     // LOCAL STATES
@@ -442,6 +443,7 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
             trackEvent,
             setInsertAffiliateIdentifier,
             initialize,
+            isInitialized
         } }, children));
 };
 exports.default = (0, react_native_iap_1.withIAPContext)(DeepLinkIapProvider);
