@@ -60,11 +60,12 @@ const Child = () => {
     isIapticValidated,
     trackEvent,
     initialize,
+    isInitialized,
   } = useDeepLinkIapProvider();
 
   useEffect(() => {
     initialize("{{ your-company-code }}");
-  }, [initialize]);
+  }, [initialize, isInitialized]);
   
   // ...
   
