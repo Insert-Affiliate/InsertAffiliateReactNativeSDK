@@ -192,7 +192,7 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
                 return;
             }
             // Create the request URL
-            const urlString = `http://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${companyCode}&deepLinkUrl=${encodedAffiliateLink}`;
+            const urlString = `http://192.168.1.154:3001/V1/convert-deep-link-to-short-link?companyId=${companyCode}&deepLinkUrl=${encodedAffiliateLink}`;
             const response = yield axios_1.default.get(urlString, {
                 headers: {
                     "Content-Type": "application/json",
