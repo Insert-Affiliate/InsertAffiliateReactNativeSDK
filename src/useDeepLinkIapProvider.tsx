@@ -3,14 +3,14 @@ import { DeepLinkIapContext } from "./DeepLinkIapProvider";
 
 const useDeepLinkIapProvider = () => {
   const {
-    alreadyPurchased,
-    handleBuySubscription,
-    iapLoading,
+    // alreadyPurchased,
+    // handleBuySubscription,
+    // iapLoading,
     referrerLink,
     isIapticValidated,
-    subscriptions,
+    // subscriptions,
     userId,
-    userPurchase,
+    // userPurchase,
     trackEvent,
     setInsertAffiliateIdentifier,
     initialize,
@@ -18,14 +18,14 @@ const useDeepLinkIapProvider = () => {
   } = useContext(DeepLinkIapContext);
 
   return {
-    alreadyPurchased,
-    handleBuySubscription,
-    iapLoading,
+    // alreadyPurchased,
+    // handleBuySubscription,
+    // iapLoading,
     referrerLink,
-    subscriptions,
+    // subscriptions,
     userId,
     isIapticValidated,
-    userPurchase,
+    // userPurchase,
     trackEvent,
     setInsertAffiliateIdentifier,
     initialize,
