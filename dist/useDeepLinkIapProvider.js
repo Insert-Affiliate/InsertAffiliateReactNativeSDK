@@ -11,7 +11,7 @@ const useDeepLinkIapProvider = () => {
     // subscriptions,
     userId, 
     // userPurchase,
-    trackEvent, setInsertAffiliateIdentifier, initialize, isInitialized } = (0, react_1.useContext)(DeepLinkIapProvider_1.DeepLinkIapContext);
+    handlePurchaseValidation, trackEvent, setInsertAffiliateIdentifier, initialize, isInitialized } = (0, react_1.useContext)(DeepLinkIapProvider_1.DeepLinkIapContext);
     return {
         // alreadyPurchased,
         // handleBuySubscription,
@@ -19,6 +19,7 @@ const useDeepLinkIapProvider = () => {
         referrerLink,
         // subscriptions,
         userId,
+        handlePurchaseValidation,
         isIapticValidated,
         // userPurchase,
         trackEvent,
