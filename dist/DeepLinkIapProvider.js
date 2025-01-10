@@ -47,28 +47,15 @@ const ASYNC_KEYS = {
 };
 // STARTING CONTEXT IMPLEMENTATION
 exports.DeepLinkIapContext = (0, react_1.createContext)({
-    // iapLoading: false,
-    // alreadyPurchased: false,
-    // isIapticValidated: undefined,
-    // subscriptions: [],
-    // userPurchase: null,
     referrerLink: "",
     userId: "",
-    // handleBuySubscription: (productId: string, offerToken?: string) => {},
     handlePurchaseValidation: (jsonIapPurchase) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     trackEvent: (eventName) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifier: (referringLink, completion) => __awaiter(void 0, void 0, void 0, function* () { }),
     initialize: (code) => __awaiter(void 0, void 0, void 0, function* () { }),
     isInitialized: false
 });
-const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, iapticPublicKey, }) => {
-    // LOCAL STATES
-    // const [iapLoading, setIapLoading] = useState<boolean>(false);
-    // const [alreadyPurchased, setAlreadyPurchased] = useState<boolean>(false);
-    // const [isIapticValidated, setIapticValidated] = useState<boolean | undefined>(
-    //   undefined
-    // );
-    // const [userPurchase, setUserPurchase] = useState<Purchase | null>(null);
+const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPublicKey, }) => {
     const [referrerLink, setReferrerLink] = (0, react_1.useState)("");
     const [userId, setUserId] = (0, react_1.useState)("");
     const [companyCode, setCompanyCode] = (0, react_1.useState)(null);
@@ -93,16 +80,6 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
         setIsInitialized(false);
         console.log("[Insert Affiliate] SDK has been reset.");
     };
-    // const {
-    //   connected,
-    //   purchaseHistory,
-    //   getPurchaseHistory,
-    //   getSubscriptions,
-    //   subscriptions,
-    //   finishTransaction,
-    //   currentPurchase,
-    //   currentPurchaseError,
-    // } = useIAP();
     // ASYNC FUNCTIONS
     const saveValueInAsync = (key, value) => __awaiter(void 0, void 0, void 0, function* () {
         yield async_storage_1.default.setItem(key, value);
@@ -227,45 +204,6 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
             completion(null);
         }
     });
-    //   IN APP PURCHASE IMPLEMENTATION STARTS
-    /**
-     * This function is responsisble to
-     * fetch the subscriptions
-     */
-    // const handleGetSubscriptions = async () => {
-    //   try {
-    //     await getSubscriptions({ skus: iapSkus });
-    //   } catch (error) {
-    //     errorLog(`handleGetSubscriptions: ${error}`, "error");
-    //   }
-    // };
-    /**
-     * This function is responsible to
-     * fetch the purchase history
-     */
-    // const handleGetPurchaseHistory = async () => {
-    //   try {
-    //     await getPurchaseHistory();
-    //     if (purchaseHistory.length > 0) {
-    //       setAlreadyPurchased(true);
-    //       setUserPurchase(currentPurchase ? currentPurchase : null);
-    //     }
-    //   } catch (error) {
-    //     errorLog(`handleGetPurchaseHistory: ${error}`, "error");
-    //   }
-    // };
-    //   Effect to fetch IAP subscriptions + purchase history
-    // useEffect(() => {
-    //   const fetchIapEssentials = async () => {
-    //     try {
-    //       await handleGetSubscriptions();
-    //       await handleGetPurchaseHistory();
-    //     } catch (error) {
-    //       errorLog(`fetchIapEssentials: ${error}`);
-    //     }
-    //   };
-    //   if (connected) fetchIapEssentials();
-    // }, [connected]);
     const handlePurchaseValidation = (jsonIapPurchase) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             const baseRequestBody = {
@@ -308,13 +246,11 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
             });
             if (response.status === 200) {
                 console.log("Validation successful:", response.data);
-                // setIapticValidated(true);
-                return true; // Indicate successful validation
+                return true;
             }
             else {
                 console.error("Validation failed:", response.data);
-                // setIapticValidated(false);
-                return false; // Indicate successful validation
+                return false;
             }
         }
         catch (error) {
@@ -324,73 +260,9 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
             else {
                 console.error(`handlePurchaseValidation Unknown Error: ${JSON.stringify(error)}`);
             }
-            // setIapticValidated(false);
             return false;
         }
     });
-    // useEffect(() => {
-    //   const checkCurrentPurchase = async () => {
-    //     try {
-    //       if (currentPurchase?.productId) {
-    //         setUserPurchase(currentPurchase);
-    //         await handlePurchaseValidation(currentPurchase);
-    //         await finishTransaction({
-    //           purchase: currentPurchase,
-    //           isConsumable: true,
-    //         });
-    //         await saveValueInAsync(
-    //           ASYNC_KEYS.USER_PURCHASE,
-    //           JSON.stringify(currentPurchase)
-    //         );
-    //         setIapLoading(false);
-    //       }
-    //     } catch (error) {
-    //       setIapLoading(false);
-    //       errorLog(`checkCurrentPurchase: ${error}`, "error");
-    //     }
-    //   };
-    //   checkCurrentPurchase();
-    // }, [currentPurchase, finishTransaction]);
-    // useEffect(() => {
-    //   const checkCurrentPurchaseError = async () => {
-    //     if (currentPurchaseError) {
-    //       setIapLoading(false);
-    //       errorLog(
-    //         `checkCurrentPurchaseError: ${currentPurchaseError.message}`,
-    //         "error"
-    //       );
-    //     }
-    //   };
-    //   checkCurrentPurchaseError();
-    // }, [currentPurchaseError]);
-    /**
-     * Function is responsible to
-     * buy a subscription
-     * @param {string} productId
-     * @param {string} [offerToken]
-     */
-    // const handleBuySubscription = async (
-    //   productId: string,
-    //   offerToken?: string
-    // ) => {
-    //   if (isPlay && !offerToken) {
-    //     console.warn(
-    //       `There are no subscription Offers for selected product (Only requiered for Google Play purchases): ${productId}`
-    //     );
-    //   }
-    //   try {
-    //     setIapLoading(true);
-    //     await requestSubscription({
-    //       sku: productId,
-    //       ...(offerToken && {
-    //         subscriptionOffers: [{ sku: productId, offerToken }],
-    //       }),
-    //     });
-    //   } catch (error) {
-    //     setIapLoading(false);
-    //     errorLog(`handleBuySubscription: ${error}`, "error");
-    //   }
-    // };
     const trackEvent = (eventName) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             if (!referrerLink || !userId) {
@@ -399,7 +271,7 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
             }
             const payload = {
                 eventName,
-                deepLinkParam: `${referrerLink}/${userId}`, // Similar to Swift SDK
+                deepLinkParam: `${referrerLink}/${userId}`,
             };
             const response = yield axios_1.default.post("https://api.insertaffiliate.com/v1/trackEvent", payload, {
                 headers: { "Content-Type": "application/json" },
@@ -416,20 +288,9 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
             return Promise.reject(error);
         }
     });
-    // useEffect(() => {
-    //   return () => {
-    //     endConnection();
-    //   };
-    // }, []);
     return (react_1.default.createElement(exports.DeepLinkIapContext.Provider, { value: {
-            // iapLoading,
-            // alreadyPurchased,
-            // isIapticValidated,
-            // subscriptions,
-            // userPurchase,
             referrerLink,
             userId,
-            // handleBuySubscription,
             handlePurchaseValidation,
             trackEvent,
             setInsertAffiliateIdentifier,

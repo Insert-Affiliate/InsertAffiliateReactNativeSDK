@@ -1,13 +1,7 @@
 import React, { createContext, useEffect, useState } from "react";
 import {
   Purchase,
-  // Subscription,
-  // useIAP,
-  // requestSubscription,
-  // endConnection,
-  // withIAPContext,
 } from "react-native-iap";
-import { isPlay } from "react-native-iap/src/internal";
 import { Platform } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -22,14 +16,8 @@ type T_DEEPLINK_IAP_PROVIDER = {
 };
 
 type T_DEEPLINK_IAP_CONTEXT = {
-  // iapLoading: boolean;
-  // alreadyPurchased: boolean;
-  // subscriptions: Subscription[];
-  // userPurchase: Purchase | null;
   referrerLink: string;
   userId: string;
-  // isIapticValidated: boolean | undefined;
-  // handleBuySubscription: (productId: string, offerToken?: string) => void;
   handlePurchaseValidation: (jsonIapPurchase: Purchase) => Promise<boolean>;
   trackEvent: (eventName: string) => Promise<void>;
   setInsertAffiliateIdentifier: (
@@ -64,14 +52,8 @@ const ASYNC_KEYS = {
 
 // STARTING CONTEXT IMPLEMENTATION
 export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
-  // iapLoading: false,
-  // alreadyPurchased: false,
-  // isIapticValidated: undefined,
-  // subscriptions: [],
-  // userPurchase: null,
   referrerLink: "",
   userId: "",
-  // handleBuySubscription: (productId: string, offerToken?: string) => {},
   handlePurchaseValidation: async (jsonIapPurchase: Purchase) => false,
   trackEvent: async (eventName: string) => {},
   setInsertAffiliateIdentifier: async (
@@ -84,21 +66,12 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
 
 const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   children,
-  iapSkus,
   iapticAppId,
   iapticAppName,
   iapticPublicKey,
 }) => {
-  // LOCAL STATES
-  // const [iapLoading, setIapLoading] = useState<boolean>(false);
-  // const [alreadyPurchased, setAlreadyPurchased] = useState<boolean>(false);
-  // const [isIapticValidated, setIapticValidated] = useState<boolean | undefined>(
-  //   undefined
-  // );
-  // const [userPurchase, setUserPurchase] = useState<Purchase | null>(null);
   const [referrerLink, setReferrerLink] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
-
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
@@ -123,17 +96,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     setIsInitialized(false);
     console.log("[Insert Affiliate] SDK has been reset.");
   };
-
-  // const {
-  //   connected,
-  //   purchaseHistory,
-  //   getPurchaseHistory,
-  //   getSubscriptions,
-  //   subscriptions,
-  //   finishTransaction,
-  //   currentPurchase,
-  //   currentPurchaseError,
-  // } = useIAP();
 
   // ASYNC FUNCTIONS
   const saveValueInAsync = async (key: string, value: string) => {
@@ -279,50 +241,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
-  //   IN APP PURCHASE IMPLEMENTATION STARTS
-
-  /**
-   * This function is responsisble to
-   * fetch the subscriptions
-   */
-  // const handleGetSubscriptions = async () => {
-  //   try {
-  //     await getSubscriptions({ skus: iapSkus });
-  //   } catch (error) {
-  //     errorLog(`handleGetSubscriptions: ${error}`, "error");
-  //   }
-  // };
-
-  /**
-   * This function is responsible to
-   * fetch the purchase history
-   */
-  // const handleGetPurchaseHistory = async () => {
-  //   try {
-  //     await getPurchaseHistory();
-  //     if (purchaseHistory.length > 0) {
-  //       setAlreadyPurchased(true);
-  //       setUserPurchase(currentPurchase ? currentPurchase : null);
-  //     }
-  //   } catch (error) {
-  //     errorLog(`handleGetPurchaseHistory: ${error}`, "error");
-  //   }
-  // };
-
-  //   Effect to fetch IAP subscriptions + purchase history
-  // useEffect(() => {
-  //   const fetchIapEssentials = async () => {
-  //     try {
-  //       await handleGetSubscriptions();
-  //       await handleGetPurchaseHistory();
-  //     } catch (error) {
-  //       errorLog(`fetchIapEssentials: ${error}`);
-  //     }
-  //   };
-
-  //   if (connected) fetchIapEssentials();
-  // }, [connected]);
-
   const handlePurchaseValidation = async (jsonIapPurchase: Purchase): Promise<boolean> => {
     try {
       const baseRequestBody: RequestBody = {
@@ -331,7 +249,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       };
   
       let transaction;
-  
+
       if (Platform.OS === "ios") {
         transaction = {
           id: iapticAppId,
@@ -348,7 +266,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           signature: receiptJson.signature, // Receipt signature
         };
       }
-  
+
       const requestBody = {
         ...baseRequestBody,
         transaction,
@@ -373,12 +291,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   
       if (response.status === 200) {
         console.log("Validation successful:", response.data);
-        // setIapticValidated(true);
-        return true; // Indicate successful validation
+        return true;
       } else {
         console.error("Validation failed:", response.data);
-        // setIapticValidated(false);
-        return false; // Indicate successful validation
+        return false;
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -387,80 +303,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         console.error(`handlePurchaseValidation Unknown Error: ${JSON.stringify(error)}`);
       }
 
-      // setIapticValidated(false);
       return false;
     }
   };
-
-  // useEffect(() => {
-  //   const checkCurrentPurchase = async () => {
-  //     try {
-  //       if (currentPurchase?.productId) {
-  //         setUserPurchase(currentPurchase);
-
-  //         await handlePurchaseValidation(currentPurchase);
-
-  //         await finishTransaction({
-  //           purchase: currentPurchase,
-  //           isConsumable: true,
-  //         });
-
-  //         await saveValueInAsync(
-  //           ASYNC_KEYS.USER_PURCHASE,
-  //           JSON.stringify(currentPurchase)
-  //         );
-  //         setIapLoading(false);
-  //       }
-  //     } catch (error) {
-  //       setIapLoading(false);
-  //       errorLog(`checkCurrentPurchase: ${error}`, "error");
-  //     }
-  //   };
-
-  //   checkCurrentPurchase();
-  // }, [currentPurchase, finishTransaction]);
-
-  // useEffect(() => {
-  //   const checkCurrentPurchaseError = async () => {
-  //     if (currentPurchaseError) {
-  //       setIapLoading(false);
-  //       errorLog(
-  //         `checkCurrentPurchaseError: ${currentPurchaseError.message}`,
-  //         "error"
-  //       );
-  //     }
-  //   };
-  //   checkCurrentPurchaseError();
-  // }, [currentPurchaseError]);
-
-  /**
-   * Function is responsible to
-   * buy a subscription
-   * @param {string} productId
-   * @param {string} [offerToken]
-   */
-  // const handleBuySubscription = async (
-  //   productId: string,
-  //   offerToken?: string
-  // ) => {
-  //   if (isPlay && !offerToken) {
-  //     console.warn(
-  //       `There are no subscription Offers for selected product (Only requiered for Google Play purchases): ${productId}`
-  //     );
-  //   }
-  //   try {
-  //     setIapLoading(true);
-  //     await requestSubscription({
-  //       sku: productId,
-  //       ...(offerToken && {
-  //         subscriptionOffers: [{ sku: productId, offerToken }],
-  //       }),
-  //     });
-  //   } catch (error) {
-  //     setIapLoading(false);
-  //     errorLog(`handleBuySubscription: ${error}`, "error");
-  //   }
-  // };
 
   const trackEvent = async (eventName: string): Promise<void> => {
     try {
@@ -473,7 +318,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       const payload = {
         eventName,
-        deepLinkParam: `${referrerLink}/${userId}`, // Similar to Swift SDK
+        deepLinkParam: `${referrerLink}/${userId}`,
       };
 
       const response = await axios.post(
@@ -497,23 +342,11 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
-  // useEffect(() => {
-  //   return () => {
-  //     endConnection();
-  //   };
-  // }, []);
-
   return (
     <DeepLinkIapContext.Provider
       value={{
-        // iapLoading,
-        // alreadyPurchased,
-        // isIapticValidated,
-        // subscriptions,
-        // userPurchase,
         referrerLink,
         userId,
-        // handleBuySubscription,
         handlePurchaseValidation,
         trackEvent,
         setInsertAffiliateIdentifier,
