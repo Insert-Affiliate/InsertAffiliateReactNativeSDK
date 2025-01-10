@@ -1,7 +1,4 @@
 import React, { createContext, useEffect, useState } from "react";
-import {
-  Purchase,
-} from "react-native-iap";
 import { Platform } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -15,10 +12,14 @@ type T_DEEPLINK_IAP_PROVIDER = {
   iapticPublicKey: string;
 };
 
+type CustomPurchase = {
+  [key: string]: any; // Accept any fields
+};
+
 type T_DEEPLINK_IAP_CONTEXT = {
   referrerLink: string;
   userId: string;
-  handlePurchaseValidation: (jsonIapPurchase: Purchase) => Promise<boolean>;
+  handlePurchaseValidation: (jsonIapPurchase: CustomPurchase) => Promise<boolean>;
   trackEvent: (eventName: string) => Promise<void>;
   setInsertAffiliateIdentifier: (
     referringLink: string,
@@ -54,7 +55,7 @@ const ASYNC_KEYS = {
 export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   referrerLink: "",
   userId: "",
-  handlePurchaseValidation: async (jsonIapPurchase: Purchase) => false,
+  handlePurchaseValidation: async (jsonIapPurchase: CustomPurchase) => false,
   trackEvent: async (eventName: string) => {},
   setInsertAffiliateIdentifier: async (
     referringLink: string,
@@ -241,7 +242,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
-  const handlePurchaseValidation = async (jsonIapPurchase: Purchase): Promise<boolean> => {
+  const handlePurchaseValidation = async (jsonIapPurchase: CustomPurchase): Promise<boolean> => {
     try {
       const baseRequestBody: RequestBody = {
         id: iapticAppId,

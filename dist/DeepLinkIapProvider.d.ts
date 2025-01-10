@@ -1,5 +1,4 @@
 import React from "react";
-import { Purchase } from "react-native-iap";
 type T_DEEPLINK_IAP_PROVIDER = {
     children: React.ReactNode;
     iapSkus: string[];
@@ -7,10 +6,13 @@ type T_DEEPLINK_IAP_PROVIDER = {
     iapticAppName: string;
     iapticPublicKey: string;
 };
+type CustomPurchase = {
+    [key: string]: any;
+};
 type T_DEEPLINK_IAP_CONTEXT = {
     referrerLink: string;
     userId: string;
-    handlePurchaseValidation: (jsonIapPurchase: Purchase) => Promise<boolean>;
+    handlePurchaseValidation: (jsonIapPurchase: CustomPurchase) => Promise<boolean>;
     trackEvent: (eventName: string) => Promise<void>;
     setInsertAffiliateIdentifier: (referringLink: string, completion: (shortLink: string | null) => void) => Promise<void>;
     initialize: (code: string | null) => Promise<void>;
