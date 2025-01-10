@@ -10,7 +10,6 @@ type T_DEEPLINK_IAP_PROVIDER = {
 type T_DEEPLINK_IAP_CONTEXT = {
     referrerLink: string;
     userId: string;
-    isIapticValidated: boolean | undefined;
     handlePurchaseValidation: (jsonIapPurchase: Purchase) => void;
     trackEvent: (eventName: string) => Promise<void>;
     setInsertAffiliateIdentifier: (referringLink: string, completion: (shortLink: string | null) => void) => Promise<void>;

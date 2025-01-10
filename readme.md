@@ -57,7 +57,6 @@ const Child = () => {
     handleBuySubscription,
     userId,
     userPurchase,
-    isIapticValidated,
     trackEvent,
     initialize,
     isInitialized,
@@ -114,7 +113,6 @@ const Child = () => {
     handleBuySubscription,
     userId,
     userPurchase,
-    isIapticValidated,
   } = useDeepLinkIapProvider();
 
   export const IAP_SKUS = Platform.select({
@@ -243,7 +241,6 @@ const {
   handleBuySubscription,
   userId,
   userPurchase,
-  isIapticValidated,
   trackEvent, // Required for trackEvent
 } = useDeepLinkIapProvider();
 

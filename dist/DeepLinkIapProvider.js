@@ -49,7 +49,7 @@ const ASYNC_KEYS = {
 exports.DeepLinkIapContext = (0, react_1.createContext)({
     // iapLoading: false,
     // alreadyPurchased: false,
-    isIapticValidated: undefined,
+    // isIapticValidated: undefined,
     // subscriptions: [],
     // userPurchase: null,
     referrerLink: "",
@@ -65,7 +65,9 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
     // LOCAL STATES
     // const [iapLoading, setIapLoading] = useState<boolean>(false);
     // const [alreadyPurchased, setAlreadyPurchased] = useState<boolean>(false);
-    const [isIapticValidated, setIapticValidated] = (0, react_1.useState)(undefined);
+    // const [isIapticValidated, setIapticValidated] = useState<boolean | undefined>(
+    //   undefined
+    // );
     // const [userPurchase, setUserPurchase] = useState<Purchase | null>(null);
     const [referrerLink, setReferrerLink] = (0, react_1.useState)("");
     const [userId, setUserId] = (0, react_1.useState)("");
@@ -306,11 +308,13 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
             });
             if (response.status === 200) {
                 console.log("Validation successful:", response.data);
-                setIapticValidated(true);
+                // setIapticValidated(true);
+                return true; // Indicate successful validation
             }
             else {
                 console.error("Validation failed:", response.data);
-                setIapticValidated(false);
+                // setIapticValidated(false);
+                return false; // Indicate successful validation
             }
         }
         catch (error) {
@@ -320,7 +324,8 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
             else {
                 console.error(`handlePurchaseValidation Unknown Error: ${JSON.stringify(error)}`);
             }
-            setIapticValidated(false);
+            // setIapticValidated(false);
+            return false;
         }
     });
     // useEffect(() => {
@@ -419,7 +424,7 @@ const DeepLinkIapProvider = ({ children, iapSkus, iapticAppId, iapticAppName, ia
     return (react_1.default.createElement(exports.DeepLinkIapContext.Provider, { value: {
             // iapLoading,
             // alreadyPurchased,
-            isIapticValidated,
+            // isIapticValidated,
             // subscriptions,
             // userPurchase,
             referrerLink,

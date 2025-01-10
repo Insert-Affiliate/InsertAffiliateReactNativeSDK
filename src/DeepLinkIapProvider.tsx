@@ -28,7 +28,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   // userPurchase: Purchase | null;
   referrerLink: string;
   userId: string;
-  isIapticValidated: boolean | undefined;
+  // isIapticValidated: boolean | undefined;
   // handleBuySubscription: (productId: string, offerToken?: string) => void;
   handlePurchaseValidation: (jsonIapPurchase: Purchase) => void;
   trackEvent: (eventName: string) => Promise<void>;
@@ -66,7 +66,7 @@ const ASYNC_KEYS = {
 export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   // iapLoading: false,
   // alreadyPurchased: false,
-  isIapticValidated: undefined,
+  // isIapticValidated: undefined,
   // subscriptions: [],
   // userPurchase: null,
   referrerLink: "",
@@ -92,9 +92,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // LOCAL STATES
   // const [iapLoading, setIapLoading] = useState<boolean>(false);
   // const [alreadyPurchased, setAlreadyPurchased] = useState<boolean>(false);
-  const [isIapticValidated, setIapticValidated] = useState<boolean | undefined>(
-    undefined
-  );
+  // const [isIapticValidated, setIapticValidated] = useState<boolean | undefined>(
+  //   undefined
+  // );
   // const [userPurchase, setUserPurchase] = useState<Purchase | null>(null);
   const [referrerLink, setReferrerLink] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
@@ -373,10 +373,12 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   
       if (response.status === 200) {
         console.log("Validation successful:", response.data);
-        setIapticValidated(true);
+        // setIapticValidated(true);
+        return true; // Indicate successful validation
       } else {
         console.error("Validation failed:", response.data);
-        setIapticValidated(false);
+        // setIapticValidated(false);
+        return false; // Indicate successful validation
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -385,7 +387,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         console.error(`handlePurchaseValidation Unknown Error: ${JSON.stringify(error)}`);
       }
 
-      setIapticValidated(false);
+      // setIapticValidated(false);
+      return false;
     }
   };
 
@@ -505,7 +508,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       value={{
         // iapLoading,
         // alreadyPurchased,
-        isIapticValidated,
+        // isIapticValidated,
         // subscriptions,
         // userPurchase,
         referrerLink,
