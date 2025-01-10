@@ -55,7 +55,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     referrerLink: "",
     userId: "",
     // handleBuySubscription: (productId: string, offerToken?: string) => {},
-    handlePurchaseValidation: (jsonIapPurchase) => __awaiter(void 0, void 0, void 0, function* () { }),
+    handlePurchaseValidation: (jsonIapPurchase) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     trackEvent: (eventName) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifier: (referringLink, completion) => __awaiter(void 0, void 0, void 0, function* () { }),
     initialize: (code) => __awaiter(void 0, void 0, void 0, function* () { }),

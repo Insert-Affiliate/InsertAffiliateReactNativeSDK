@@ -30,7 +30,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   userId: string;
   // isIapticValidated: boolean | undefined;
   // handleBuySubscription: (productId: string, offerToken?: string) => void;
-  handlePurchaseValidation: (jsonIapPurchase: Purchase) => void;
+  handlePurchaseValidation: (jsonIapPurchase: Purchase) => Promise<boolean>;
   trackEvent: (eventName: string) => Promise<void>;
   setInsertAffiliateIdentifier: (
     referringLink: string,
@@ -72,7 +72,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   referrerLink: "",
   userId: "",
   // handleBuySubscription: (productId: string, offerToken?: string) => {},
-  handlePurchaseValidation: async (jsonIapPurchase: Purchase) => {},
+  handlePurchaseValidation: async (jsonIapPurchase: Purchase) => false,
   trackEvent: async (eventName: string) => {},
   setInsertAffiliateIdentifier: async (
     referringLink: string,
@@ -323,7 +323,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   //   if (connected) fetchIapEssentials();
   // }, [connected]);
 
-  const handlePurchaseValidation = async (jsonIapPurchase: Purchase) => {
+  const handlePurchaseValidation = async (jsonIapPurchase: Purchase): Promise<boolean> => {
     try {
       const baseRequestBody: RequestBody = {
         id: iapticAppId,
