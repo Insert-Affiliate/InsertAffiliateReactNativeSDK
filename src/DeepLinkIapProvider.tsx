@@ -13,7 +13,7 @@ type T_DEEPLINK_IAP_PROVIDER = {
 };
 
 type CustomPurchase = {
-  [key: string]: any; // Accept any fields
+  [key: string]: any; // Accept any fields to allow it to work wtih multiple IAP libraries
 };
 
 type T_DEEPLINK_IAP_CONTEXT = {

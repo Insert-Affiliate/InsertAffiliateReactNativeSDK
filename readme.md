@@ -67,13 +67,11 @@ const Child = () => {
   }, [initialize, isInitialized]);
   
   // ...
-  
 }
 
 const App = () => {
   return (
     <DeepLinkIapProvider
-      iapSkus={IAP_SKUS}
       iapticAppId="{{ your_iaptic_app_id }}"
       iapticAppName="{{ your_iaptic_app_name }}"
       iapticPublicKey="{{ your_iaptic_public_key }}">
@@ -115,12 +113,6 @@ const Child = () => {
     userPurchase,
   } = useDeepLinkIapProvider();
 
-  export const IAP_SKUS = Platform.select({
-    android: [''], // Here, put a comma separated list of the In App Purchase SKU's
-    ios: [''], // Here, put a comma separated list of the In App Purchase SKU's
-  }) as string[];
-
-
   return (
     <View>
       {subscriptions.length ? (
@@ -147,7 +139,6 @@ const App = () => {
   return (
     // Wrapped application code from the previous step...
     <DeepLinkIapProvider
-      iapSkus={IAP_SKUS}
       iapticAppId="your_iaptic_app_id"
       iapticAppName="your_iaptic_app_name"
       iapticPublicKey="your_iaptic_public_key">
@@ -197,6 +188,7 @@ After setting up your Branch integration, add the following code to your ```inde
 <!--```-->
 
 #### Example with Iaptic
+
 ```swift
 import branch from 'react-native-branch';
 import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
