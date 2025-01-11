@@ -1,7 +1,6 @@
 import React from "react";
 type T_DEEPLINK_IAP_PROVIDER = {
     children: React.ReactNode;
-    iapSkus: string[];
     iapticAppId: string;
     iapticAppName: string;
     iapticPublicKey: string;

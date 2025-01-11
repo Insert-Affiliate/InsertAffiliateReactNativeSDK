@@ -6,7 +6,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // TYPES USED IN THIS PROVIDER
 type T_DEEPLINK_IAP_PROVIDER = {
   children: React.ReactNode;
-  iapSkus: string[];
   iapticAppId: string;
   iapticAppName: string;
   iapticPublicKey: string;
