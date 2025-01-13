@@ -7,6 +7,7 @@ const useDeepLinkIapProvider = () => {
     userId,
     handlePurchaseValidation,
     trackEvent,
+    setShortCode,
     setInsertAffiliateIdentifier,
     initialize,
     isInitialized
@@ -17,6 +18,7 @@ const useDeepLinkIapProvider = () => {
     userId,
     handlePurchaseValidation,
     trackEvent,
+    setShortCode,
     setInsertAffiliateIdentifier,
     initialize,
     isInitialized
