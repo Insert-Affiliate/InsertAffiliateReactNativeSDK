@@ -171,12 +171,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     completion: (shortLink: string | null) => void
   ) => {
     try {
-      let userId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
-      if (!userId) {
-        userId = generateUserID();
-        await saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
-        setUserId(userId);
-      }
+      setUserID();
 
       if (!referringLink) {
         console.warn("[Insert Affiliate] Referring link is invalid.");
@@ -242,7 +237,18 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
+  async function setUserID() {
+    let userId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
+    if (!userId) {
+      userId = generateUserID();
+      await saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
+      setUserId(userId);
+    }
+  }
+
   async function setShortCode(shortCode: string): Promise<void> {
+    setUserID();
+
     // Capitalise the shortcode
     const capitalisedShortCode = shortCode.toUpperCase();
 

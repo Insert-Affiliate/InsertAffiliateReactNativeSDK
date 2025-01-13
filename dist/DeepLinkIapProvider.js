@@ -141,12 +141,7 @@ const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPubli
     };
     const setInsertAffiliateIdentifier = (referringLink, completion) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            let userId = yield getValueFromAsync(ASYNC_KEYS.USER_ID);
-            if (!userId) {
-                userId = generateUserID();
-                yield saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
-                setUserId(userId);
-            }
+            setUserID();
             if (!referringLink) {
                 console.warn("[Insert Affiliate] Referring link is invalid.");
                 storeInsertAffiliateIdentifier({ link: referringLink });
@@ -204,8 +199,19 @@ const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPubli
             completion(null);
         }
     });
+    function setUserID() {
+        return __awaiter(this, void 0, void 0, function* () {
+            let userId = yield getValueFromAsync(ASYNC_KEYS.USER_ID);
+            if (!userId) {
+                userId = generateUserID();
+                yield saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
+                setUserId(userId);
+            }
+        });
+    }
     function setShortCode(shortCode) {
         return __awaiter(this, void 0, void 0, function* () {
+            setUserID();
             // Capitalise the shortcode
             const capitalisedShortCode = shortCode.toUpperCase();
             // Ensure the short code is exactly 10 characters long
