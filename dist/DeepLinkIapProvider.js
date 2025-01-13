@@ -51,6 +51,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     userId: "",
     handlePurchaseValidation: (jsonIapPurchase) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     trackEvent: (eventName) => __awaiter(void 0, void 0, void 0, function* () { }),
+    setShortCode: (shortCode) => { },
     setInsertAffiliateIdentifier: (referringLink, completion) => __awaiter(void 0, void 0, void 0, function* () { }),
     initialize: (code) => __awaiter(void 0, void 0, void 0, function* () { }),
     isInitialized: false
@@ -148,7 +149,7 @@ const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPubli
             }
             if (!referringLink) {
                 console.warn("[Insert Affiliate] Referring link is invalid.");
-                yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+                storeInsertAffiliateIdentifier({ link: referringLink });
                 completion(null);
                 return;
             }
@@ -165,7 +166,7 @@ const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPubli
             // Check if referring link is already a short code, if so save it and stop here.
             if (isShortCode(referringLink)) {
                 console.log("[Insert Affiliate] Referring link is already a short code.");
-                yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+                storeInsertAffiliateIdentifier({ link: referringLink });
                 completion(referringLink);
                 return;
             }
@@ -174,7 +175,7 @@ const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPubli
             const encodedAffiliateLink = encodeURIComponent(referringLink);
             if (!encodedAffiliateLink) {
                 console.error("[Insert Affiliate] Failed to encode affiliate link.");
-                yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+                storeInsertAffiliateIdentifier({ link: referringLink });
                 completion(null);
                 return;
             }
@@ -189,13 +190,12 @@ const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPubli
             if (response.status === 200 && response.data.shortLink) {
                 const shortLink = response.data.shortLink;
                 console.log("[Insert Affiliate] Short link received:", shortLink);
-                yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, shortLink);
-                setReferrerLink(shortLink);
+                storeInsertAffiliateIdentifier({ link: shortLink });
                 completion(shortLink);
             }
             else {
                 console.warn("[Insert Affiliate] Unexpected response format.");
-                yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+                storeInsertAffiliateIdentifier({ link: referringLink });
                 completion(null);
             }
         }
@@ -204,6 +204,36 @@ const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPubli
             completion(null);
         }
     });
+    function setShortCode(shortCode) {
+        // Capitalise the shortcode
+        const capitalisedShortCode = shortCode.toUpperCase();
+        // Ensure the short code is exactly 10 characters long
+        if (capitalisedShortCode.length !== 10) {
+            console.error("[Insert Affiliate] Error: Short code must be exactly 10 characters long.");
+            return;
+        }
+        // Check if the short code contains only letters and numbers
+        const isValidShortCode = /^[a-zA-Z0-9]+$/.test(capitalisedShortCode);
+        if (!isValidShortCode) {
+            console.error("[Insert Affiliate] Error: Short code must contain only letters and numbers.");
+            return;
+        }
+        // If all checks pass, set the Insert Affiliate Identifier
+        storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
+        if (referrerLink) {
+            console.log(`[Insert Affiliate] Successfully set affiliate identifier: ${referrerLink}`);
+        }
+        else {
+            console.error("[Insert Affiliate] Failed to set affiliate identifier.");
+        }
+    }
+    function storeInsertAffiliateIdentifier(_a) {
+        return __awaiter(this, arguments, void 0, function* ({ link }) {
+            console.log(`[Insert Affiliate] Storing affiliate identifier: ${link}`);
+            yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, link);
+            setReferrerLink(link);
+        });
+    }
     const handlePurchaseValidation = (jsonIapPurchase) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             const baseRequestBody = {
@@ -291,6 +321,7 @@ const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPubli
     return (react_1.default.createElement(exports.DeepLinkIapContext.Provider, { value: {
             referrerLink,
             userId,
+            setShortCode,
             handlePurchaseValidation,
             trackEvent,
             setInsertAffiliateIdentifier,

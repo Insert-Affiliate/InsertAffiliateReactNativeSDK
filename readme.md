@@ -58,6 +58,7 @@ const Child = () => {
     userId,
     userPurchase,
     trackEvent,
+    setShortCode,
     initialize,
     isInitialized,
   } = useDeepLinkIapProvider();
@@ -67,6 +68,7 @@ const Child = () => {
   }, [initialize, isInitialized]);
   
   // ...
+  
 }
 
 const App = () => {
@@ -83,65 +85,74 @@ const App = () => {
 
 ## In-App Purchase Setup [Required]
 Insert Affiliate requires a Receipt Verification platform to validate in-app purchases. You must choose **one** of our supported partners:
-- [RevenueCat](https://www.revenuecat.com/)
 - [Iaptic](https://www.iaptic.com/account)
+- [RevenueCat](https://www.revenuecat.com/)
 
-### Option 1: RevenueCat Integration
-<!--#### 1. Code Setup-->
-<!--First, complete the [RevenueCat SDK installation](https://www.revenuecat.com/docs/getting-started/installation/ios). Then modify your `AppDelegate.swift`:-->
-   
-COMING SOON...
+### Option 1: Iaptic Integration
+First, complete the [Iaptic account setup](https://www.iaptic.com/signup) and code integration.
 
-### Option 2: Iaptic Integration
-First, complete the [Iaptic account setup](https://www.iaptic.com/signup).
-
-Then, when the User Makes a Purchase, call `handleBuySubscription`
-
+Then after setting up the in app purchase (IAP) with Iaptic, call Insert Affiliate's handlePurchaseValidation on purchase.
 
 ```javascript
 import React from 'react';
 import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
 import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import { useIAP, requestSubscription, withIAPContext, getProducts, getSubscriptions, initConnection } from "react-native-iap"; 
 
 const Child = () => {
-  const {
-    referrerLink,
-    subscriptions,
-    iapLoading,
-    handleBuySubscription,
-    userId,
-    userPurchase,
-  } = useDeepLinkIapProvider();
+    const {
+        initialize,
+        isInitialized,
+        handlePurchaseValidation,
+    } = useDeepLinkIapProvider();
 
-  return (
-    <View>
-      {subscriptions.length ? (
-        <Button
-          disabled={iapLoading}
-          title={
-            userPurchase
-              ? `Successfully Purchased`
-              : `Click to Buy (${subscriptions[0].localizedPrice} / ${subscriptions[0].subscriptionPeriodUnitIOS})`
-          }
-          onPress={() => {
-            if (iapLoading) return;
-             // Calling Insert Affiliate's handleBuySubscription...
-            if (!userPurchase) handleBuySubscription(subscriptions[0].productId);
-          }}
-        />
-      ) : null}
-      {iapLoading && <ActivityIndicator size={'small'} color={'black'} />}
-    </View>
-  );
+    const [iapLoading, setIapLoading] = useState(false);
+    const { currentPurchase, connected } = useIAP();
+    
+    // ***...***
+    // Fetch & Load your subscription/purchases and handling the IAP purchase here as per the Iaptic Documentation...
+    // ***...***
+    
+    // Initialize the Insert Affiliate SDK at the earliest possible moment
+    useEffect(() => {
+        if (!isInitialized) {
+          initialize("{{ your_company_code }}");
+        }
+    }, [initialize, isInitialized]);
+
+
+    // Validate the purchase with Iaptic through Insert Affiliate's SDK for Affiliate Tracking
+    useEffect(() => {
+        if (currentPurchase) {
+            handlePurchaseValidation(currentPurchase).then((isValid: boolean) => {
+                if (isValid) {
+                  console.log("Purchase validated successfully.");
+                } else {
+                  console.error("Purchase validation failed.");
+                }
+            });
+        }
+    }, [currentPurchase, handlePurchaseValidation]);
+    
+    return (
+        <View>
+            <Button
+                disabled={iapLoading}
+                title={`Click to Buy Subscription`}
+                onPress={() => handleBuySubscription("oneMonthSubscriptionTwo")}
+            />
+            {iapLoading && <ActivityIndicator size={"small"} color={"black"} />}
+        </View>
+    );
 };
 
 const App = () => {
   return (
     // Wrapped application code from the previous step...
     <DeepLinkIapProvider
-      iapticAppId="your_iaptic_app_id"
-      iapticAppName="your_iaptic_app_name"
-      iapticPublicKey="your_iaptic_public_key">
+      iapticAppId="{{ your_iaptic_app_id }}"
+      iapticAppName="{{ your_iaptic_app_name }}"
+      iapticPublicKey="{{ your_iaptic_public_key }}">
       <Child />
     </DeepLinkIapProvider>
   );
@@ -149,7 +160,16 @@ const App = () => {
 
 export default App;
 ```
-- Replace your IAP_SKUS with the comma separated list of your in app purchase SKU's.
+- Replace `{{ your_iaptic_app_id }}` with your **Iaptic App ID**. You can find this [here](https://www.iaptic.com/account).
+- Replace `{{ your_iaptic_app_name }}` with your **Iaptic App Name**. You can find this [here](https://www.iaptic.com/account).
+- Replace `{{ your_iaptic_public_key }}` with your **Iaptic Public Key**. You can find this [here](https://www.iaptic.com/settings).
+- Replace `{{ your_company_code }}` with the unique company code associated with your Insert Affiliate account. You can find this code in your dashboard under [Settings](http://app.insertaffiliate.com/settings).
+
+### Option 2: RevenueCat Integration
+<!--#### 1. Code Setup-->
+<!--First, complete the [RevenueCat SDK installation](https://www.revenuecat.com/docs/getting-started/installation/ios). Then modify your `AppDelegate.swift`:-->
+   
+COMING SOON...
 
 ## Deep Link Setup [Required]
 
@@ -188,7 +208,6 @@ After setting up your Branch integration, add the following code to your ```inde
 <!--```-->
 
 #### Example with Iaptic
-
 ```swift
 import branch from 'react-native-branch';
 import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
@@ -234,6 +253,7 @@ const {
   userId,
   userPurchase,
   trackEvent, // Required for trackEvent
+  setShortCode,
 } = useDeepLinkIapProvider();
 
 <Button

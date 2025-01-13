@@ -20,6 +20,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   userId: string;
   handlePurchaseValidation: (jsonIapPurchase: CustomPurchase) => Promise<boolean>;
   trackEvent: (eventName: string) => Promise<void>;
+  setShortCode: (shortCode: string) => void;
   setInsertAffiliateIdentifier: (
     referringLink: string,
     completion: (shortLink: string | null) => void
@@ -56,6 +57,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   userId: "",
   handlePurchaseValidation: async (jsonIapPurchase: CustomPurchase) => false,
   trackEvent: async (eventName: string) => {},
+  setShortCode: (shortCode: string) => {},
   setInsertAffiliateIdentifier: async (
     referringLink: string,
     completion: (shortLink: string | null) => void
@@ -178,7 +180,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       if (!referringLink) {
         console.warn("[Insert Affiliate] Referring link is invalid.");
-        await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+        storeInsertAffiliateIdentifier({ link: referringLink });
         completion(null);
         return;
       }
@@ -200,7 +202,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       // Check if referring link is already a short code, if so save it and stop here.
       if (isShortCode(referringLink)) {
         console.log("[Insert Affiliate] Referring link is already a short code.");
-        await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+        storeInsertAffiliateIdentifier({ link: referringLink });
         completion(referringLink);
         return;
       }
@@ -210,7 +212,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       const encodedAffiliateLink = encodeURIComponent(referringLink);
       if (!encodedAffiliateLink) {
         console.error("[Insert Affiliate] Failed to encode affiliate link.");
-        await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+        storeInsertAffiliateIdentifier({ link: referringLink });
         completion(null);
         return;
       }
@@ -227,12 +229,11 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       if (response.status === 200 && response.data.shortLink) {
         const shortLink = response.data.shortLink;
         console.log("[Insert Affiliate] Short link received:", shortLink);
-        await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, shortLink);
-        setReferrerLink(shortLink);
+        storeInsertAffiliateIdentifier({ link: shortLink });
         completion(shortLink);
       } else {
         console.warn("[Insert Affiliate] Unexpected response format.");
-        await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referringLink);
+        storeInsertAffiliateIdentifier({ link: referringLink });
         completion(null);
       }
     } catch (error) {
@@ -240,6 +241,39 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       completion(null);
     }
   };
+
+  function setShortCode(shortCode: string): void {
+    // Capitalise the shortcode
+    const capitalisedShortCode = shortCode.toUpperCase();
+
+    // Ensure the short code is exactly 10 characters long
+    if (capitalisedShortCode.length !== 10) {
+      console.error("[Insert Affiliate] Error: Short code must be exactly 10 characters long.");
+      return;
+    }
+
+    // Check if the short code contains only letters and numbers
+    const isValidShortCode = /^[a-zA-Z0-9]+$/.test(capitalisedShortCode);
+    if (!isValidShortCode) {
+      console.error("[Insert Affiliate] Error: Short code must contain only letters and numbers.");
+      return;
+    }
+
+    // If all checks pass, set the Insert Affiliate Identifier
+    storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
+
+    if (referrerLink) {
+      console.log(`[Insert Affiliate] Successfully set affiliate identifier: ${referrerLink}`);
+    } else {
+      console.error("[Insert Affiliate] Failed to set affiliate identifier.");
+    }
+  }
+
+  async function storeInsertAffiliateIdentifier({ link }: { link: string }) {
+    console.log(`[Insert Affiliate] Storing affiliate identifier: ${link}`);
+    await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, link);
+    setReferrerLink(link);
+  }
 
   const handlePurchaseValidation = async (jsonIapPurchase: CustomPurchase): Promise<boolean> => {
     try {
@@ -347,6 +381,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       value={{
         referrerLink,
         userId,
+        setShortCode,
         handlePurchaseValidation,
         trackEvent,
         setInsertAffiliateIdentifier,
