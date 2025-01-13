@@ -11,6 +11,7 @@ type CustomPurchase = {
 type T_DEEPLINK_IAP_CONTEXT = {
     referrerLink: string;
     userId: string;
+    returnInsertAffiliateIdentifier: () => Promise<string | null>;
     handlePurchaseValidation: (jsonIapPurchase: CustomPurchase) => Promise<boolean>;
     trackEvent: (eventName: string) => Promise<void>;
     setShortCode: (shortCode: string) => Promise<void>;

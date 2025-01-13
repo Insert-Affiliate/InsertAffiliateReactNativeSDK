@@ -39,14 +39,7 @@ npm install insert-affiliate-react-native-sdk
 
 ### Initialisation in `App.tsx`
 
-First, wrap your with our provider and call the `initialise` method early in your app's lifecycle
-
-- Replace `{{ your_iaptic_app_id }}` with your **Iaptic App ID**. You can find this [here](https://www.iaptic.com/account).
-- Replace `{{ your_iaptic_app_name }}` with your **Iaptic App Name**. You can find this [here](https://www.iaptic.com/account).
-- Replace `{{ your_iaptic_public_key }}` with your **Iaptic Public Key**. You can find this [here](https://www.iaptic.com/settings).
-- Replace `{{ your_company_code }}` with the unique company code associated with your Insert Affiliate account. You can find this code in your dashboard under [Settings](http://app.insertaffiliate.com/settings).
-
-Here's the code with placeholders for you to swap out:
+First, wrap your with our provider and call the `initialise` method early in your app's lifecycle:
 
 ```javascript
 const Child = () => {
@@ -58,7 +51,6 @@ const Child = () => {
     userId,
     userPurchase,
     trackEvent,
-    setShortCode,
     initialize,
     isInitialized,
   } = useDeepLinkIapProvider();
@@ -82,6 +74,10 @@ const App = () => {
   );
 };
 ```
+- Replace `{{ your_iaptic_app_id }}` with your **Iaptic App ID**. You can find this [here](https://www.iaptic.com/account).
+- Replace `{{ your_iaptic_app_name }}` with your **Iaptic App Name**. You can find this [here](https://www.iaptic.com/account).
+- Replace `{{ your_iaptic_public_key }}` with your **Iaptic Public Key**. You can find this [here](https://www.iaptic.com/settings).
+- Replace `{{ your_company_code }}` with the unique company code associated with your Insert Affiliate account. You can find this code in your dashboard under [Settings](http://app.insertaffiliate.com/settings).
 
 ## In-App Purchase Setup [Required]
 Insert Affiliate requires a Receipt Verification platform to validate in-app purchases. You must choose **one** of our supported partners:
@@ -231,7 +227,7 @@ branch.subscribe(async ({ error, params }) => {
 
 ## Additional Features
 
-## 1. Event Tracking (Beta)
+### 1. Event Tracking (Beta)
 
 The **InsertAffiliateReactNative SDK** now includes a beta feature for event tracking. Use event tracking to log key user actions such as signups, purchases, or referrals. This is useful for:
 - Understanding user behaviour.
@@ -240,7 +236,7 @@ The **InsertAffiliateReactNative SDK** now includes a beta feature for event tra
 
 At this stage, we cannot guarantee that this feature is fully resistant to tampering or manipulation.
 
-### Using `trackEvent`
+#### Using `trackEvent`
 
 To track an event, use the `trackEvent` function. Make sure to set an affiliate identifier first; otherwise, event tracking won’t work. Here’s an example:
 
@@ -253,7 +249,6 @@ const {
   userId,
   userPurchase,
   trackEvent, // Required for trackEvent
-  setShortCode,
 } = useDeepLinkIapProvider();
 
 <Button
@@ -263,4 +258,38 @@ const {
       .then(() => console.log('Event tracked successfully!'))
   }}
 />
+```
+
+### 2. Short Codes (Beta)
+
+#### What are Short Codes?
+
+Short codes are unique, 10-character alphanumeric identifiers that affiliates can use to promote products or subscriptions. These codes are ideal for influencers or partners, making them easier to share than long URLs.
+
+**Example Use Case**: An influencer promotes a subscription with the short code "JOIN12345" within their TikTok video's description. When users enter this code within your app during sign-up or before purchase, the app tracks the subscription back to the influencer for commission payouts.
+
+For more information, visit the [Insert Affiliate Short Codes Documentation](https://docs.insertaffiliate.com/short-codes).
+
+#### Setting a Short Code
+
+Use the `setShortCode` method to associate a short code with an affiliate. This is ideal for scenarios where users enter the code via an input field, pop-up, or similar UI element.
+
+Short codes must meet the following criteria:
+- Exactly **10 characters long**.
+- Contain only **letters and numbers** (alphanumeric characters).
+- Replace {{ user_entered_short_code }} with the short code the user enters through your chosen input method, i.e. an input field / pop up element
+
+```javascript
+  import {
+    DeepLinkIapProvider,
+  } from 'insert-affiliate-react-native-sdk';
+
+  const {
+    setShortCode,
+  } = useDeepLinkIapProvider();
+
+  <Button
+    title={'Set Short Code'}
+    onPress={() => setShortCode('JOIN123456')}
+  />
 ```

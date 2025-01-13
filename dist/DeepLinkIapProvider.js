@@ -49,6 +49,7 @@ const ASYNC_KEYS = {
 exports.DeepLinkIapContext = (0, react_1.createContext)({
     referrerLink: "",
     userId: "",
+    returnInsertAffiliateIdentifier: () => __awaiter(void 0, void 0, void 0, function* () { return ""; }),
     handlePurchaseValidation: (jsonIapPurchase) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     trackEvent: (eventName) => __awaiter(void 0, void 0, void 0, function* () { }),
     setShortCode: (shortCode) => __awaiter(void 0, void 0, void 0, function* () { }),
@@ -124,6 +125,15 @@ const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPubli
                 break;
         }
     };
+    const returnInsertAffiliateIdentifier = () => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            return `${referrerLink}-${userId}`;
+        }
+        catch (error) {
+            errorLog(`ERROR ~ returnInsertAffiliateIdentifier: ${error}`);
+            return null;
+        }
+    });
     //   GENERATING UNIQUE USER ID
     const generateUserID = () => {
         const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -330,6 +340,7 @@ const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPubli
             referrerLink,
             userId,
             setShortCode,
+            returnInsertAffiliateIdentifier,
             handlePurchaseValidation,
             trackEvent,
             setInsertAffiliateIdentifier,

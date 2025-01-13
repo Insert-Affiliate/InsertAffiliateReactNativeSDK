@@ -18,6 +18,7 @@ type CustomPurchase = {
 type T_DEEPLINK_IAP_CONTEXT = {
   referrerLink: string;
   userId: string;
+  returnInsertAffiliateIdentifier: () => Promise<string | null>;
   handlePurchaseValidation: (jsonIapPurchase: CustomPurchase) => Promise<boolean>;
   trackEvent: (eventName: string) => Promise<void>;
   setShortCode: (shortCode: string) => Promise<void>;
@@ -55,6 +56,7 @@ const ASYNC_KEYS = {
 export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   referrerLink: "",
   userId: "",
+  returnInsertAffiliateIdentifier: async () => "",
   handlePurchaseValidation: async (jsonIapPurchase: CustomPurchase) => false,
   trackEvent: async (eventName: string) => {},
   setShortCode: async (shortCode: string) => {},
@@ -98,6 +100,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     setIsInitialized(false);
     console.log("[Insert Affiliate] SDK has been reset.");
   };
+
+  
 
   // ASYNC FUNCTIONS
   const saveValueInAsync = async (key: string, value: string) => {
@@ -147,6 +151,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         break;
     }
   };
+
+  const returnInsertAffiliateIdentifier = async (): Promise<string | null> => {
+    try {
+      return `${referrerLink}-${userId}`;
+    } catch (error) {
+      errorLog(`ERROR ~ returnInsertAffiliateIdentifier: ${error}`);
+      return null;
+    }
+  }
 
   //   GENERATING UNIQUE USER ID
   const generateUserID = () => {
@@ -388,6 +401,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         referrerLink,
         userId,
         setShortCode,
+        returnInsertAffiliateIdentifier,
         handlePurchaseValidation,
         trackEvent,
         setInsertAffiliateIdentifier,
