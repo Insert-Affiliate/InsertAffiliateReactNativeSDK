@@ -51,7 +51,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     userId: "",
     handlePurchaseValidation: (jsonIapPurchase) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     trackEvent: (eventName) => __awaiter(void 0, void 0, void 0, function* () { }),
-    setShortCode: (shortCode) => { },
+    setShortCode: (shortCode) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifier: (referringLink, completion) => __awaiter(void 0, void 0, void 0, function* () { }),
     initialize: (code) => __awaiter(void 0, void 0, void 0, function* () { }),
     isInitialized: false
@@ -205,27 +205,29 @@ const DeepLinkIapProvider = ({ children, iapticAppId, iapticAppName, iapticPubli
         }
     });
     function setShortCode(shortCode) {
-        // Capitalise the shortcode
-        const capitalisedShortCode = shortCode.toUpperCase();
-        // Ensure the short code is exactly 10 characters long
-        if (capitalisedShortCode.length !== 10) {
-            console.error("[Insert Affiliate] Error: Short code must be exactly 10 characters long.");
-            return;
-        }
-        // Check if the short code contains only letters and numbers
-        const isValidShortCode = /^[a-zA-Z0-9]+$/.test(capitalisedShortCode);
-        if (!isValidShortCode) {
-            console.error("[Insert Affiliate] Error: Short code must contain only letters and numbers.");
-            return;
-        }
-        // If all checks pass, set the Insert Affiliate Identifier
-        storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
-        if (referrerLink) {
-            console.log(`[Insert Affiliate] Successfully set affiliate identifier: ${referrerLink}`);
-        }
-        else {
-            console.error("[Insert Affiliate] Failed to set affiliate identifier.");
-        }
+        return __awaiter(this, void 0, void 0, function* () {
+            // Capitalise the shortcode
+            const capitalisedShortCode = shortCode.toUpperCase();
+            // Ensure the short code is exactly 10 characters long
+            if (capitalisedShortCode.length !== 10) {
+                console.error("[Insert Affiliate] Error: Short code must be exactly 10 characters long.");
+                return;
+            }
+            // Check if the short code contains only letters and numbers
+            const isValidShortCode = /^[a-zA-Z0-9]+$/.test(capitalisedShortCode);
+            if (!isValidShortCode) {
+                console.error("[Insert Affiliate] Error: Short code must contain only letters and numbers.");
+                return;
+            }
+            // If all checks pass, set the Insert Affiliate Identifier
+            yield storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
+            if (referrerLink) {
+                console.log(`[Insert Affiliate] Successfully set affiliate identifier: ${referrerLink}`);
+            }
+            else {
+                console.error("[Insert Affiliate] Failed to set affiliate identifier.");
+            }
+        });
     }
     function storeInsertAffiliateIdentifier(_a) {
         return __awaiter(this, arguments, void 0, function* ({ link }) {

@@ -20,7 +20,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   userId: string;
   handlePurchaseValidation: (jsonIapPurchase: CustomPurchase) => Promise<boolean>;
   trackEvent: (eventName: string) => Promise<void>;
-  setShortCode: (shortCode: string) => void;
+  setShortCode: (shortCode: string) => Promise<void>;
   setInsertAffiliateIdentifier: (
     referringLink: string,
     completion: (shortLink: string | null) => void
@@ -57,7 +57,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   userId: "",
   handlePurchaseValidation: async (jsonIapPurchase: CustomPurchase) => false,
   trackEvent: async (eventName: string) => {},
-  setShortCode: (shortCode: string) => {},
+  setShortCode: async (shortCode: string) => {},
   setInsertAffiliateIdentifier: async (
     referringLink: string,
     completion: (shortLink: string | null) => void
@@ -242,7 +242,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
-  function setShortCode(shortCode: string): void {
+  async function setShortCode(shortCode: string): Promise<void> {
     // Capitalise the shortcode
     const capitalisedShortCode = shortCode.toUpperCase();
 
@@ -260,7 +260,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
 
     // If all checks pass, set the Insert Affiliate Identifier
-    storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
+    await storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
 
     if (referrerLink) {
       console.log(`[Insert Affiliate] Successfully set affiliate identifier: ${referrerLink}`);
