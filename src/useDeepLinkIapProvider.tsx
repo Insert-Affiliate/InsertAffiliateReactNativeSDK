@@ -5,7 +5,7 @@ const useDeepLinkIapProvider = () => {
   const {
     referrerLink,
     userId,
-    handlePurchaseValidation,
+    validatePurchaseWithIapticAPI,
     returnInsertAffiliateIdentifier,
     trackEvent,
     setShortCode,
@@ -17,7 +17,7 @@ const useDeepLinkIapProvider = () => {
   return {
     referrerLink,
     userId,
-    handlePurchaseValidation,
+    validatePurchaseWithIapticAPI,
     returnInsertAffiliateIdentifier,
     trackEvent,
     setShortCode,

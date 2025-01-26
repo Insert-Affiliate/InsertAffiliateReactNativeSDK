@@ -6,9 +6,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // TYPES USED IN THIS PROVIDER
 type T_DEEPLINK_IAP_PROVIDER = {
   children: React.ReactNode;
-  iapticAppId: string;
-  iapticAppName: string;
-  iapticPublicKey: string;
 };
 
 type CustomPurchase = {
@@ -19,7 +16,12 @@ type T_DEEPLINK_IAP_CONTEXT = {
   referrerLink: string;
   userId: string;
   returnInsertAffiliateIdentifier: () => Promise<string | null>;
-  handlePurchaseValidation: (jsonIapPurchase: CustomPurchase) => Promise<boolean>;
+  validatePurchaseWithIapticAPI: (
+    jsonIapPurchase: CustomPurchase,
+    iapticAppId: string,
+    iapticAppName: string,
+    iapticPublicKey: string
+  ) => Promise<boolean>;
   trackEvent: (eventName: string) => Promise<void>;
   setShortCode: (shortCode: string) => Promise<void>;
   setInsertAffiliateIdentifier: (
@@ -57,7 +59,12 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   referrerLink: "",
   userId: "",
   returnInsertAffiliateIdentifier: async () => "",
-  handlePurchaseValidation: async (jsonIapPurchase: CustomPurchase) => false,
+  validatePurchaseWithIapticAPI: async (
+    jsonIapPurchase: CustomPurchase,
+    iapticAppId: string,
+    iapticAppName: string,
+    iapticPublicKey: string
+  ) => false,
   trackEvent: async (eventName: string) => {},
   setShortCode: async (shortCode: string) => {},
   setInsertAffiliateIdentifier: async (
@@ -70,51 +77,27 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
 
 const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   children,
-  iapticAppId,
-  iapticAppName,
-  iapticPublicKey,
 }) => {
   const [referrerLink, setReferrerLink] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
-  const initialize = async (code: string | null): Promise<void> => {
+  // MARK: Initialize the SDK
+  const initialize = async (companyCode: string | null): Promise<void> => {
     if (isInitialized) {
       console.error("[Insert Affiliate] SDK is already initialized.");
       return;
     }
   
-    if (code && code.trim() !== "") {
-      setCompanyCode(code);
+    if (companyCode && companyCode.trim() !== "") {
+      setCompanyCode(companyCode);
       setIsInitialized(true);
-      console.log(`[Insert Affiliate] SDK initialized with company code: ${code}`);
+      console.log(`[Insert Affiliate] SDK initialized with company code: ${companyCode}`);
     } else {
       console.warn("[Insert Affiliate] SDK initialized without a company code.");
       setIsInitialized(true);
     }
-  };  
-
-  const reset = (): void => {
-    setCompanyCode(null);
-    setIsInitialized(false);
-    console.log("[Insert Affiliate] SDK has been reset.");
-  };
-
-  
-
-  // ASYNC FUNCTIONS
-  const saveValueInAsync = async (key: string, value: string) => {
-    await AsyncStorage.setItem(key, value);
-  };
-
-  const getValueFromAsync = async (key: string) => {
-    const response = await AsyncStorage.getItem(key);
-    return response;
-  };
-
-  const clearAsyncStorage = async () => {
-    await AsyncStorage.clear();
   };
 
   // EFFECT TO FETCH USER ID AND REF LINK
@@ -137,7 +120,47 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     fetchAsyncEssentials();
   }, []);
 
-  //   FUNCTION TO SHOW LOG, ERROR and WARN
+  async function setUserID() {
+    let userId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
+    if (!userId) {
+      userId = generateUserID();
+      await saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
+      setUserId(userId);
+    }
+  }
+
+  const generateUserID = () => {
+    const characters =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let uniqueId = "";
+    for (let i = 0; i < 6; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      uniqueId += characters[randomIndex];
+    }
+    return uniqueId;
+  };
+
+  const reset = (): void => {
+    setCompanyCode(null);
+    setIsInitialized(false);
+    console.log("[Insert Affiliate] SDK has been reset.");
+  };
+
+  // Helper funciton Storage / Retrieval
+  const saveValueInAsync = async (key: string, value: string) => {
+    await AsyncStorage.setItem(key, value);
+  };
+
+  const getValueFromAsync = async (key: string) => {
+    const response = await AsyncStorage.getItem(key);
+    return response;
+  };
+
+  const clearAsyncStorage = async () => {
+    await AsyncStorage.clear();
+  };
+
+  // Helper function to log errors
   const errorLog = (message: string, type?: "error" | "warn" | "log") => {
     switch (type) {
       case "error":
@@ -152,6 +175,26 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
+
+  // MARK: Short Codes
+  const isShortCode = (referringLink: string): boolean => {
+    // Short codes are less than 10 characters
+    const isValidCharacters = /^[a-zA-Z0-9]+$/.test(referringLink);
+    return isValidCharacters && referringLink.length < 10;
+  };
+
+  async function setShortCode(shortCode: string): Promise<void> {
+    setUserID();
+
+    // Validate it is a short code
+    const capitalisedShortCode = shortCode.toUpperCase();
+    isShortCode(capitalisedShortCode);
+
+    // If all checks pass, set the Insert Affiliate Identifier
+    await storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
+  }
+
+  // MARK: Return Insert Affiliate Identifier
   const returnInsertAffiliateIdentifier = async (): Promise<string | null> => {
     try {
       return `${referrerLink}-${userId}`;
@@ -160,24 +203,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       return null;
     }
   }
-
-  //   GENERATING UNIQUE USER ID
-  const generateUserID = () => {
-    const characters =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let uniqueId = "";
-    for (let i = 0; i < 6; i++) {
-      const randomIndex = Math.floor(Math.random() * characters.length);
-      uniqueId += characters[randomIndex];
-    }
-    return uniqueId;
-  };
   
-  // Helper function to determine if a link is a short code
-  const isShortCode = (referringLink: string): boolean => {
-    // Example check: short codes are less than 10 characters
-    return referringLink.length < 10;
-  };
+
+  // MARK: Insert Affiliate Identifier
 
   const setInsertAffiliateIdentifier = async (
     referringLink: string,
@@ -249,52 +277,19 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       completion(null);
     }
   };
-
-  async function setUserID() {
-    let userId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
-    if (!userId) {
-      userId = generateUserID();
-      await saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
-      setUserId(userId);
-    }
-  }
-
-  async function setShortCode(shortCode: string): Promise<void> {
-    setUserID();
-
-    // Capitalise the shortcode
-    const capitalisedShortCode = shortCode.toUpperCase();
-
-    // Ensure the short code is exactly 10 characters long
-    if (capitalisedShortCode.length !== 10) {
-      console.error("[Insert Affiliate] Error: Short code must be exactly 10 characters long.");
-      return;
-    }
-
-    // Check if the short code contains only letters and numbers
-    const isValidShortCode = /^[a-zA-Z0-9]+$/.test(capitalisedShortCode);
-    if (!isValidShortCode) {
-      console.error("[Insert Affiliate] Error: Short code must contain only letters and numbers.");
-      return;
-    }
-
-    // If all checks pass, set the Insert Affiliate Identifier
-    await storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
-
-    if (referrerLink) {
-      console.log(`[Insert Affiliate] Successfully set affiliate identifier: ${referrerLink}`);
-    } else {
-      console.error("[Insert Affiliate] Failed to set affiliate identifier.");
-    }
-  }
-
+  
   async function storeInsertAffiliateIdentifier({ link }: { link: string }) {
     console.log(`[Insert Affiliate] Storing affiliate identifier: ${link}`);
     await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, link);
     setReferrerLink(link);
   }
 
-  const handlePurchaseValidation = async (jsonIapPurchase: CustomPurchase): Promise<boolean> => {
+  const validatePurchaseWithIapticAPI = async (
+    jsonIapPurchase: CustomPurchase,
+    iapticAppId: string,
+    iapticAppName: string,
+    iapticPublicKey: string
+  ): Promise<boolean> => {
     try {
       const baseRequestBody: RequestBody = {
         id: iapticAppId,
@@ -324,10 +319,12 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         ...baseRequestBody,
         transaction,
       };
-  
-      if (userId && referrerLink) {
+
+      let insertAffiliateIdentifier = await returnInsertAffiliateIdentifier();
+
+      if (insertAffiliateIdentifier) {
         requestBody.additionalData = {
-          applicationUsername: `${referrerLink}-${userId}`,
+          applicationUsername: `${insertAffiliateIdentifier}`,
         };
       }
   
@@ -351,15 +348,17 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
     } catch (error) {
       if (error instanceof Error) {
-        console.error(`handlePurchaseValidation Error: ${error.message}`);
+        console.error(`validatePurchaseWithIapticAPI Error: ${error.message}`);
       } else {
-        console.error(`handlePurchaseValidation Unknown Error: ${JSON.stringify(error)}`);
+        console.error(`validatePurchaseWithIapticAPI Unknown Error: ${JSON.stringify(error)}`);
       }
 
       return false;
     }
   };
+  
 
+  // MARK: Track Event 
   const trackEvent = async (eventName: string): Promise<void> => {
     try {
       if (!referrerLink || !userId) {
@@ -402,7 +401,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         userId,
         setShortCode,
         returnInsertAffiliateIdentifier,
-        handlePurchaseValidation,
+        validatePurchaseWithIapticAPI,
         trackEvent,
         setInsertAffiliateIdentifier,
         initialize,

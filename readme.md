@@ -47,7 +47,7 @@ const Child = () => {
     referrerLink,
     subscriptions,
     iapLoading,
-    handleBuySubscription,
+    validatePurchaseWithIapticAPI,
     userId,
     userPurchase,
     trackEvent,
@@ -65,10 +65,7 @@ const Child = () => {
 
 const App = () => {
   return (
-    <DeepLinkIapProvider
-      iapticAppId="{{ your_iaptic_app_id }}"
-      iapticAppName="{{ your_iaptic_app_name }}"
-      iapticPublicKey="{{ your_iaptic_public_key }}">
+    <DeepLinkIapProvider>
       <Child />
     </DeepLinkIapProvider>
   );
@@ -145,10 +142,7 @@ const Child = () => {
 const App = () => {
   return (
     // Wrapped application code from the previous step...
-    <DeepLinkIapProvider
-      iapticAppId="{{ your_iaptic_app_id }}"
-      iapticAppName="{{ your_iaptic_app_name }}"
-      iapticPublicKey="{{ your_iaptic_public_key }}">
+    <DeepLinkIapProvider>
       <Child />
     </DeepLinkIapProvider>
   );
@@ -204,7 +198,7 @@ After setting up your Branch integration, add the following code to your ```inde
 <!--```-->
 
 #### Example with Iaptic
-```swift
+```javascript
 import branch from 'react-native-branch';
 import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
@@ -245,7 +239,7 @@ const {
   referrerLink,
   subscriptions,
   iapLoading,
-  handleBuySubscription,
+  validatePurchaseWithIapticAPI,
   userId,
   userPurchase,
   trackEvent, // Required for trackEvent
