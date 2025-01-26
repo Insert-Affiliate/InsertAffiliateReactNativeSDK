@@ -65,18 +65,12 @@ const Child = () => {
 
 const App = () => {
   return (
-    <DeepLinkIapProvider
-      iapticAppId="{{ your_iaptic_app_id }}"
-      iapticAppName="{{ your_iaptic_app_name }}"
-      iapticPublicKey="{{ your_iaptic_public_key }}">
+    <DeepLinkIapProvider>
       <Child />
     </DeepLinkIapProvider>
   );
 };
 ```
-- Replace `{{ your_iaptic_app_id }}` with your **Iaptic App ID**. You can find this [here](https://www.iaptic.com/account).
-- Replace `{{ your_iaptic_app_name }}` with your **Iaptic App Name**. You can find this [here](https://www.iaptic.com/account).
-- Replace `{{ your_iaptic_public_key }}` with your **Iaptic Public Key**. You can find this [here](https://www.iaptic.com/settings).
 - Replace `{{ your_company_code }}` with the unique company code associated with your Insert Affiliate account. You can find this code in your dashboard under [Settings](http://app.insertaffiliate.com/settings).
 
 ## In-App Purchase Setup [Required]
@@ -87,7 +81,7 @@ Insert Affiliate requires a Receipt Verification platform to validate in-app pur
 ### Option 1: Iaptic Integration
 First, complete the [Iaptic account setup](https://www.iaptic.com/signup) and code integration.
 
-Then after setting up the in app purchase (IAP) with Iaptic, call Insert Affiliate's handlePurchaseValidation on purchase.
+Then after setting up the in app purchase (IAP) with Iaptic, call Insert Affiliate's validatePurchaseWithIapticAPI on purchase.
 
 ```javascript
 import React from 'react';
@@ -96,59 +90,61 @@ import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-re
 import { useIAP, requestSubscription, withIAPContext, getProducts, getSubscriptions, initConnection } from "react-native-iap"; 
 
 const Child = () => {
-    const {
-        initialize,
-        isInitialized,
-        handlePurchaseValidation,
-    } = useDeepLinkIapProvider();
+  const {
+      initialize,
+      isInitialized,
+      validatePurchaseWithIapticAPI,
+  } = useDeepLinkIapProvider();
 
-    const [iapLoading, setIapLoading] = useState(false);
-    const { currentPurchase, connected } = useIAP();
-    
-    // ***...***
-    // Fetch & Load your subscription/purchases and handling the IAP purchase here as per the Iaptic Documentation...
-    // ***...***
-    
-    // Initialize the Insert Affiliate SDK at the earliest possible moment
-    useEffect(() => {
-        if (!isInitialized) {
-          initialize("{{ your_company_code }}");
+  const [iapLoading, setIapLoading] = useState(false);
+  const { currentPurchase, connected } = useIAP();
+  
+  // ***...***
+  // Fetch & Load your subscription/purchases and handling the IAP purchase here as per the Iaptic Documentation...
+  // ***...***
+  
+  // Initialize the Insert Affiliate SDK at the earliest possible moment
+  useEffect(() => {
+    if (!isInitialized) {
+      initialize("{{ your_company_code }}");
+    }
+  }, [initialize, isInitialized]);
+
+
+  // Validate the purchase with Iaptic through Insert Affiliate's SDK for Affiliate Tracking
+  useEffect(() => {
+    if (currentPurchase) {
+      validatePurchaseWithIapticAPI(
+        currentPurchase,
+        "{{ your_iaptic_app_id }}"
+        "{{ your_iaptic_app_name }}"
+        "{{ your_iaptic_public_key }}"
+      ).then((isValid: boolean) => {
+        if (isValid) {
+          console.log("Purchase validated successfully.");
+        } else {
+          console.error("Purchase validation failed.");
         }
-    }, [initialize, isInitialized]);
-
-
-    // Validate the purchase with Iaptic through Insert Affiliate's SDK for Affiliate Tracking
-    useEffect(() => {
-        if (currentPurchase) {
-            handlePurchaseValidation(currentPurchase).then((isValid: boolean) => {
-                if (isValid) {
-                  console.log("Purchase validated successfully.");
-                } else {
-                  console.error("Purchase validation failed.");
-                }
-            });
-        }
-    }, [currentPurchase, handlePurchaseValidation]);
-    
-    return (
-        <View>
-            <Button
-                disabled={iapLoading}
-                title={`Click to Buy Subscription`}
-                onPress={() => handleBuySubscription("oneMonthSubscriptionTwo")}
-            />
-            {iapLoading && <ActivityIndicator size={"small"} color={"black"} />}
-        </View>
-    );
+      });
+    }
+  }, [currentPurchase, validatePurchaseWithIapticAPI]);
+  
+  return (
+    <View>
+      <Button
+        disabled={iapLoading}
+        title={`Click to Buy Subscription`}
+        onPress={() => handleBuySubscription("oneMonthSubscriptionTwo")}
+      />
+      {iapLoading && <ActivityIndicator size={"small"} color={"black"} />}
+    </View>
+  );
 };
 
 const App = () => {
   return (
     // Wrapped application code from the previous step...
-    <DeepLinkIapProvider
-      iapticAppId="{{ your_iaptic_app_id }}"
-      iapticAppName="{{ your_iaptic_app_name }}"
-      iapticPublicKey="{{ your_iaptic_public_key }}">
+    <DeepLinkIapProvider>
       <Child />
     </DeepLinkIapProvider>
   );
@@ -204,7 +200,7 @@ After setting up your Branch integration, add the following code to your ```inde
 <!--```-->
 
 #### Example with Iaptic
-```swift
+```javascript
 import branch from 'react-native-branch';
 import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
@@ -213,13 +209,13 @@ branch.subscribe(async ({ error, params }) => {
       console.error('Error from Branch: ' + error);
       return;
     }
- 
+
     if (params['+clicked_branch_link']) {
-        if (params["~referring_link"]) {
-            setInsertAffiliateIdentifier(params["~referring_link"], (shortLink) => {
-                console.log("Insert Affiliate - setInsertAffiliateIdentifier: ", params["~referring_link"], " - Stored shortLink ", shortLink);
-            });
-        }
+      if (params["~referring_link"]) {
+        setInsertAffiliateIdentifier(params["~referring_link"], (shortLink) => {
+          console.log("Insert Affiliate - setInsertAffiliateIdentifier: ", params["~referring_link"], " - Stored shortLink ", shortLink);
+        });
+      }
     }
 });
 

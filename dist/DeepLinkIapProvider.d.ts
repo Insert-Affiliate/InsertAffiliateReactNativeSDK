@@ -1,9 +1,6 @@
 import React from "react";
 type T_DEEPLINK_IAP_PROVIDER = {
     children: React.ReactNode;
-    iapticAppId: string;
-    iapticAppName: string;
-    iapticPublicKey: string;
 };
 type CustomPurchase = {
     [key: string]: any;
@@ -12,7 +9,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
     referrerLink: string;
     userId: string;
     returnInsertAffiliateIdentifier: () => Promise<string | null>;
-    handlePurchaseValidation: (jsonIapPurchase: CustomPurchase) => Promise<boolean>;
+    validatePurchaseWithIapticAPI: (jsonIapPurchase: CustomPurchase, iapticAppId: string, iapticAppName: string, iapticPublicKey: string) => Promise<boolean>;
     trackEvent: (eventName: string) => Promise<void>;
     setShortCode: (shortCode: string) => Promise<void>;
     setInsertAffiliateIdentifier: (referringLink: string, completion: (shortLink: string | null) => void) => Promise<void>;
