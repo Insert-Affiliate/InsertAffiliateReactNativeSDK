@@ -10,18 +10,11 @@ The **InsertAffiliateReactNative SDK** is designed for React Native applications
 - **Affiliate Identifier Management**: Set and retrieve the affiliate identifier based on user-specific links.
 - **In-App Purchase (IAP) Initialisation**: Easily reinitialise in-app purchases with the option to validate using an affiliate identifier.
 
-## Peer Dependencies
-
-Before using this package, ensure you have the following dependencies installed:
-
-- [react-native-iap](https://www.npmjs.com/package/react-native-iap)
-- [axios](https://www.npmjs.com/package/axios)
-
 ## Getting Started
 
 To get started with the InsertAffiliateReactNative SDK:
 
-1. [Install the React Native Package](#installation)
+1. [Install the SDK](#installation)
 2. [Initialise the SDK in App.tsx](#basic-usage)
 3. [Set up in-app purchases (Required)](#in-app-purchase-setup-required)
 4. [Set up deep linking (Required)](#deep-link-setup-required)
@@ -37,7 +30,9 @@ npm install insert-affiliate-react-native-sdk
 
 ## Basic Usage
 
-### Initialisation in `App.tsx`
+Follow the steps below to install the SDK. You can use different methods depending on your project setup (e.g., Gradle, Maven, or manual download).
+
+#### Step 1: Initialisation in `App.tsx`
 
 First, wrap your with our provider and call the `initialise` method early in your app's lifecycle:
 
@@ -60,7 +55,6 @@ const Child = () => {
   }, [initialize, isInitialized]);
   
   // ...
-  
 }
 
 const App = () => {
@@ -71,9 +65,6 @@ const App = () => {
   );
 };
 ```
-- Replace `{{ your_iaptic_app_id }}` with your **Iaptic App ID**. You can find this [here](https://www.iaptic.com/account).
-- Replace `{{ your_iaptic_app_name }}` with your **Iaptic App Name**. You can find this [here](https://www.iaptic.com/account).
-- Replace `{{ your_iaptic_public_key }}` with your **Iaptic Public Key**. You can find this [here](https://www.iaptic.com/settings).
 - Replace `{{ your_company_code }}` with the unique company code associated with your Insert Affiliate account. You can find this code in your dashboard under [Settings](http://app.insertaffiliate.com/settings).
 
 ## In-App Purchase Setup [Required]
@@ -84,7 +75,7 @@ Insert Affiliate requires a Receipt Verification platform to validate in-app pur
 ### Option 1: Iaptic Integration
 First, complete the [Iaptic account setup](https://www.iaptic.com/signup) and code integration.
 
-Then after setting up the in app purchase (IAP) with Iaptic, call Insert Affiliate's handlePurchaseValidation on purchase.
+Then after setting up the in app purchase (IAP) with Iaptic, call Insert Affiliate's ```validatePurchaseWithIapticAPI``` on purchase.
 
 ```javascript
 import React from 'react';
@@ -96,7 +87,7 @@ const Child = () => {
     const {
         initialize,
         isInitialized,
-        handlePurchaseValidation,
+        validatePurchaseWithIapticAPI,
     } = useDeepLinkIapProvider();
 
     const [iapLoading, setIapLoading] = useState(false);
@@ -108,34 +99,39 @@ const Child = () => {
     
     // Initialize the Insert Affiliate SDK at the earliest possible moment
     useEffect(() => {
-        if (!isInitialized) {
-          initialize("{{ your_company_code }}");
-        }
+      if (!isInitialized) {
+        initialize("{{ your_company_code }}");
+      }
     }, [initialize, isInitialized]);
 
 
     // Validate the purchase with Iaptic through Insert Affiliate's SDK for Affiliate Tracking
     useEffect(() => {
-        if (currentPurchase) {
-            handlePurchaseValidation(currentPurchase).then((isValid: boolean) => {
-                if (isValid) {
-                  console.log("Purchase validated successfully.");
-                } else {
-                  console.error("Purchase validation failed.");
-                }
-            });
-        }
+      if (currentPurchase) {
+        validatePurchaseWithIapticAPI(
+          currentPurchase,
+          '{{ your_iaptic_app_id }}',
+          '{{ your_iaptic_app_name }}',
+          '{{ your_iaptic_public_key }}',
+        ).then((isValid: boolean) => {
+          if (isValid) {
+            console.log("Purchase validated successfully.");
+          } else {
+            console.error("Purchase validation failed.");
+          }
+        });
+      }
     }, [currentPurchase, handlePurchaseValidation]);
     
     return (
-        <View>
-            <Button
-                disabled={iapLoading}
-                title={`Click to Buy Subscription`}
-                onPress={() => handleBuySubscription("oneMonthSubscriptionTwo")}
-            />
-            {iapLoading && <ActivityIndicator size={"small"} color={"black"} />}
-        </View>
+      <View>
+        <Button
+          disabled={iapLoading}
+          title={`Click to Buy Subscription`}
+          onPress={() => handleBuySubscription("oneMonthSubscriptionTwo")}
+        />
+        {iapLoading && <ActivityIndicator size={"small"} color={"black"} />}
+      </View>
     );
 };
 
@@ -236,13 +232,7 @@ To track an event, use the `trackEvent` function. Make sure to set an affiliate 
 
 ```javascript
 const {
-  referrerLink,
-  subscriptions,
-  iapLoading,
-  validatePurchaseWithIapticAPI,
-  userId,
-  userPurchase,
-  trackEvent, // Required for trackEvent
+  trackEvent,
 } = useDeepLinkIapProvider();
 
 <Button

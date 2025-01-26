@@ -1,9 +1,9 @@
 declare const useDeepLinkIapProvider: () => {
     referrerLink: string;
     userId: string;
-    handlePurchaseValidation: (jsonIapPurchase: {
+    validatePurchaseWithIapticAPI: (jsonIapPurchase: {
         [key: string]: any;
-    }) => Promise<boolean>;
+    }, iapticAppId: string, iapticAppName: string, iapticPublicKey: string) => Promise<boolean>;
     returnInsertAffiliateIdentifier: () => Promise<string | null>;
     trackEvent: (eventName: string) => Promise<void>;
     setShortCode: (shortCode: string) => Promise<void>;
