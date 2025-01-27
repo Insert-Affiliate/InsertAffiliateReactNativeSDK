@@ -1,7 +1,7 @@
 {
   "name": "insert-affiliate-react-native-sdk",
-  "version": "1.1.8",
-  "description": "A package that will give context having implementation of react-native-branch and react-native-iap and iaptic validate api.",
+  "version": "1.1.9",
+  "description": "A package for connecting with the Insert Affiliate Platform to add app based affiliate marketing.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

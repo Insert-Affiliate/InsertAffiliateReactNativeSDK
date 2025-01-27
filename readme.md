@@ -30,7 +30,7 @@ npm install insert-affiliate-react-native-sdk
 
 ## Basic Usage
 
-Follow the steps below to install the SDK. You can use different methods depending on your project setup (e.g., Gradle, Maven, or manual download).
+Follow the steps below to install the SDK.
 
 #### Step 1: Initialisation in `App.tsx`
 
@@ -69,10 +69,70 @@ const App = () => {
 
 ## In-App Purchase Setup [Required]
 Insert Affiliate requires a Receipt Verification platform to validate in-app purchases. You must choose **one** of our supported partners:
-- [Iaptic](https://www.iaptic.com/account)
 - [RevenueCat](https://www.revenuecat.com/)
+- [Iaptic](https://www.iaptic.com/account)
 
-### Option 1: Iaptic Integration
+### Option 1: RevenueCat Integration
+#### Step 1. Code Setup
+First, complete the [RevenueCat SDK installation](https://www.revenuecat.com/docs/getting-started/installation/reactnative). Then modify your `App.tsx`:
+
+```javascript
+import {
+  DeepLinkIapProvider,
+  useDeepLinkIapProvider,
+} from 'insert-affiliate-react-native-sdk';
+
+// ... //
+const {
+    initialize,
+    isInitialized,
+    returnInsertAffiliateIdentifier
+} = useDeepLinkIapProvider();
+
+React.useEffect(() => {
+    const handleAffiliateLogin = async () => {
+        try {
+            if (isInitialized) {
+                const affiliateIdentifier = await returnInsertAffiliateIdentifier();
+                
+                if (affiliateIdentifier) {
+                    console.log('Logging into RevenueCat...');
+                    const { customerInfo, created } = await Purchases.logIn(affiliateIdentifier);
+                    
+                    if (created) {
+                        console.log('New user created in RevenueCat:', customerInfo);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error during affiliate login flow:', error);
+        }
+    };
+
+    handleAffiliateLogin();
+}, [isInitialized, returnInsertAffiliateIdentifier]);
+// ... //
+```
+
+#### Step 2. Webhook Setup
+
+1. Go to RevenueCat and [create a new webhook](https://www.revenuecat.com/docs/integrations/webhooks)
+
+2. Configure the webhook with these settings:
+   - Webhook URL: `https://api.insertaffiliate.com/v1/api/revenuecat-webhook`
+   - Authorization header: Use the value from your Insert Affiliate dashboard (you'll get this in step 4)
+
+3. In your [Insert Affiliate dashboard settings](https://app.insertaffiliate.com/settings):
+   - Navigate to the verification settings
+   - Set the in-app purchase verification method to `RevenueCat`
+
+4. Back in your Insert Affiliate dashboard:
+   - Locate the `RevenueCat Webhook Authentication Header` value
+   - Copy this value
+   - Paste it as the Authorization header value in your RevenueCat webhook configuration
+
+
+### Option 2: Iaptic Integration
 First, complete the [Iaptic account setup](https://www.iaptic.com/signup) and code integration.
 
 Then after setting up the in app purchase (IAP) with Iaptic, call Insert Affiliate's ```validatePurchaseWithIapticAPI``` on purchase.
@@ -99,39 +159,39 @@ const Child = () => {
     
     // Initialize the Insert Affiliate SDK at the earliest possible moment
     useEffect(() => {
-      if (!isInitialized) {
-        initialize("{{ your_company_code }}");
-      }
+        if (!isInitialized) {
+          initialize("{{ your_company_code }}");
+        }
     }, [initialize, isInitialized]);
 
 
     // Validate the purchase with Iaptic through Insert Affiliate's SDK for Affiliate Tracking
     useEffect(() => {
-      if (currentPurchase) {
-        validatePurchaseWithIapticAPI(
-          currentPurchase,
-          '{{ your_iaptic_app_id }}',
-          '{{ your_iaptic_app_name }}',
-          '{{ your_iaptic_public_key }}',
-        ).then((isValid: boolean) => {
-          if (isValid) {
-            console.log("Purchase validated successfully.");
-          } else {
-            console.error("Purchase validation failed.");
-          }
-        });
-      }
+        if (currentPurchase) {
+            validatePurchaseWithIapticAPI(
+                currentPurchase,
+                '{{ your_iaptic_app_id }}',
+                '{{ your_iaptic_app_name }}',
+                '{{ your_iaptic_public_key }}',
+              ).then((isValid: boolean) => {
+                if (isValid) {
+                  console.log("Purchase validated successfully.");
+                } else {
+                  console.error("Purchase validation failed.");
+                }
+            });
+        }
     }, [currentPurchase, handlePurchaseValidation]);
     
     return (
-      <View>
-        <Button
-          disabled={iapLoading}
-          title={`Click to Buy Subscription`}
-          onPress={() => handleBuySubscription("oneMonthSubscriptionTwo")}
-        />
-        {iapLoading && <ActivityIndicator size={"small"} color={"black"} />}
-      </View>
+        <View>
+            <Button
+                disabled={iapLoading}
+                title={`Click to Buy Subscription`}
+                onPress={() => handleBuySubscription("oneMonthSubscriptionTwo")}
+            />
+            {iapLoading && <ActivityIndicator size={"small"} color={"black"} />}
+        </View>
     );
 };
 
@@ -151,12 +211,6 @@ export default App;
 - Replace `{{ your_iaptic_public_key }}` with your **Iaptic Public Key**. You can find this [here](https://www.iaptic.com/settings).
 - Replace `{{ your_company_code }}` with the unique company code associated with your Insert Affiliate account. You can find this code in your dashboard under [Settings](http://app.insertaffiliate.com/settings).
 
-### Option 2: RevenueCat Integration
-<!--#### 1. Code Setup-->
-<!--First, complete the [RevenueCat SDK installation](https://www.revenuecat.com/docs/getting-started/installation/ios). Then modify your `AppDelegate.swift`:-->
-   
-COMING SOON...
-
 ## Deep Link Setup [Required]
 
 ### Step 1: Add the Deep Linking Platform Dependency
@@ -167,31 +221,46 @@ Any alternative deep linking platform can be used by passing the referring link 
 
 After setting up your Branch integration, add the following code to your ```index.js```
 
-<!--#### Example with RevenueCat-->
-<!--```swift-->
-<!--import SwiftUI-->
-<!--import BranchSDK-->
-<!--import InAppPurchaseLib-->
-<!--import InsertAffiliateSwift-->
+#### Example with RevenueCat
+```javascript
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
-<!--class AppDelegate: UIResponder, UIApplicationDelegate {-->
-<!--  func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {-->
-<!--    Branch.getInstance().initSession(launchOptions: launchOptions) { (params, error) in-->
-<!--      if let referringLink = params?["~referring_link"] as? String {-->
-<!--        InsertAffiliateSwift.setInsertAffiliateIdentifier(referringLink: referringLink) { result in-->
-<!--          guard let shortCode = result else {-->
-<!--            return-->
-<!--          }-->
+const RootComponent = () => {
+    const {setInsertAffiliateIdentifier, returnInsertAffiliateIdentifier} = useDeepLinkIapProvider();
+    
+    React.useEffect(() => {
+        const branchSubscription = branch.subscribe(async ({error, params}) => {
+            if (error) {
+                console.error('Error from Branch:', error);
+                return;
+            }
+            
+            if (params['+clicked_branch_link']) {
+                const referringLink = params['~referring_link'];
+                if (referringLink) {
+                    try {
+                        await setInsertAffiliateIdentifier(referringLink);
+                        
+                        let insertAffiliateIdentifier = await returnInsertAffiliateIdentifier();
+                        if (insertAffiliateIdentifier) {
+                          const { customerInfo, created } = await Purchases.logIn(insertAffiliateIdentifier);
+                        }
+                    } catch (err) {
+                        console.error('Error setting affiliate identifier:', err);
+                    }
+                }
+            }
+        });
 
-<!--          Purchases.shared.logIn(shortCode) { (customerInfo, created, error) in-->
-<!--            // customerInfo updated for my_app_user_id. If you are having issues, you can investigate here.-->
-<!--          }-->
-<!--      }-->
-<!--    }-->
-<!--    return true-->
-<!--  }-->
-<!--}-->
-<!--```-->
+        // Cleanup the subscription on component unmount
+        return () => {
+            branchSubscription();
+        };
+    }, [setInsertAffiliateIdentifier]);
+
+    return <App />;
+};
+```
 
 #### Example with Iaptic
 ```javascript
@@ -232,7 +301,13 @@ To track an event, use the `trackEvent` function. Make sure to set an affiliate 
 
 ```javascript
 const {
-  trackEvent,
+  referrerLink,
+  subscriptions,
+  iapLoading,
+  validatePurchaseWithIapticAPI,
+  userId,
+  userPurchase,
+  trackEvent, // Required for trackEvent
 } = useDeepLinkIapProvider();
 
 <Button
