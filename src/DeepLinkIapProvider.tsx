@@ -216,11 +216,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return;
       }
       
-      if (!isInitialized || !companyCode) {
-        console.error("[Insert Affiliate] SDK is not initialized. Please initialize the SDK with a valid company code.");
-        return;
-      }
-      
       if (!companyCode || companyCode.trim() === "") {
         console.error(
           "[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code."
