@@ -219,7 +219,7 @@ In this example, the deep linking functionality is implemented using [Branch.io]
 
 Any alternative deep linking platform can be used by passing the referring link to ```InsertAffiliateSwift.setInsertAffiliateIdentifier(referringLink: "{{ link }}")``` as in the below Branch.io example
 
-After setting up your Branch integration, add the following code to your ```index.js```
+After setting up your Branch integration, add the following code to your ```App.tsx```
 
 #### Example with RevenueCat
 ```javascript
@@ -228,37 +228,39 @@ import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 const RootComponent = () => {
     const {setInsertAffiliateIdentifier, returnInsertAffiliateIdentifier} = useDeepLinkIapProvider();
     
-    React.useEffect(() => {
-        const branchSubscription = branch.subscribe(async ({error, params}) => {
-            if (error) {
-                console.error('Error from Branch:', error);
-                return;
-            }
-            
-            if (params['+clicked_branch_link']) {
-                const referringLink = params['~referring_link'];
-                if (referringLink) {
-                    try {
-                        await setInsertAffiliateIdentifier(referringLink);
-                        
-                        let insertAffiliateIdentifier = await returnInsertAffiliateIdentifier();
-                        if (insertAffiliateIdentifier) {
-                          const { customerInfo, created } = await Purchases.logIn(insertAffiliateIdentifier);
-                        }
-                    } catch (err) {
-                        console.error('Error setting affiliate identifier:', err);
-                    }
-                }
-            }
-        });
+    useEffect(() => {
+      const branchSubscription = branch.subscribe(async ({error, params}) => {
+        if (error) {
+          console.error('Error from Branch:', error);
+          return;
+        }
 
-        // Cleanup the subscription on component unmount
-        return () => {
-            branchSubscription();
-        };
-    }, [setInsertAffiliateIdentifier]);
+        if (!params) {
+          return
+        }
+        if (params['+clicked_branch_link']) {
+          const referringLink = params['~referring_link'];
+          if (referringLink) {
+            try {
+              await setInsertAffiliateIdentifier(referringLink);
 
-    return <App />;
+              let insertAffiliateIdentifier = await returnInsertAffiliateIdentifier();
+              if (insertAffiliateIdentifier) {
+                const { customerInfo, created } = await Purchases.logIn(insertAffiliateIdentifier);
+              }
+
+            } catch (err) {
+              console.error('Error setting affiliate identifier:', err);
+            }
+          }
+        }
+      });
+
+      // Cleanup the subscription on component unmount
+      return () => {
+        branchSubscription();
+      };
+    }, [setInsertAffiliateIdentifier, isInitialized]);
 };
 ```
 

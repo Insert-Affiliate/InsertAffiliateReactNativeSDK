@@ -209,7 +209,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
     try {
       await generateThenSetUserID();
-
       console.log("[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.");
 
       if (!referringLink) {
@@ -219,16 +218,16 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
       
       if (!companyCode || companyCode.trim() === "") {
-        let companyCode = await getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
-        if (companyCode !== null) {
-          setCompanyCode(companyCode);
+        let companyCodeFromStorage = await getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
+
+        if (companyCodeFromStorage !== null) {
+          setCompanyCode(companyCodeFromStorage);
         } else {
           console.error(
             "[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code."
           );
+          return;
         }
-       
-        return;
       }
   
       // Check if referring link is already a short code, if so save it and stop here.
