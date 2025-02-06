@@ -178,6 +178,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   };
 
   async function setShortCode(shortCode: string): Promise<void> {
+    console.log("[Insert Affiliate] Setting short code.");
     generateThenSetUserID();
 
     // Validate it is a short code
@@ -200,7 +201,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   
 
   // MARK: Insert Affiliate Identifier
-  const setInsertAffiliateIdentifier = async (referringLink: string) => {
+
+  async function setInsertAffiliateIdentifier(referringLink: string): Promise<void> {
     console.log("[Insert Affiliate] Setting affiliate identifier.");
 
     try {

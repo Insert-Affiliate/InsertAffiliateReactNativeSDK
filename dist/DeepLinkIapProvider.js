@@ -153,6 +153,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     };
     function setShortCode(shortCode) {
         return __awaiter(this, void 0, void 0, function* () {
+            console.log("[Insert Affiliate] Setting short code.");
             generateThenSetUserID();
             // Validate it is a short code
             const capitalisedShortCode = shortCode.toUpperCase();
@@ -172,61 +173,64 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
     });
     // MARK: Insert Affiliate Identifier
-    const setInsertAffiliateIdentifier = (referringLink) => __awaiter(void 0, void 0, void 0, function* () {
-        console.log("[Insert Affiliate] Setting affiliate identifier.");
-        try {
-            yield generateThenSetUserID();
-            console.log("[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.");
-            if (!referringLink) {
-                console.warn("[Insert Affiliate] Referring link is invalid.");
-                yield storeInsertAffiliateIdentifier({ link: referringLink });
-                return;
+    function setInsertAffiliateIdentifier(referringLink) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("[Insert Affiliate] Setting affiliate identifier.");
+            try {
+                yield generateThenSetUserID();
+                console.log("[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.");
+                if (!referringLink) {
+                    console.warn("[Insert Affiliate] Referring link is invalid.");
+                    yield storeInsertAffiliateIdentifier({ link: referringLink });
+                    return;
+                }
+                if (!isInitialized || !companyCode) {
+                    console.error("[Insert Affiliate] SDK is not initialized. Please initialize the SDK with a valid company code.");
+                    return;
+                }
+                if (!companyCode || companyCode.trim() === "") {
+                    console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+                    return;
+                }
+                // Check if referring link is already a short code, if so save it and stop here.
+                if (isShortCode(referringLink)) {
+                    console.log("[Insert Affiliate] Referring link is already a short code.");
+                    yield storeInsertAffiliateIdentifier({ link: referringLink });
+                    return;
+                }
+                // If the code is not already a short code, encode it raedy to send to our endpoint to return the short code. Save it before making the call in case something goes wrong
+                // Encode the referring link
+                const encodedAffiliateLink = encodeURIComponent(referringLink);
+                if (!encodedAffiliateLink) {
+                    console.error("[Insert Affiliate] Failed to encode affiliate link.");
+                    yield storeInsertAffiliateIdentifier({ link: referringLink });
+                    return;
+                }
+                // Create the request URL
+                const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${companyCode}&deepLinkUrl=${encodedAffiliateLink}`;
+                console.log("[Insert Affiliate] urlString .", urlString);
+                const response = yield axios_1.default.get(urlString, {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
+                // Call to the backend for the short code and save the resolse in valid
+                if (response.status === 200 && response.data.shortLink) {
+                    const shortLink = response.data.shortLink;
+                    console.log("[Insert Affiliate] Short link received:", shortLink);
+                    yield storeInsertAffiliateIdentifier({ link: shortLink });
+                }
+                else {
+                    console.warn("[Insert Affiliate] Unexpected response format.");
+                    yield storeInsertAffiliateIdentifier({ link: referringLink });
+                }
             }
-            if (!isInitialized || !companyCode) {
-                console.error("[Insert Affiliate] SDK is not initialized. Please initialize the SDK with a valid company code.");
-                return;
+            catch (error) {
+                console.error("[Insert Affiliate] Error:", error);
             }
-            if (!companyCode || companyCode.trim() === "") {
-                console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
-                return;
-            }
-            // Check if referring link is already a short code, if so save it and stop here.
-            if (isShortCode(referringLink)) {
-                console.log("[Insert Affiliate] Referring link is already a short code.");
-                yield storeInsertAffiliateIdentifier({ link: referringLink });
-                return;
-            }
-            // If the code is not already a short code, encode it raedy to send to our endpoint to return the short code. Save it before making the call in case something goes wrong
-            // Encode the referring link
-            const encodedAffiliateLink = encodeURIComponent(referringLink);
-            if (!encodedAffiliateLink) {
-                console.error("[Insert Affiliate] Failed to encode affiliate link.");
-                yield storeInsertAffiliateIdentifier({ link: referringLink });
-                return;
-            }
-            // Create the request URL
-            const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${companyCode}&deepLinkUrl=${encodedAffiliateLink}`;
-            console.log("[Insert Affiliate] urlString .", urlString);
-            const response = yield axios_1.default.get(urlString, {
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-            // Call to the backend for the short code and save the resolse in valid
-            if (response.status === 200 && response.data.shortLink) {
-                const shortLink = response.data.shortLink;
-                console.log("[Insert Affiliate] Short link received:", shortLink);
-                yield storeInsertAffiliateIdentifier({ link: shortLink });
-            }
-            else {
-                console.warn("[Insert Affiliate] Unexpected response format.");
-                yield storeInsertAffiliateIdentifier({ link: referringLink });
-            }
-        }
-        catch (error) {
-            console.error("[Insert Affiliate] Error:", error);
-        }
-    });
+        });
+    }
+    ;
     function storeInsertAffiliateIdentifier(_a) {
         return __awaiter(this, arguments, void 0, function* ({ link }) {
             console.log(`[Insert Affiliate] Storing affiliate identifier: ${link}`);
