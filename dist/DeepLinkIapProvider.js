@@ -186,7 +186,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                     yield storeInsertAffiliateIdentifier({ link: referringLink });
                     return;
                 }
-                if (!companyCode || companyCode.trim() === "") {
+                if (!companyCode || companyCode.trim() === "" && companyCode !== null) {
                     let companyCodeFromStorage = yield getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
                     if (companyCodeFromStorage !== null) {
                         setCompanyCode(companyCodeFromStorage);
