@@ -173,8 +173,8 @@ const DeepLinkIapProvider = ({ children, }) => {
     });
     // MARK: Insert Affiliate Identifier
     const setInsertAffiliateIdentifier = (referringLink, completion) => __awaiter(void 0, void 0, void 0, function* () {
+        console.log("[Insert Affiliate] Setting affiliate identifier.");
         try {
-            console.log("[Insert Affiliate] Setting affiliate identifier.");
             generateThenSetUserID();
             console.log("[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.");
             if (!referringLink) {
