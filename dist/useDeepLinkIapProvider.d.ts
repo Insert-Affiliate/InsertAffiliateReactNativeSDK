@@ -7,7 +7,7 @@ declare const useDeepLinkIapProvider: () => {
     returnInsertAffiliateIdentifier: () => Promise<string | null>;
     trackEvent: (eventName: string) => Promise<void>;
     setShortCode: (shortCode: string) => Promise<void>;
-    setInsertAffiliateIdentifier: (referringLink: string, completion: (shortLink: string | null) => void) => Promise<void>;
+    setInsertAffiliateIdentifier: (referringLink: string) => Promise<void>;
     initialize: (code: string | null) => Promise<void>;
     isInitialized: boolean;
 };

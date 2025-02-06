@@ -53,7 +53,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     validatePurchaseWithIapticAPI: (jsonIapPurchase, iapticAppId, iapticAppName, iapticPublicKey) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     trackEvent: (eventName) => __awaiter(void 0, void 0, void 0, function* () { }),
     setShortCode: (shortCode) => __awaiter(void 0, void 0, void 0, function* () { }),
-    setInsertAffiliateIdentifier: (referringLink, completion) => __awaiter(void 0, void 0, void 0, function* () { }),
+    setInsertAffiliateIdentifier: (referringLink) => __awaiter(void 0, void 0, void 0, function* () { }),
     initialize: (code) => __awaiter(void 0, void 0, void 0, function* () { }),
     isInitialized: false
 });
@@ -172,32 +172,28 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
     });
     // MARK: Insert Affiliate Identifier
-    const setInsertAffiliateIdentifier = (referringLink, completion) => __awaiter(void 0, void 0, void 0, function* () {
+    const setInsertAffiliateIdentifier = (referringLink) => __awaiter(void 0, void 0, void 0, function* () {
         console.log("[Insert Affiliate] Setting affiliate identifier.");
         try {
-            generateThenSetUserID();
+            yield generateThenSetUserID();
             console.log("[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.");
             if (!referringLink) {
                 console.warn("[Insert Affiliate] Referring link is invalid.");
-                storeInsertAffiliateIdentifier({ link: referringLink });
-                completion(null);
+                yield storeInsertAffiliateIdentifier({ link: referringLink });
                 return;
             }
             if (!isInitialized || !companyCode) {
                 console.error("[Insert Affiliate] SDK is not initialized. Please initialize the SDK with a valid company code.");
-                completion(null);
                 return;
             }
             if (!companyCode || companyCode.trim() === "") {
                 console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
-                completion(null);
                 return;
             }
             // Check if referring link is already a short code, if so save it and stop here.
             if (isShortCode(referringLink)) {
                 console.log("[Insert Affiliate] Referring link is already a short code.");
-                storeInsertAffiliateIdentifier({ link: referringLink });
-                completion(referringLink);
+                yield storeInsertAffiliateIdentifier({ link: referringLink });
                 return;
             }
             // If the code is not already a short code, encode it raedy to send to our endpoint to return the short code. Save it before making the call in case something goes wrong
@@ -205,8 +201,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             const encodedAffiliateLink = encodeURIComponent(referringLink);
             if (!encodedAffiliateLink) {
                 console.error("[Insert Affiliate] Failed to encode affiliate link.");
-                storeInsertAffiliateIdentifier({ link: referringLink });
-                completion(null);
+                yield storeInsertAffiliateIdentifier({ link: referringLink });
                 return;
             }
             // Create the request URL
@@ -221,18 +216,15 @@ const DeepLinkIapProvider = ({ children, }) => {
             if (response.status === 200 && response.data.shortLink) {
                 const shortLink = response.data.shortLink;
                 console.log("[Insert Affiliate] Short link received:", shortLink);
-                storeInsertAffiliateIdentifier({ link: shortLink });
-                completion(shortLink);
+                yield storeInsertAffiliateIdentifier({ link: shortLink });
             }
             else {
                 console.warn("[Insert Affiliate] Unexpected response format.");
-                storeInsertAffiliateIdentifier({ link: referringLink });
-                completion(null);
+                yield storeInsertAffiliateIdentifier({ link: referringLink });
             }
         }
         catch (error) {
             console.error("[Insert Affiliate] Error:", error);
-            completion(null);
         }
     });
     function storeInsertAffiliateIdentifier(_a) {
