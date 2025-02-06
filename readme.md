@@ -225,7 +225,7 @@ After setting up your Branch integration, add the following code to your ```App.
 ```javascript
 import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
-const RootComponent = () => {
+//...
     const {setInsertAffiliateIdentifier, returnInsertAffiliateIdentifier} = useDeepLinkIapProvider();
     
     useEffect(() => {
@@ -261,7 +261,7 @@ const RootComponent = () => {
         branchSubscription();
       };
     }, [setInsertAffiliateIdentifier, isInitialized]);
-};
+//...
 ```
 
 #### Example with Iaptic
