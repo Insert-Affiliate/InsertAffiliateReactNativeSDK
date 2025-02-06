@@ -211,12 +211,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     completion: (shortLink: string | null) => void
   ) => {
     try {
-      try {
-        generateThenSetUserID();
-      } catch (error) {
-        console.error("[Insert Affiliate] Error setting user ID:", error);
-      }
-      
+      console.log("[Insert Affiliate] Setting affiliate identifier.");
+      generateThenSetUserID();
 
       if (!referringLink) {
         console.warn("[Insert Affiliate] Referring link is invalid.");
@@ -259,6 +255,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   
       // Create the request URL
       const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${companyCode}&deepLinkUrl=${encodedAffiliateLink}`;
+      console.log("[Insert Affiliate] urlString .", urlString);
       const response = await axios.get(urlString, {
         headers: {
           "Content-Type": "application/json",
