@@ -34,7 +34,7 @@ Follow the steps below to install the SDK.
 
 #### Step 1: Initialisation in `App.tsx`
 
-First, wrap your with our provider and call the `initialise` method early in your app's lifecycle:
+First, wrap your with our provider and call the `initialize` method early in your app's lifecycle:
 
 ```javascript
 const Child = () => {
