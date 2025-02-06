@@ -24,10 +24,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   ) => Promise<boolean>;
   trackEvent: (eventName: string) => Promise<void>;
   setShortCode: (shortCode: string) => Promise<void>;
-  setInsertAffiliateIdentifier: (
-    referringLink: string,
-    completion: (shortLink: string | null) => void
-  ) => Promise<void>;
+  setInsertAffiliateIdentifier: (referringLink: string) => Promise<void>;
   initialize: (code: string | null) => Promise<void>;
   isInitialized: boolean;
 };
@@ -67,10 +64,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   ) => false,
   trackEvent: async (eventName: string) => {},
   setShortCode: async (shortCode: string) => {},
-  setInsertAffiliateIdentifier: async (
-    referringLink: string,
-    completion: (shortLink: string | null) => void
-  ) => {},
+  setInsertAffiliateIdentifier: async (referringLink: string) => {},
   initialize: async (code: string | null) => {},
   isInitialized: false
 });
@@ -206,27 +200,22 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   
 
   // MARK: Insert Affiliate Identifier
-  const setInsertAffiliateIdentifier = async (
-    referringLink: string,
-    completion: (shortLink: string | null) => void
-  ) => {
+  const setInsertAffiliateIdentifier = async (referringLink: string) => {
     console.log("[Insert Affiliate] Setting affiliate identifier.");
 
     try {
-      generateThenSetUserID();
+      await generateThenSetUserID();
 
       console.log("[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.");
 
       if (!referringLink) {
         console.warn("[Insert Affiliate] Referring link is invalid.");
-        storeInsertAffiliateIdentifier({ link: referringLink });
-        completion(null);
+        await storeInsertAffiliateIdentifier({ link: referringLink });
         return;
       }
       
       if (!isInitialized || !companyCode) {
         console.error("[Insert Affiliate] SDK is not initialized. Please initialize the SDK with a valid company code.");
-        completion(null);
         return;
       }
       
@@ -234,15 +223,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         console.error(
           "[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code."
         );
-        completion(null);
         return;
       }
   
       // Check if referring link is already a short code, if so save it and stop here.
       if (isShortCode(referringLink)) {
         console.log("[Insert Affiliate] Referring link is already a short code.");
-        storeInsertAffiliateIdentifier({ link: referringLink });
-        completion(referringLink);
+        await storeInsertAffiliateIdentifier({ link: referringLink });
         return;
       }
   
@@ -251,8 +238,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       const encodedAffiliateLink = encodeURIComponent(referringLink);
       if (!encodedAffiliateLink) {
         console.error("[Insert Affiliate] Failed to encode affiliate link.");
-        storeInsertAffiliateIdentifier({ link: referringLink });
-        completion(null);
+        await storeInsertAffiliateIdentifier({ link: referringLink });
         return;
       }
   
@@ -269,16 +255,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       if (response.status === 200 && response.data.shortLink) {
         const shortLink = response.data.shortLink;
         console.log("[Insert Affiliate] Short link received:", shortLink);
-        storeInsertAffiliateIdentifier({ link: shortLink });
-        completion(shortLink);
+        await storeInsertAffiliateIdentifier({ link: shortLink });
       } else {
         console.warn("[Insert Affiliate] Unexpected response format.");
-        storeInsertAffiliateIdentifier({ link: referringLink });
-        completion(null);
+        await storeInsertAffiliateIdentifier({ link: referringLink });
       }
     } catch (error) {
       console.error("[Insert Affiliate] Error:", error);
-      completion(null);
     }
   };
   
