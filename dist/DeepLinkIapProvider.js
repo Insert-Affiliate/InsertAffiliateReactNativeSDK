@@ -44,6 +44,7 @@ const ASYNC_KEYS = {
     REFERRER_LINK: "@app_referrer_link",
     USER_PURCHASE: "@app_user_purchase",
     USER_ID: "@app_user_id",
+    COMPANY_CODE: "@app_company_code",
 };
 // STARTING CONTEXT IMPLEMENTATION
 exports.DeepLinkIapContext = (0, react_1.createContext)({
@@ -70,6 +71,7 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
         if (companyCode && companyCode.trim() !== "") {
             setCompanyCode(companyCode);
+            yield saveValueInAsync(ASYNC_KEYS.COMPANY_CODE, companyCode);
             setIsInitialized(true);
             console.log(`[Insert Affiliate] SDK initialized with company code: ${companyCode}`);
         }
@@ -185,7 +187,13 @@ const DeepLinkIapProvider = ({ children, }) => {
                     return;
                 }
                 if (!companyCode || companyCode.trim() === "") {
-                    console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+                    let companyCode = yield getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
+                    if (companyCode !== null) {
+                        setCompanyCode(companyCode);
+                    }
+                    else {
+                        console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+                    }
                     return;
                 }
                 // Check if referring link is already a short code, if so save it and stop here.

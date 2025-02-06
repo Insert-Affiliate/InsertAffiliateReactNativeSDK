@@ -49,6 +49,7 @@ const ASYNC_KEYS = {
   REFERRER_LINK: "@app_referrer_link",
   USER_PURCHASE: "@app_user_purchase",
   USER_ID: "@app_user_id",
+  COMPANY_CODE: "@app_company_code",
 };
 
 // STARTING CONTEXT IMPLEMENTATION
@@ -86,6 +87,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   
     if (companyCode && companyCode.trim() !== "") {
       setCompanyCode(companyCode);
+      await saveValueInAsync(ASYNC_KEYS.COMPANY_CODE, companyCode);
       setIsInitialized(true);
       console.log(`[Insert Affiliate] SDK initialized with company code: ${companyCode}`);
     } else {
@@ -217,9 +219,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
       
       if (!companyCode || companyCode.trim() === "") {
-        console.error(
-          "[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code."
-        );
+        let companyCode = await getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
+        if (companyCode !== null) {
+          setCompanyCode(companyCode);
+        } else {
+          console.error(
+            "[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code."
+          );
+        }
+       
         return;
       }
   
