@@ -175,7 +175,8 @@ const DeepLinkIapProvider = ({ children, }) => {
     const setInsertAffiliateIdentifier = (referringLink, completion) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             console.log("[Insert Affiliate] Setting affiliate identifier.");
-            generateThenSetUserID();
+            yield generateThenSetUserID();
+            console.log("[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.");
             if (!referringLink) {
                 console.warn("[Insert Affiliate] Referring link is invalid.");
                 storeInsertAffiliateIdentifier({ link: referringLink });

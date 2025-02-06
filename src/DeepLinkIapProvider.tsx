@@ -212,7 +212,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   ) => {
     try {
       console.log("[Insert Affiliate] Setting affiliate identifier.");
-      generateThenSetUserID();
+      await generateThenSetUserID();
+
+      console.log("[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.");
 
       if (!referringLink) {
         console.warn("[Insert Affiliate] Referring link is invalid.");
