@@ -174,12 +174,8 @@ const DeepLinkIapProvider = ({ children, }) => {
     // MARK: Insert Affiliate Identifier
     const setInsertAffiliateIdentifier = (referringLink, completion) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            try {
-                generateThenSetUserID();
-            }
-            catch (error) {
-                console.error("[Insert Affiliate] Error setting user ID:", error);
-            }
+            console.log("[Insert Affiliate] Setting affiliate identifier.");
+            generateThenSetUserID();
             if (!referringLink) {
                 console.warn("[Insert Affiliate] Referring link is invalid.");
                 storeInsertAffiliateIdentifier({ link: referringLink });
@@ -214,6 +210,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             }
             // Create the request URL
             const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${companyCode}&deepLinkUrl=${encodedAffiliateLink}`;
+            console.log("[Insert Affiliate] urlString .", urlString);
             const response = yield axios_1.default.get(urlString, {
                 headers: {
                     "Content-Type": "application/json",
