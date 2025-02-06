@@ -217,7 +217,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return;
       }
       
-      if (!companyCode || companyCode.trim() === "") {
+      if (!companyCode || companyCode.trim() === "" && companyCode !== null) {
         let companyCodeFromStorage = await getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
 
         if (companyCodeFromStorage !== null) {

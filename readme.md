@@ -229,6 +229,8 @@ import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
     const {setInsertAffiliateIdentifier, returnInsertAffiliateIdentifier} = useDeepLinkIapProvider();
     
     useEffect(() => {
+      if (!isInitialized) return;
+
       const branchSubscription = branch.subscribe(async ({error, params}) => {
         if (error) {
           console.error('Error from Branch:', error);
