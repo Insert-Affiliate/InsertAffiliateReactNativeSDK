@@ -226,7 +226,7 @@ After setting up your Branch integration, add the following code to your ```App.
 import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
 //...
-    const {setInsertAffiliateIdentifier, returnInsertAffiliateIdentifier} = useDeepLinkIapProvider();
+    const {setInsertAffiliateIdentifier} = useDeepLinkIapProvider();
     
     useEffect(() => {
       if (!isInitialized) return;
@@ -244,9 +244,8 @@ import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
           const referringLink = params['~referring_link'];
           if (referringLink) {
             try {
-              await setInsertAffiliateIdentifier(referringLink);
+             let insertAffiliateIdentifier = await setInsertAffiliateIdentifier(referringLink);
 
-              let insertAffiliateIdentifier = await returnInsertAffiliateIdentifier();
               if (insertAffiliateIdentifier) {
                 const { customerInfo, created } = await Purchases.logIn(insertAffiliateIdentifier);
               }
