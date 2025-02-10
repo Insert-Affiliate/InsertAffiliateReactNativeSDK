@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -41,42 +51,42 @@ const react_native_1 = require("react-native");
 const axios_1 = __importDefault(require("axios"));
 const async_storage_1 = __importDefault(require("@react-native-async-storage/async-storage"));
 const ASYNC_KEYS = {
-    REFERRER_LINK: "@app_referrer_link",
-    USER_PURCHASE: "@app_user_purchase",
-    USER_ID: "@app_user_id",
-    COMPANY_CODE: "@app_company_code",
+    REFERRER_LINK: '@app_referrer_link',
+    USER_PURCHASE: '@app_user_purchase',
+    USER_ID: '@app_user_id',
+    COMPANY_CODE: '@app_company_code',
 };
 // STARTING CONTEXT IMPLEMENTATION
 exports.DeepLinkIapContext = (0, react_1.createContext)({
-    referrerLink: "",
-    userId: "",
-    returnInsertAffiliateIdentifier: () => __awaiter(void 0, void 0, void 0, function* () { return ""; }),
+    referrerLink: '',
+    userId: '',
+    returnInsertAffiliateIdentifier: () => __awaiter(void 0, void 0, void 0, function* () { return ''; }),
     validatePurchaseWithIapticAPI: (jsonIapPurchase, iapticAppId, iapticAppName, iapticPublicKey) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     trackEvent: (eventName) => __awaiter(void 0, void 0, void 0, function* () { }),
     setShortCode: (shortCode) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifier: (referringLink) => __awaiter(void 0, void 0, void 0, function* () { }),
     initialize: (code) => __awaiter(void 0, void 0, void 0, function* () { }),
-    isInitialized: false
+    isInitialized: false,
 });
 const DeepLinkIapProvider = ({ children, }) => {
-    const [referrerLink, setReferrerLink] = (0, react_1.useState)("");
-    const [userId, setUserId] = (0, react_1.useState)("");
+    const [referrerLink, setReferrerLink] = (0, react_1.useState)('');
+    const [userId, setUserId] = (0, react_1.useState)('');
     const [companyCode, setCompanyCode] = (0, react_1.useState)(null);
     const [isInitialized, setIsInitialized] = (0, react_1.useState)(false);
     // MARK: Initialize the SDK
     const initialize = (companyCode) => __awaiter(void 0, void 0, void 0, function* () {
         if (isInitialized) {
-            console.error("[Insert Affiliate] SDK is already initialized.");
+            console.error('[Insert Affiliate] SDK is already initialized.');
             return;
         }
-        if (companyCode && companyCode.trim() !== "") {
+        if (companyCode && companyCode.trim() !== '') {
             setCompanyCode(companyCode);
             yield saveValueInAsync(ASYNC_KEYS.COMPANY_CODE, companyCode);
             setIsInitialized(true);
             console.log(`[Insert Affiliate] SDK initialized with company code: ${companyCode}`);
         }
         else {
-            console.warn("[Insert Affiliate] SDK initialized without a company code.");
+            console.warn('[Insert Affiliate] SDK initialized without a company code.');
             setIsInitialized(true);
         }
     });
@@ -103,14 +113,15 @@ const DeepLinkIapProvider = ({ children, }) => {
             let userId = yield getValueFromAsync(ASYNC_KEYS.USER_ID);
             if (!userId) {
                 userId = generateUserID();
-                yield saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
-                setUserId(userId);
             }
+            setUserId(userId);
+            yield saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
+            return userId;
         });
     }
     const generateUserID = () => {
-        const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        let uniqueId = "";
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let uniqueId = '';
         for (let i = 0; i < 6; i++) {
             const randomIndex = Math.floor(Math.random() * characters.length);
             uniqueId += characters[randomIndex];
@@ -120,7 +131,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     const reset = () => {
         setCompanyCode(null);
         setIsInitialized(false);
-        console.log("[Insert Affiliate] SDK has been reset.");
+        console.log('[Insert Affiliate] SDK has been reset.');
     };
     // Helper funciton Storage / Retrieval
     const saveValueInAsync = (key, value) => __awaiter(void 0, void 0, void 0, function* () {
@@ -136,10 +147,10 @@ const DeepLinkIapProvider = ({ children, }) => {
     // Helper function to log errors
     const errorLog = (message, type) => {
         switch (type) {
-            case "error":
+            case 'error':
                 console.error(`ENCOUNTER ERROR ~ ${message}`);
                 break;
-            case "warn":
+            case 'warn':
                 console.warn(`ENCOUNTER WARNING ~ ${message}`);
                 break;
             default:
@@ -155,7 +166,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     };
     function setShortCode(shortCode) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("[Insert Affiliate] Setting short code.");
+            console.log('[Insert Affiliate] Setting short code.');
             generateThenSetUserID();
             // Validate it is a short code
             const capitalisedShortCode = shortCode.toUpperCase();
@@ -177,60 +188,62 @@ const DeepLinkIapProvider = ({ children, }) => {
     // MARK: Insert Affiliate Identifier
     function setInsertAffiliateIdentifier(referringLink) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("[Insert Affiliate] Setting affiliate identifier.");
+            console.log('[Insert Affiliate] Setting affiliate identifier.');
             try {
-                yield generateThenSetUserID();
-                console.log("[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.");
+                const customerID = yield generateThenSetUserID();
+                console.log('[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.');
                 if (!referringLink) {
-                    console.warn("[Insert Affiliate] Referring link is invalid.");
-                    yield storeInsertAffiliateIdentifier({ link: referringLink });
-                    return;
+                    console.warn('[Insert Affiliate] Referring link is invalid.');
+                    yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referrerLink);
+                    return `${referrerLink}-${customerID}`;
                 }
-                if (!companyCode || companyCode.trim() === "" && companyCode !== null) {
+                if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
                     let companyCodeFromStorage = yield getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
                     if (companyCodeFromStorage !== null) {
                         setCompanyCode(companyCodeFromStorage);
                     }
                     else {
-                        console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+                        console.error('[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.');
                         return;
                     }
                 }
                 // Check if referring link is already a short code, if so save it and stop here.
                 if (isShortCode(referringLink)) {
-                    console.log("[Insert Affiliate] Referring link is already a short code.");
-                    yield storeInsertAffiliateIdentifier({ link: referringLink });
-                    return;
+                    console.log('[Insert Affiliate] Referring link is already a short code.');
+                    yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referrerLink);
+                    return `${referrerLink}-${customerID}`;
                 }
                 // If the code is not already a short code, encode it raedy to send to our endpoint to return the short code. Save it before making the call in case something goes wrong
                 // Encode the referring link
                 const encodedAffiliateLink = encodeURIComponent(referringLink);
                 if (!encodedAffiliateLink) {
-                    console.error("[Insert Affiliate] Failed to encode affiliate link.");
-                    yield storeInsertAffiliateIdentifier({ link: referringLink });
-                    return;
+                    console.error('[Insert Affiliate] Failed to encode affiliate link.');
+                    yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referrerLink);
+                    return `${referrerLink}-${customerID}`;
                 }
                 // Create the request URL
                 const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${companyCode}&deepLinkUrl=${encodedAffiliateLink}`;
-                console.log("[Insert Affiliate] urlString .", urlString);
+                console.log('[Insert Affiliate] urlString .', urlString);
                 const response = yield axios_1.default.get(urlString, {
                     headers: {
-                        "Content-Type": "application/json",
+                        'Content-Type': 'application/json',
                     },
                 });
                 // Call to the backend for the short code and save the resolse in valid
                 if (response.status === 200 && response.data.shortLink) {
                     const shortLink = response.data.shortLink;
-                    console.log("[Insert Affiliate] Short link received:", shortLink);
-                    yield storeInsertAffiliateIdentifier({ link: shortLink });
+                    console.log('[Insert Affiliate] Short link received:', shortLink);
+                    // await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, shortLink);
+                    return `${shortLink}-${customerID}`;
                 }
                 else {
-                    console.warn("[Insert Affiliate] Unexpected response format.");
-                    yield storeInsertAffiliateIdentifier({ link: referringLink });
+                    console.warn('[Insert Affiliate] Unexpected response format.');
+                    // await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, referrerLink);
+                    return `${referrerLink}-${customerID}`;
                 }
             }
             catch (error) {
-                console.error("[Insert Affiliate] Error:", error);
+                console.error('[Insert Affiliate] Error:', error);
             }
         });
     }
@@ -238,29 +251,29 @@ const DeepLinkIapProvider = ({ children, }) => {
     function storeInsertAffiliateIdentifier(_a) {
         return __awaiter(this, arguments, void 0, function* ({ link }) {
             console.log(`[Insert Affiliate] Storing affiliate identifier: ${link}`);
-            yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, link);
             setReferrerLink(link);
+            yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, link);
         });
     }
     const validatePurchaseWithIapticAPI = (jsonIapPurchase, iapticAppId, iapticAppName, iapticPublicKey) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             const baseRequestBody = {
                 id: iapticAppId,
-                type: "application",
+                type: 'application',
             };
             let transaction;
-            if (react_native_1.Platform.OS === "ios") {
+            if (react_native_1.Platform.OS === 'ios') {
                 transaction = {
                     id: iapticAppId,
-                    type: "ios-appstore",
+                    type: 'ios-appstore',
                     appStoreReceipt: jsonIapPurchase.transactionReceipt,
                 };
             }
             else {
-                const receiptJson = JSON.parse(atob(jsonIapPurchase.transactionReceipt || ""));
+                const receiptJson = JSON.parse(atob(jsonIapPurchase.transactionReceipt || ''));
                 transaction = {
                     id: receiptJson.orderId, // Extracted orderId
-                    type: "android-playstore",
+                    type: 'android-playstore',
                     purchaseToken: receiptJson.purchaseToken, // Extracted purchase token
                     receipt: jsonIapPurchase.transactionReceipt, // Full receipt (Base64)
                     signature: receiptJson.signature, // Receipt signature
@@ -276,19 +289,19 @@ const DeepLinkIapProvider = ({ children, }) => {
             // Send validation request to server
             const response = yield (0, axios_1.default)({
                 url: `https://validator.iaptic.com/v1/validate`,
-                method: "POST",
+                method: 'POST',
                 headers: {
                     Authorization: `Basic ${btoa(`${iapticAppName}:${iapticPublicKey}`)}`,
-                    "Content-Type": "application/json",
+                    'Content-Type': 'application/json',
                 },
                 data: requestBody,
             });
             if (response.status === 200) {
-                console.log("Validation successful:", response.data);
+                console.log('Validation successful:', response.data);
                 return true;
             }
             else {
-                console.error("Validation failed:", response.data);
+                console.error('Validation failed:', response.data);
                 return false;
             }
         }
@@ -302,29 +315,29 @@ const DeepLinkIapProvider = ({ children, }) => {
             return false;
         }
     });
-    // MARK: Track Event 
+    // MARK: Track Event
     const trackEvent = (eventName) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             if (!referrerLink || !userId) {
-                console.warn("[Insert Affiliate] No affiliate identifier found. Please set one before tracking events.");
+                console.warn('[Insert Affiliate] No affiliate identifier found. Please set one before tracking events.');
                 return Promise.resolve();
             }
             const payload = {
                 eventName,
                 deepLinkParam: `${referrerLink}/${userId}`,
             };
-            const response = yield axios_1.default.post("https://api.insertaffiliate.com/v1/trackEvent", payload, {
-                headers: { "Content-Type": "application/json" },
+            const response = yield axios_1.default.post('https://api.insertaffiliate.com/v1/trackEvent', payload, {
+                headers: { 'Content-Type': 'application/json' },
             });
             if (response.status === 200) {
-                console.log("[Insert Affiliate] Event tracked successfully");
+                console.log('[Insert Affiliate] Event tracked successfully');
             }
             else {
                 console.error(`[Insert Affiliate] Failed to track event with status code: ${response.status}`);
             }
         }
         catch (error) {
-            console.error("[Insert Affiliate] Error tracking event:", error);
+            console.error('[Insert Affiliate] Error tracking event:', error);
             return Promise.reject(error);
         }
     });
@@ -337,7 +350,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             trackEvent,
             setInsertAffiliateIdentifier,
             initialize,
-            isInitialized
+            isInitialized,
         } }, children));
 };
 exports.default = DeepLinkIapProvider;

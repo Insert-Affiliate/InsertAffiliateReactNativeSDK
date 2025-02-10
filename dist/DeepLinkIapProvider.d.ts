@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 type T_DEEPLINK_IAP_PROVIDER = {
     children: React.ReactNode;
 };
@@ -12,7 +12,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
     validatePurchaseWithIapticAPI: (jsonIapPurchase: CustomPurchase, iapticAppId: string, iapticAppName: string, iapticPublicKey: string) => Promise<boolean>;
     trackEvent: (eventName: string) => Promise<void>;
     setShortCode: (shortCode: string) => Promise<void>;
-    setInsertAffiliateIdentifier: (referringLink: string) => Promise<void>;
+    setInsertAffiliateIdentifier: (referringLink: string) => Promise<void | string>;
     initialize: (code: string | null) => Promise<void>;
     isInitialized: boolean;
 };
