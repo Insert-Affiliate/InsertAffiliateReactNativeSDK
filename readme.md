@@ -213,13 +213,22 @@ export default App;
 
 ## Deep Link Setup [Required]
 
-### Step 1: Add the Deep Linking Platform Dependency
+Insert Affiliate requires a Deep Linking platform to create links for your affiliates. Our platform works with **any** deep linking provider, and you only need to follow these steps:
+1. **Create a deep link** in your chosen third-party platform and pass it to our dashboard when an affiliate signs up. 
+2. **Handle deep link clicks** in your app by passing the clicked link:
+   ```javascript
+   await setInsertAffiliateIdentifier(referringLink)
+   ```
+3. **Integrate with a Receipt Verification platform** by using the result from `setInsertAffiliateIdentifier` to log in or set your application’s username. Examples below include [**Iaptic**](https://github.com/Insert-Affiliate/InsertAffiliateReactNativeSDK?tab=readme-ov-file#example-with-iaptic), [**RevenueCat**](https://github.com/Insert-Affiliate/InsertAffiliateReactNativeSDK?tab=readme-ov-file#example-with-revenuecat) and 
 
-In this example, the deep linking functionality is implemented using [Branch.io](https://dashboard.branch.io/).
+### Deep Linking with Branch.io
+To set up deep linking with Branch.io, follow these steps:
 
-Any alternative deep linking platform can be used by passing the referring link to ```InsertAffiliateSwift.setInsertAffiliateIdentifier(referringLink: "{{ link }}")``` as in the below Branch.io example
+1. Create a deep link in Branch and pass it to our dashboard when an affiliate signs up.
+    - Example: [Branch Deep Link Setup](https://docs.insertaffiliate.com/branch-create-affiliate).
+2. Modify Your Deep Link Handling in `App.tsx`
+    - After setting up your Branch integration, add the following code to initialise our SDK in your app:
 
-After setting up your Branch integration, add the following code to your ```App.tsx```
 
 #### Example with RevenueCat
 ```javascript
