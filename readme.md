@@ -156,7 +156,7 @@ const Child = () => {
     // ***...***
     // Fetch & Load your subscription/purchases and handling the IAP purchase here as per the Iaptic Documentation...
     // ***...***
-    
+
     // Initialize the Insert Affiliate SDK at the earliest possible moment
     useEffect(() => {
         if (!isInitialized) {
@@ -225,7 +225,7 @@ Insert Affiliate requires a Deep Linking platform to create links for your affil
 To set up deep linking with Branch.io, follow these steps:
 
 1. Create a deep link in Branch and pass it to our dashboard when an affiliate signs up.
-    - Example: [Branch Deep Link Setup](https://docs.insertaffiliate.com/branch-create-affiliate).
+  - Example: [Create Affiliate](https://docs.insertaffiliate.com/create-affiliate).
 2. Modify Your Deep Link Handling in `App.tsx`
     - After setting up your Branch integration, add the following code to initialise our SDK in your app:
 
