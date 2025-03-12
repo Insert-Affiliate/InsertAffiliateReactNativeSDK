@@ -10,6 +10,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
     userId: string;
     returnInsertAffiliateIdentifier: () => Promise<string | null>;
     validatePurchaseWithIapticAPI: (jsonIapPurchase: CustomPurchase, iapticAppId: string, iapticAppName: string, iapticPublicKey: string) => Promise<boolean>;
+    storeExpectedPlayStoreTransaction: (purchaseToken: string) => Promise<void>;
     trackEvent: (eventName: string) => Promise<void>;
     setShortCode: (shortCode: string) => Promise<void>;
     setInsertAffiliateIdentifier: (referringLink: string) => Promise<void | string>;

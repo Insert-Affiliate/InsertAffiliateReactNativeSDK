@@ -164,7 +164,6 @@ const Child = () => {
         }
     }, [initialize, isInitialized]);
 
-
     // Validate the purchase with Iaptic through Insert Affiliate's SDK for Affiliate Tracking
     useEffect(() => {
         if (currentPurchase) {

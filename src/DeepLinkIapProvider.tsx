@@ -22,6 +22,10 @@ type T_DEEPLINK_IAP_CONTEXT = {
     iapticAppName: string,
     iapticPublicKey: string
   ) => Promise<boolean>;
+  returnUserAccountTokenAndStoreExpectedTransaction: () => Promise<string | null>;
+  storeExpectedStoreTransaction: (
+    purchaseToken: string
+  ) => Promise<void>;
   trackEvent: (eventName: string) => Promise<void>;
   setShortCode: (shortCode: string) => Promise<void>;
   setInsertAffiliateIdentifier: (
@@ -52,6 +56,7 @@ const ASYNC_KEYS = {
   USER_PURCHASE: '@app_user_purchase',
   USER_ID: '@app_user_id',
   COMPANY_CODE: '@app_company_code',
+  USER_ACCOUNT_TOKEN: '@app_user_account_token',
 };
 
 // STARTING CONTEXT IMPLEMENTATION
@@ -65,6 +70,8 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
     iapticAppName: string,
     iapticPublicKey: string
   ) => false,
+  returnUserAccountTokenAndStoreExpectedTransaction: async () => '',
+  storeExpectedStoreTransaction: async (purchaseToken: string) => {},
   trackEvent: async (eventName: string) => {},
   setShortCode: async (shortCode: string) => {},
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
@@ -200,10 +207,44 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     await storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
   }
 
+  async function getOrCreateUserAccountToken(): Promise<string> {
+    let userAccountToken = await getValueFromAsync(ASYNC_KEYS.USER_ACCOUNT_TOKEN);
+
+    if (!userAccountToken) {
+      userAccountToken = UUID();
+      await saveValueInAsync(ASYNC_KEYS.USER_ACCOUNT_TOKEN, userAccountToken);
+    }
+
+    return userAccountToken;
+  };
+
+  const returnUserAccountTokenAndStoreExpectedTransaction = async (): Promise<string | null> => {
+    try {
+      const shortCode = await returnInsertAffiliateIdentifier();
+      if (!shortCode) {
+        console.log('[Insert Affiliate] No affiliate stored - not saving expected transaction.');
+        return null;
+      }
+
+      const userAccountToken = await getOrCreateUserAccountToken();
+      console.log('[Insert Affiliate] User account token:', userAccountToken);
+
+      if (!userAccountToken) {
+        console.error('[Insert Affiliate] Failed to generate user account token.');
+        return null;
+      } else {
+        await storeExpectedStoreTransaction(userAccountToken);
+        return userAccountToken;
+      }
+    } catch (error) {
+      console.error('[Insert Affiliate] Error in returnUserAccountTokenAndStoreExpectedTransaction:', error);
+      return null;
+    };
+  };
+
   // MARK: Return Insert Affiliate Identifier
   const returnInsertAffiliateIdentifier = async (): Promise<string | null> => {
     try {
-      
       return `${referrerLink}-${userId}`;
     } catch (error) {
       errorLog(`ERROR ~ returnInsertAffiliateIdentifier: ${error}`);
@@ -377,6 +418,48 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
+  const storeExpectedStoreTransaction = async (purchaseToken: string): Promise<void> => {
+    if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
+      console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+      return;
+    }
+
+    const shortCode = await returnInsertAffiliateIdentifier();
+    if (!shortCode) {
+      console.error("[Insert Affiliate] No affiliate identifier found. Please set one before tracking events.");
+      return;
+    }
+
+    // Build JSON payload
+    const payload = {
+      UUID: purchaseToken,
+      companyCode,
+      shortCode,
+      storedDate: new Date().toISOString(), // ISO8601 format
+    };
+
+    console.log("[Insert Affiliate] Storing expected transaction: ", payload);
+
+    try {
+      const response = await fetch("https://api.insertaffiliate.com/v1/api/app-store-webhook/create-expected-transaction", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        console.info("[Insert Affiliate] Expected transaction stored successfully.");
+      } else {
+        const errorText = await response.text();
+        console.error(`[Insert Affiliate] Failed to store expected transaction with status code: ${response.status}. Response: ${errorText}`);
+      }
+    } catch (error) {
+      console.error(`[Insert Affiliate] Error storing expected transaction: ${error}`);
+    }
+  };
+
   // MARK: Track Event
   const trackEvent = async (eventName: string): Promise<void> => {
     try {
@@ -420,6 +503,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         userId,
         setShortCode,
         returnInsertAffiliateIdentifier,
+        storeExpectedStoreTransaction,
+        returnUserAccountTokenAndStoreExpectedTransaction,
         validatePurchaseWithIapticAPI,
         trackEvent,
         setInsertAffiliateIdentifier,
@@ -433,3 +518,12 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 };
 
 export default DeepLinkIapProvider;
+  function UUID(): string {
+    // Generate a random UUID (version 4)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0,
+        v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
