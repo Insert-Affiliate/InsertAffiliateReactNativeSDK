@@ -98,7 +98,7 @@ React.useEffect(() => {
                 const affiliateIdentifier = await returnInsertAffiliateIdentifier();
                 
                 if (affiliateIdentifier) {
-                    await Purchases.setAttributes({"insert_affiliate", affiliateIdentifier});
+                    await Purchases.setAttributes({"insert_affiliate" : affiliateIdentifier});
                 }
             }
         } catch (error) {
@@ -339,7 +339,7 @@ import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
              let insertAffiliateIdentifier = await setInsertAffiliateIdentifier(referringLink);
 
               if (insertAffiliateIdentifier) {
-                await Purchases.setAttributes({"insert_affiliate", affiliateIdentifier});
+                await Purchases.setAttributes({"insert_affiliate" : affiliateIdentifier});
               }
 
             } catch (err) {
