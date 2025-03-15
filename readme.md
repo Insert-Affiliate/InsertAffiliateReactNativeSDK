@@ -71,6 +71,8 @@ const App = () => {
 Insert Affiliate requires a Receipt Verification platform to validate in-app purchases. You must choose **one** of our supported partners:
 - [RevenueCat](https://www.revenuecat.com/)
 - [Iaptic](https://www.iaptic.com/account)
+- [App Store Direct Integration](#option-3-app-store-direct-integration)
+- [Google Play Store Direct Integration](#option-4-google-play-store-direct-integration)
 
 ### Option 1: RevenueCat Integration
 #### Step 1. Code Setup
@@ -164,7 +166,6 @@ const Child = () => {
         }
     }, [initialize, isInitialized]);
 
-
     // Validate the purchase with Iaptic through Insert Affiliate's SDK for Affiliate Tracking
     useEffect(() => {
         if (currentPurchase) {
@@ -211,6 +212,92 @@ export default App;
 - Replace `{{ your_iaptic_public_key }}` with your **Iaptic Public Key**. You can find this [here](https://www.iaptic.com/settings).
 - Replace `{{ your_company_code }}` with the unique company code associated with your Insert Affiliate account. You can find this code in your dashboard under [Settings](http://app.insertaffiliate.com/settings).
 
+### Option 3: App Store Direct Integration
+
+Our direct App Store integration is currently in beta and currently supports subscriptions only. **Consumables and one-off purchases are not yet supported** due to App Store server-to-server notification limitations.
+
+We plan to release support for consumables and one-off purchases soon. In the meantime, you can use a receipt verification platform from the other integration options.
+
+#### Apple App Store Notification Setup
+To proceed, visit [our docs](https://docs.insertaffiliate.com/direct-store-purchase-integration#1-apple-app-store-server-notifications) and complete the required setup steps to set up App Store Server to Server Notifications.
+
+#### Implementing Purchases
+
+##### 1. Import Required Modules  
+
+Ensure you import the necessary dependencies, including `Platform` and `useDeepLinkIapProvider` from the SDK.  
+
+```javascript
+import { Platform } from 'react-native';
+import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import { requestSubscription } from 'react-native-iap';
+
+const { returnUserAccountTokenAndStoreExpectedTransaction } = useDeepLinkIapProvider();
+```
+
+
+##### 2. Handle the Purchase
+When a user initiates a subscription, retrieve the appAccountToken and pass it to the requestSubscription call:
+
+```javascript
+const handleBuySubscription = async (product: SubscriptionAndroid | Subscription) => {
+    try {
+        let appAccountToken = null;
+
+        // Step 1: Retrieve the appAccountToken for iOS
+        if (Platform.OS === 'ios') {
+            appAccountToken = await returnUserAccountTokenAndStoreExpectedTransaction();
+        }
+
+        // Step 2: Request the subscription and pass the token for tracking
+        await requestSubscription({
+            sku: product?.productId,
+            ...(appAccountToken ? { applicationUsername: appAccountToken } : {}),
+        });
+
+    } catch (error) {
+        console.error("Error processing subscription:", error);
+    }
+};
+
+```
+
+
+### Option 4: Google Play Store Direct Integration
+Our direct Google Play Store integration is currently in beta.
+
+#### Real Time Developer Notifications (RTDN) Setup
+
+Visit [our docs](https://docs.insertaffiliate.com/direct-google-play-store-purchase-integration) and complete the required set up steps for Google Play's Real Time Developer Notifications.
+
+#### Implementing Purchases
+
+##### 1. Import Required Modules  
+
+Ensure you import the necessary dependencies, including `Platform` and `useDeepLinkIapProvider` from the SDK.  
+
+```javascript
+import React, {useEffect, useState} from 'react';
+import { Platform } from 'react-native';
+import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import { currentPurchase, requestSubscription } from 'react-native-iap';
+
+const { storeExpectedStoreTransaction } = useDeepLinkIapProvider();
+
+useEffect(() => {
+    if (currentPurchase) {
+        if (Platform.OS === 'android' && currentPurchase.purchaseToken) {
+            // Step 1: Store the expected transaction for Google Play purchases
+            storeExpectedStoreTransaction(
+              currentPurchase.purchaseToken
+            );
+        }
+    }
+}, [currentPurchase, storeExpectedStoreTransaction]);
+```
+
+
+
 ## Deep Link Setup [Required]
 
 Insert Affiliate requires a Deep Linking platform to create links for your affiliates. Our platform works with **any** deep linking provider, and you only need to follow these steps:
@@ -232,6 +319,7 @@ To set up deep linking with Branch.io, follow these steps:
 
 #### Example with RevenueCat
 ```javascript
+import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
 //...
@@ -274,10 +362,11 @@ import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 //...
 ```
 
-#### Example with Iaptic
+#### Example with Iaptic / App Store Direct Integration / Google Play Direct Integration
 ```javascript
 import branch from 'react-native-branch';
 import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+const {setInsertAffiliateIdentifier} = useDeepLinkIapProvider();
 
 branch.subscribe(async ({ error, params }) => {
     if (error) {
