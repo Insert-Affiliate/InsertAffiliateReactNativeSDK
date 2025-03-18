@@ -118,6 +118,7 @@ React.useEffect(() => {
 2. Configure the webhook with these settings:
    - Webhook URL: `https://api.insertaffiliate.com/v1/api/revenuecat-webhook`
    - Authorization header: Use the value from your Insert Affiliate dashboard (you'll get this in step 4)
+   - Set "Event Type" to "All events"
 
 3. In your [Insert Affiliate dashboard settings](https://app.insertaffiliate.com/settings):
    - Navigate to the verification settings
