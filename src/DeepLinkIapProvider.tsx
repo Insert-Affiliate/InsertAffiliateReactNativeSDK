@@ -463,6 +463,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // MARK: Track Event
   const trackEvent = async (eventName: string): Promise<void> => {
     try {
+      if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
+        console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+        return Promise.resolve();
+      }
+
+      console.log("track event called with - companyCode: ", companyCode);
+
       if (!referrerLink || !userId) {
         console.warn(
           '[Insert Affiliate] No affiliate identifier found. Please set one before tracking events.'
@@ -472,7 +479,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       const payload = {
         eventName,
-        deepLinkParam: `${referrerLink}/${userId}`,
+        deepLinkParam: `${referrerLink}-${userId}`,
+        companyId: companyCode,
       };
 
       const response = await axios.post(
