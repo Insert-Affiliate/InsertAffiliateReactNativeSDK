@@ -479,7 +479,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       const payload = {
         eventName,
-        deepLinkParam: `${referrerLink}/${userId}`,
+        deepLinkParam: `${referrerLink}-${userId}`,
         companyId: companyCode,
       };
 
