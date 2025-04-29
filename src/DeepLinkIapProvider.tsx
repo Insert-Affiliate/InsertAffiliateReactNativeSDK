@@ -468,6 +468,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return Promise.resolve();
       }
 
+      console.log("track event called with - companyCode: ", companyCode);
+
       if (!referrerLink || !userId) {
         console.warn(
           '[Insert Affiliate] No affiliate identifier found. Please set one before tracking events.'
