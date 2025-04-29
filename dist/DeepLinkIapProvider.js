@@ -390,6 +390,10 @@ const DeepLinkIapProvider = ({ children, }) => {
     // MARK: Track Event
     const trackEvent = (eventName) => __awaiter(void 0, void 0, void 0, function* () {
         try {
+            if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
+                console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+                return Promise.resolve();
+            }
             if (!referrerLink || !userId) {
                 console.warn('[Insert Affiliate] No affiliate identifier found. Please set one before tracking events.');
                 return Promise.resolve();
@@ -397,6 +401,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             const payload = {
                 eventName,
                 deepLinkParam: `${referrerLink}/${userId}`,
+                companyId: companyCode,
             };
             const response = yield axios_1.default.post('https://api.insertaffiliate.com/v1/trackEvent', payload, {
                 headers: { 'Content-Type': 'application/json' },
