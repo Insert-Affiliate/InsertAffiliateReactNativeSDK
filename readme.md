@@ -131,6 +131,7 @@ React.useEffect(() => {
 
 
 ### Option 2: Iaptic Integration
+#### 1. Code Setup
 First, complete the [Iaptic account setup](https://www.iaptic.com/signup) and code integration.
 
 Then after setting up the in app purchase (IAP) with Iaptic, call Insert Affiliate's ```validatePurchaseWithIapticAPI``` on purchase.
@@ -207,6 +208,18 @@ export default App;
 - Replace `{{ your_iaptic_app_name }}` with your **Iaptic App Name**. You can find this [here](https://www.iaptic.com/account).
 - Replace `{{ your_iaptic_public_key }}` with your **Iaptic Public Key**. You can find this [here](https://www.iaptic.com/settings).
 - Replace `{{ your_company_code }}` with the unique company code associated with your Insert Affiliate account. You can find this code in your dashboard under [Settings](http://app.insertaffiliate.com/settings).
+
+#### 2. Webhook Setup
+1. Open the [Insert Affiliate settings](https://app.insertaffiliate.com/settings):
+  - Navigate to the Verification Settings section
+  - Set the In-App Purchase Verification method to `Iaptic`
+  - Copy the `Iaptic Webhook URL` and the `Iaptic Webhook Sandbox URL`- you'll need it in the next step.
+2. Go to the [Iaptic Settings](https://www.iaptic.com/settings)
+- Paste the copied `Iaptic Webhook URL` into the `Webhook URL` field
+- Paste the copied `Iaptic Webhook Sandbox URL` into the `Sandbox Webhook URL` field
+- Click **Save Settings**.
+3. Check that you have completed the [Iaptic setup for the App Store Server Notifications](https://www.iaptic.com/documentation/setup/ios-subscription-status-url)
+4. Check that you have completed the [Iaptic setup for the Google Play Notifications URL](https://www.iaptic.com/documentation/setup/connect-with-google-publisher-api)
 
 ### Option 3: App Store Direct Integration
 
