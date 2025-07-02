@@ -158,7 +158,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     const isShortCode = (referringLink) => {
         // Short codes are less than 10 characters
         const isValidCharacters = /^[a-zA-Z0-9]+$/.test(referringLink);
-        return isValidCharacters && referringLink.length < 10;
+        return isValidCharacters && referringLink.length < 25 && referringLink.length > 3;
     };
     function setShortCode(shortCode) {
         return __awaiter(this, void 0, void 0, function* () {

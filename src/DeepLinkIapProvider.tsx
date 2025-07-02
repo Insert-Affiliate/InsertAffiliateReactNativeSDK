@@ -192,7 +192,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const isShortCode = (referringLink: string): boolean => {
     // Short codes are less than 10 characters
     const isValidCharacters = /^[a-zA-Z0-9]+$/.test(referringLink);
-    return isValidCharacters && referringLink.length < 10;
+    return isValidCharacters && referringLink.length < 25 && referringLink.length > 3;
   };
 
   async function setShortCode(shortCode: string): Promise<void> {
