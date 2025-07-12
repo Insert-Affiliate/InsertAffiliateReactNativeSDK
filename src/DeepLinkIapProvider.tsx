@@ -31,7 +31,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   setInsertAffiliateIdentifier: (
     referringLink: string
   ) => Promise<void | string>;
-  initialize: (code: string | null) => void;
+  initialize: (code: string | null) => Promise<void>;
   isInitialized: boolean;
 };
 
@@ -75,7 +75,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   trackEvent: async (eventName: string) => {},
   setShortCode: async (shortCode: string) => {},
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
-  initialize: (code: string | null) => {},
+  initialize: async (code: string | null) => {},
   isInitialized: false,
 });
 
@@ -88,7 +88,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   // MARK: Initialize the SDK
-  const initialize = (companyCode: string | null) => {
+  const initialize = async (companyCode: string | null): Promise<void> => {
     if (isInitialized) {
       console.error('[Insert Affiliate] SDK is already initialized.');
       return;
@@ -96,6 +96,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
     if (companyCode && companyCode.trim() !== '') {
       setCompanyCode(companyCode);
+      await saveValueInAsync(ASYNC_KEYS.COMPANY_CODE, companyCode);
       setIsInitialized(true);
       console.log(
         `[Insert Affiliate] SDK initialized with company code: ${companyCode}`
@@ -272,10 +273,18 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
 
       if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
-        console.error(
-          '[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.'
+        let companyCodeFromStorage = await getValueFromAsync(
+          ASYNC_KEYS.COMPANY_CODE
         );
-        return;
+
+        if (companyCodeFromStorage !== null) {
+          setCompanyCode(companyCodeFromStorage);
+        } else {
+          console.error(
+            '[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.'
+          );
+          return;
+        }
       }
 
       // Check if referring link is already a short code, if so save it and stop here.
@@ -312,7 +321,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       if (response.status === 200 && response.data.shortLink) {
         const shortLink = response.data.shortLink;
         console.log('[Insert Affiliate] Short link received:', shortLink);
-        await storeInsertAffiliateIdentifier({ link: shortLink });
         return `${shortLink}-${customerID}`;
       } else {
         console.warn('[Insert Affiliate] Unexpected response format.');
