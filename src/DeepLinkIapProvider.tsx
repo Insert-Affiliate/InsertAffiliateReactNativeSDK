@@ -321,6 +321,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       if (response.status === 200 && response.data.shortLink) {
         const shortLink = response.data.shortLink;
         console.log('[Insert Affiliate] Short link received:', shortLink);
+        await storeInsertAffiliateIdentifier({ link: shortLink });
         return `${shortLink}-${customerID}`;
       } else {
         console.warn('[Insert Affiliate] Unexpected response format.');
