@@ -223,13 +223,22 @@ const DeepLinkIapProvider = ({ children, }) => {
         ;
     });
     // MARK: Return Insert Affiliate Identifier
+    // Instead of just reading React state
     const returnInsertAffiliateIdentifier = () => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            console.log('[Insert Affiliate] Returning insert affiliate identifier:', `${referrerLink}-${userId}`);
-            return `${referrerLink}-${userId}`;
+            // Try React state first
+            if (referrerLink && userId) {
+                return `${referrerLink}-${userId}`;
+            }
+            // Fallback to async storage if React state is empty
+            const storedLink = yield getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
+            const storedUserId = yield getValueFromAsync(ASYNC_KEYS.USER_ID);
+            if (storedLink && storedUserId) {
+                return `${storedLink}-${storedUserId}`;
+            }
+            return null;
         }
         catch (error) {
-            errorLog(`ERROR ~ returnInsertAffiliateIdentifier: ${error}`);
             return null;
         }
     });
