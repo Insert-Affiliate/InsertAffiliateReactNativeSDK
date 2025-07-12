@@ -15,9 +15,9 @@ The **InsertAffiliateReactNative SDK** is designed for React Native applications
 To get started with the InsertAffiliateReactNative SDK:
 
 1. [Install the SDK](#installation)
-2. [Initialise the SDK in App.tsx](#basic-usage)
+2. [Set up the provider in Index.js and initialize the SDK in App.tsx](#basic-usage)
 3. [Set up in-app purchases (Required)](#in-app-purchase-setup-required)
-4. [Set up deep linking (Required)](#deep-link-setup-required)
+4. [Set up deep linking in Index.js (Required)](#deep-link-setup-required)
 
 ## Installation
 
@@ -28,44 +28,108 @@ To integrate the InsertAffiliateReactNative SDK into your app:
 npm install insert-affiliate-react-native-sdk
 ```
 
+## Architecture Overview
+
+The SDK uses a clean, two-file architecture:
+
+- **`index.js`** (Entry Point): Provider wrapper and deep link handling
+- **`App.tsx`** (UI Logic): SDK initialization and your app components
+
+This separation ensures clean code organization and proper initialization timing.
+
 ## Basic Usage
 
 Follow the steps below to install the SDK.
 
-#### Step 1: Initialisation in `App.tsx`
+### Step 1: Entry Point in `Index.js`
+```javascript
+import React from 'react';
+import {AppRegistry} from 'react-native';
+import App from './App';
+import {name as appName} from './app.json';
+import {DeepLinkIapProvider} from 'insert-affiliate-react-native-sdk';
+
+const RootComponent = () => {
+  return (
+    <DeepLinkIapProvider>
+      <App />
+    </DeepLinkIapProvider>
+  );
+};
+
+AppRegistry.registerComponent(appName, () => RootComponent);
+```
+
+#### Step 2: SDK initialization in `App.tsx`
 
 First, wrap your with our provider and call the `initialize` method early in your app's lifecycle:
 
 ```javascript
 const Child = () => {
-  const {
-    referrerLink,
-    subscriptions,
-    iapLoading,
-    validatePurchaseWithIapticAPI,
-    userId,
-    userPurchase,
-    trackEvent,
-    initialize,
-    isInitialized,
-  } = useDeepLinkIapProvider();
+  const { initialize, isInitialized } = useDeepLinkIapProvider();
 
   useEffect(() => {
-    initialize("{{ your-company-code }}");
+    if (!isInitialized) {
+      initialize("{{ your-company-code }}");
+    }
   }, [initialize, isInitialized]);
-  
-  // ...
 }
 
 const App = () => {
-  return (
-    <DeepLinkIapProvider>
-      <Child />
-    </DeepLinkIapProvider>
-  );
+  return <Child />;
 };
 ```
 - Replace `{{ your_company_code }}` with the unique company code associated with your Insert Affiliate account. You can find this code in your dashboard under [Settings](http://app.insertaffiliate.com/settings).
+
+### Verbose Logging (Optional)
+
+For debugging and troubleshooting, you can enable verbose logging to get detailed insights into the SDK's operations:
+
+```javascript
+const Child = () => {
+  const { initialize, isInitialized } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    if (!isInitialized) {
+      // Enable verbose logging (second parameter)
+      initialize("{{ your-company-code }}", true);
+    }
+  }, [initialize, isInitialized]);
+}
+```
+
+**When verbose logging is enabled, you'll see detailed logs with the `[Insert Affiliate] [VERBOSE]` prefix that show:**
+
+- **Initialization Process**: SDK startup, company code validation, AsyncStorage operations
+- **Data Management**: User ID generation, referrer link storage, company code state management
+- **Deep Link Processing**: Input validation, short code detection, API conversion process
+- **API Communication**: Request/response details for all server calls
+- **Event Tracking**: Event parameters, payload construction, success/failure status
+- **Purchase Operations**: Transaction storage, token validation, webhook processing
+
+**Example verbose output:**
+```
+[Insert Affiliate] [VERBOSE] Starting SDK initialization...
+[Insert Affiliate] [VERBOSE] Company code provided: Yes
+[Insert Affiliate] [VERBOSE] Verbose logging enabled
+[Insert Affiliate] SDK initialized with company code: your-company-code
+[Insert Affiliate] [VERBOSE] Company code saved to AsyncStorage
+[Insert Affiliate] [VERBOSE] SDK marked as initialized
+[Insert Affiliate] [VERBOSE] Loading stored data from AsyncStorage...
+[Insert Affiliate] [VERBOSE] User ID found: Yes
+[Insert Affiliate] [VERBOSE] Referrer link found: Yes
+[Insert Affiliate] [VERBOSE] Company code found: Yes
+```
+
+**Benefits of verbose logging:**
+- **Debug Deep Linking Issues**: See exactly what links are being processed and how they're converted
+- **Monitor API Communication**: Track all server requests, responses, and error details
+- **Identify Storage Problems**: Understand AsyncStorage read/write operations and state sync
+- **Performance Insights**: Monitor async operation timing and identify bottlenecks
+- **Integration Troubleshooting**: Quickly identify configuration or setup issues
+
+⚠️ **Important**: Disable verbose logging in production builds to avoid exposing sensitive debugging information and to optimize performance.
+
 
 ## In-App Purchase Setup [Required]
 Insert Affiliate requires a Receipt Verification platform to validate in-app purchases. You must choose **one** of our supported partners:
@@ -79,10 +143,12 @@ Insert Affiliate requires a Receipt Verification platform to validate in-app pur
 First, complete the [RevenueCat SDK installation](https://www.revenuecat.com/docs/getting-started/installation/reactnative). Then modify your `App.tsx`:
 
 ```javascript
-import {
-  DeepLinkIapProvider,
-  useDeepLinkIapProvider,
-} from 'insert-affiliate-react-native-sdk';
+import React, {useEffect} from 'react'; 
+import {AppRegistry} from 'react-native';
+import branch from 'react-native-branch';
+import App from './App';
+import {name as appName} from './app.json';
+import {useDeepLinkIapProvider, DeepLinkIapProvider} from 'insert-affiliate-react-native-sdk';
 
 // ... //
 const {
@@ -195,10 +261,7 @@ const Child = () => {
 
 const App = () => {
   return (
-    // Wrapped application code from the previous step...
-    <DeepLinkIapProvider>
-      <Child />
-    </DeepLinkIapProvider>
+    <Child />
   );
 };
 
@@ -238,7 +301,7 @@ Ensure you import the necessary dependencies, including `Platform` and `useDeepL
 
 ```javascript
 import { Platform } from 'react-native';
-import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 import { requestSubscription } from 'react-native-iap';
 
 const { returnUserAccountTokenAndStoreExpectedTransaction } = useDeepLinkIapProvider();
@@ -322,38 +385,33 @@ To set up deep linking with Branch.io, follow these steps:
 
 1. Create a deep link in Branch and pass it to our dashboard when an affiliate signs up.
   - Example: [Create Affiliate](https://docs.insertaffiliate.com/create-affiliate).
-2. Modify Your Deep Link Handling in `App.tsx`
-    - After setting up your Branch integration, add the following code to initialise our SDK in your app:
+2. Modify Your Deep Link Handling in `Index.js`
+  - After setting up your Branch integration, add the following code to your app:
 
 
 #### Example with RevenueCat
 ```javascript
-import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
-import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import {useDeepLinkIapProvider, DeepLinkIapProvider} from 'insert-affiliate-react-native-sdk';
 
 //...
+const DeepLinkHandler = () => {
     const {setInsertAffiliateIdentifier} = useDeepLinkIapProvider();
     
     useEffect(() => {
-      if (!isInitialized) return;
-
       const branchSubscription = branch.subscribe(async ({error, params}) => {
         if (error) {
           console.error('Error from Branch:', error);
           return;
         }
 
-        if (!params) {
-          return
-        }
         if (params['+clicked_branch_link']) {
           const referringLink = params['~referring_link'];
           if (referringLink) {
             try {
-             let insertAffiliateIdentifier = await setInsertAffiliateIdentifier(referringLink);
+              let insertAffiliateIdentifier = await setInsertAffiliateIdentifier(referringLink);
 
               if (insertAffiliateIdentifier) {
-                await Purchases.setAttributes({"insert_affiliate" : affiliateIdentifier});
+                await Purchases.setAttributes({"insert_affiliate" : insertAffiliateIdentifier});
               }
 
             } catch (err) {
@@ -363,35 +421,68 @@ import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
         }
       });
 
-      // Cleanup the subscription on component unmount
       return () => {
         branchSubscription();
       };
-    }, [setInsertAffiliateIdentifier, isInitialized]);
+    }, [setInsertAffiliateIdentifier]);
+
+  return <App />;
+};
+
+const RootComponent = () => {
+  return (
+    <DeepLinkIapProvider>
+      <DeepLinkHandler />
+    </DeepLinkIapProvider>
+  );
+};
+
+AppRegistry.registerComponent(appName, () => RootComponent);
+
 //...
 ```
 
 #### Example with Iaptic / App Store Direct Integration / Google Play Direct Integration
 ```javascript
 import branch from 'react-native-branch';
-import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
-const {setInsertAffiliateIdentifier} = useDeepLinkIapProvider();
+import {useDeepLinkIapProvider, DeepLinkIapProvider} from 'insert-affiliate-react-native-sdk';
 
-branch.subscribe(async ({ error, params }) => {
-    if (error) {
-      console.error('Error from Branch: ' + error);
-      return;
-    }
- 
-    if (params['+clicked_branch_link']) {
-        if (params["~referring_link"]) {
-            setInsertAffiliateIdentifier(params["~referring_link"], (shortLink) => {
-                console.log("Insert Affiliate - setInsertAffiliateIdentifier: ", params["~referring_link"], " - Stored shortLink ", shortLink);
-            });
+const DeepLinkHandler = () => {
+  const {setInsertAffiliateIdentifier} = useDeepLinkIapProvider();
+  
+  React.useEffect(() => {
+    const branchSubscription = branch.subscribe(async ({error, params}) => {
+      if (error) {
+        console.error('Error from Branch:', error);
+        return;
+      }
+
+      if (params['+clicked_branch_link']) {
+        const referringLink = params['~referring_link'];
+        if (referringLink) {
+          try {
+            await setInsertAffiliateIdentifier(referringLink);
+            console.log('Affiliate identifier set successfully.');
+          } catch (err) {
+            console.error('Error setting affiliate identifier:', err);
+          }
         }
-    }
-});
+      }
+    });
 
+    return () => branchSubscription();
+  }, [setInsertAffiliateIdentifier]);
+
+  return <App />;
+};
+
+const RootComponent = () => {
+  return (
+    <DeepLinkIapProvider>
+      <DeepLinkHandler />
+    </DeepLinkIapProvider>
+  );
+};
 ```
 
 ## Additional Features

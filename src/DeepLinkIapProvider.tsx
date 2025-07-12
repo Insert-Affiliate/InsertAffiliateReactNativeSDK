@@ -31,7 +31,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   setInsertAffiliateIdentifier: (
     referringLink: string
   ) => Promise<void | string>;
-  initialize: (code: string | null) => Promise<void>;
+  initialize: (code: string | null, verboseLogging?: boolean) => Promise<void>;
   isInitialized: boolean;
 };
 
@@ -75,7 +75,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   trackEvent: async (eventName: string) => {},
   setShortCode: async (shortCode: string) => {},
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
-  initialize: async (code: string | null) => {},
+  initialize: async (code: string | null, verboseLogging?: boolean) => {},
   isInitialized: false,
 });
 
@@ -86,9 +86,18 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const [userId, setUserId] = useState<string>('');
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [verboseLogging, setVerboseLogging] = useState<boolean>(false);
 
   // MARK: Initialize the SDK
-  const initialize = async (companyCode: string | null): Promise<void> => {
+  const initialize = async (companyCode: string | null, verboseLogging: boolean = false): Promise<void> => {
+    setVerboseLogging(verboseLogging);
+    
+    if (verboseLogging) {
+      console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
+      console.log('[Insert Affiliate] [VERBOSE] Company code provided:', companyCode ? 'Yes' : 'No');
+      console.log('[Insert Affiliate] [VERBOSE] Verbose logging enabled');
+    }
+
     if (isInitialized) {
       console.error('[Insert Affiliate] SDK is already initialized.');
       return;
@@ -101,11 +110,18 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       console.log(
         `[Insert Affiliate] SDK initialized with company code: ${companyCode}`
       );
+      if (verboseLogging) {
+        console.log('[Insert Affiliate] [VERBOSE] Company code saved to AsyncStorage');
+        console.log('[Insert Affiliate] [VERBOSE] SDK marked as initialized');
+      }
     } else {
       console.warn(
         '[Insert Affiliate] SDK initialized without a company code.'
       );
       setIsInitialized(true);
+      if (verboseLogging) {
+        console.log('[Insert Affiliate] [VERBOSE] No company code provided, SDK initialized in limited mode');
+      }
     }
   };
 
@@ -114,15 +130,28 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   useEffect(() => {
     const fetchAsyncEssentials = async () => {
       try {
+        verboseLog('Loading stored data from AsyncStorage...');
         const uId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
         const refLink = await getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
+        const companyCodeFromStorage = await getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
+
+        verboseLog(`User ID found: ${uId ? 'Yes' : 'No'}`);
+        verboseLog(`Referrer link found: ${refLink ? 'Yes' : 'No'}`);
+        verboseLog(`Company code found: ${companyCodeFromStorage ? 'Yes' : 'No'}`);
 
         if (uId && refLink) {
           setUserId(uId);
           setReferrerLink(refLink);
+          verboseLog('User ID and referrer link restored from storage');
+        }
+
+        if (companyCodeFromStorage) {
+          setCompanyCode(companyCodeFromStorage);
+          verboseLog('Company code restored from storage');
         }
       } catch (error) {
         errorLog(`ERROR ~ fetchAsyncEssentials: ${error}`);
+        verboseLog(`Error loading from AsyncStorage: ${error}`);
       }
     };
 
@@ -130,12 +159,17 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   }, []);
 
   async function generateThenSetUserID() {
+    verboseLog('Getting or generating user ID...');
     let userId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
+    
     if (!userId) {
+      verboseLog('No existing user ID found, generating new one...');
       userId = generateUserID();
       setUserId(userId);
       await saveValueInAsync(ASYNC_KEYS.USER_ID, userId);
+      verboseLog(`Generated and saved new user ID: ${userId}`);
     } else {
+      verboseLog(`Found existing user ID: ${userId}`);
       setUserId(userId);
     }
 
@@ -171,6 +205,33 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   const clearAsyncStorage = async () => {
     await AsyncStorage.clear();
+  };
+
+  // Helper function to get company code from state or storage
+  const getActiveCompanyCode = async (): Promise<string | null> => {
+    verboseLog('Getting active company code...');
+    let activeCompanyCode = companyCode;
+    verboseLog(`Company code in React state: ${activeCompanyCode || 'empty'}`);
+    
+    if (!activeCompanyCode || (activeCompanyCode.trim() === '' && activeCompanyCode !== null)) {
+      verboseLog('Company code not in state, checking AsyncStorage...');
+      activeCompanyCode = await getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
+      verboseLog(`Company code in AsyncStorage: ${activeCompanyCode || 'empty'}`);
+      
+      if (activeCompanyCode) {
+        // Update state for future use
+        setCompanyCode(activeCompanyCode);
+        verboseLog('Updated React state with company code from storage');
+      }
+    }
+    return activeCompanyCode;
+  };
+
+  // Helper function for verbose logging
+  const verboseLog = (message: string) => {
+    if (verboseLogging) {
+      console.log(`[Insert Affiliate] [VERBOSE] ${message}`);
+    }
   };
 
   // Helper function to log errors
@@ -243,11 +304,37 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   };
 
   // MARK: Return Insert Affiliate Identifier
+  // Instead of just reading React state
   const returnInsertAffiliateIdentifier = async (): Promise<string | null> => {
     try {
-      return `${referrerLink}-${userId}`;
+      verboseLog('Getting insert affiliate identifier...');
+      verboseLog(`React state - referrerLink: ${referrerLink || 'empty'}, userId: ${userId || 'empty'}`);
+      
+      // Try React state first
+      if (referrerLink && userId) {
+        const identifier = `${referrerLink}-${userId}`;
+        verboseLog(`Found identifier in React state: ${identifier}`);
+        return identifier;
+      }
+      
+      verboseLog('React state empty, checking AsyncStorage...');
+      
+      // Fallback to async storage if React state is empty
+      const storedLink = await getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
+      const storedUserId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
+      
+      verboseLog(`AsyncStorage - storedLink: ${storedLink || 'empty'}, storedUserId: ${storedUserId || 'empty'}`);
+      
+      if (storedLink && storedUserId) {
+        const identifier = `${storedLink}-${storedUserId}`;
+        verboseLog(`Found identifier in AsyncStorage: ${identifier}`);
+        return identifier;
+      }
+      
+      verboseLog('No affiliate identifier found in state or storage');
+      return null;
     } catch (error) {
-      errorLog(`ERROR ~ returnInsertAffiliateIdentifier: ${error}`);
+      verboseLog(`Error getting affiliate identifier: ${error}`);
       return null;
     }
   };
@@ -258,85 +345,102 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     referringLink: string
   ): Promise<void | string> {
     console.log('[Insert Affiliate] Setting affiliate identifier.');
+    verboseLog(`Input referringLink: ${referringLink}`);
 
     try {
+      verboseLog('Generating or retrieving user ID...');
       const customerID = await generateThenSetUserID();
       console.log(
         '[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.'
       );
+      verboseLog(`Customer ID: ${customerID}`);
 
       if (!referringLink) {
         console.warn('[Insert Affiliate] Referring link is invalid.');
-        let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
+        verboseLog('Referring link is empty or invalid, storing as-is');
         await storeInsertAffiliateIdentifier({ link: referringLink });
-        return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+        return `${referringLink}-${customerID}`;
       }
 
-      if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
-        let companyCodeFromStorage = await getValueFromAsync(
-          ASYNC_KEYS.COMPANY_CODE
+      // Get company code from state or storage
+      verboseLog('Getting company code...');
+      const activeCompanyCode = await getActiveCompanyCode();
+      verboseLog(`Active company code: ${activeCompanyCode || 'Not found'}`);
+      
+      if (!activeCompanyCode) {
+        console.error(
+          '[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.'
         );
-
-        if (companyCodeFromStorage !== null) {
-          setCompanyCode(companyCodeFromStorage);
-        } else {
-          console.error(
-            '[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.'
-          );
-          return;
-        }
+        verboseLog('Company code missing, cannot proceed with API call');
+        return;
       }
 
       // Check if referring link is already a short code, if so save it and stop here.
+      verboseLog('Checking if referring link is already a short code...');
       if (isShortCode(referringLink)) {
         console.log(
           '[Insert Affiliate] Referring link is already a short code.'
         );
-        let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
+        verboseLog('Link is already a short code, storing directly');
         await storeInsertAffiliateIdentifier({ link: referringLink });
-        return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+        return `${referringLink}-${customerID}`;
       }
 
+      verboseLog('Link is not a short code, will convert via API');
+      
       // If the code is not already a short code, encode it raedy to send to our endpoint to return the short code. Save it before making the call in case something goes wrong
       // Encode the referring link
+      verboseLog('Encoding referring link for API call...');
       const encodedAffiliateLink = encodeURIComponent(referringLink);
       if (!encodedAffiliateLink) {
         console.error('[Insert Affiliate] Failed to encode affiliate link.');
-
-        let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
+        verboseLog('Failed to encode link, storing original');
         await storeInsertAffiliateIdentifier({ link: referringLink });
-        return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+        return `${referringLink}-${customerID}`;
       }
 
       // Create the request URL
-      const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${companyCode}&deepLinkUrl=${encodedAffiliateLink}`;
+      const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${activeCompanyCode}&deepLinkUrl=${encodedAffiliateLink}`;
       console.log('[Insert Affiliate] urlString .', urlString);
+      verboseLog('Making API request to convert deep link to short code...');
+      
       const response = await axios.get(urlString, {
         headers: {
           'Content-Type': 'application/json',
         },
       });
+      
+      verboseLog(`API response status: ${response.status}`);
 
       // Call to the backend for the short code and save the resolse in valid
       if (response.status === 200 && response.data.shortLink) {
         const shortLink = response.data.shortLink;
         console.log('[Insert Affiliate] Short link received:', shortLink);
+        verboseLog(`Successfully converted to short link: ${shortLink}`);
+        verboseLog('Storing short link to AsyncStorage...');
+        await storeInsertAffiliateIdentifier({ link: shortLink });
+        verboseLog('Short link stored successfully');
         return `${shortLink}-${customerID}`;
       } else {
         console.warn('[Insert Affiliate] Unexpected response format.');
-        let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
+        verboseLog(`Unexpected API response. Status: ${response.status}, Data: ${JSON.stringify(response.data)}`);
+        verboseLog('Storing original link as fallback');
         await storeInsertAffiliateIdentifier({ link: referringLink });
-        return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+        return `${referringLink}-${customerID}`;
       }
     } catch (error) {
       console.error('[Insert Affiliate] Error:', error);
+      verboseLog(`Error in setInsertAffiliateIdentifier: ${error}`);
     }
   };
   
   async function storeInsertAffiliateIdentifier({ link }: { link: string }) {
     console.log(`[Insert Affiliate] Storing affiliate identifier: ${link}`);
+    verboseLog(`Updating React state with referrer link: ${link}`);
     setReferrerLink(link);
+    verboseLog(`Saving referrer link to AsyncStorage...`);
     await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, link);
+    verboseLog(`Referrer link saved to AsyncStorage successfully`);
   }
 
   const validatePurchaseWithIapticAPI = async (
@@ -419,26 +523,34 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   };
 
   const storeExpectedStoreTransaction = async (purchaseToken: string): Promise<void> => {
-    if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
+    verboseLog(`Storing expected store transaction with token: ${purchaseToken}`);
+    
+    const activeCompanyCode = await getActiveCompanyCode();
+    if (!activeCompanyCode) {
       console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+      verboseLog("Cannot store transaction: no company code available");
       return;
     }
 
     const shortCode = await returnInsertAffiliateIdentifier();
     if (!shortCode) {
       console.error("[Insert Affiliate] No affiliate identifier found. Please set one before tracking events.");
+      verboseLog("Cannot store transaction: no affiliate identifier available");
       return;
     }
+
+    verboseLog(`Company code: ${activeCompanyCode}, Short code: ${shortCode}`);
 
     // Build JSON payload
     const payload = {
       UUID: purchaseToken,
-      companyCode,
+      companyCode: activeCompanyCode,
       shortCode,
       storedDate: new Date().toISOString(), // ISO8601 format
     };
 
     console.log("[Insert Affiliate] Storing expected transaction: ", payload);
+    verboseLog("Making API call to store expected transaction...");
 
     try {
       const response = await fetch("https://api.insertaffiliate.com/v1/api/app-store-webhook/create-expected-transaction", {
@@ -449,40 +561,57 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         body: JSON.stringify(payload),
       });
 
+      verboseLog(`API response status: ${response.status}`);
+
       if (response.ok) {
         console.info("[Insert Affiliate] Expected transaction stored successfully.");
+        verboseLog("Expected transaction stored successfully on server");
       } else {
         const errorText = await response.text();
         console.error(`[Insert Affiliate] Failed to store expected transaction with status code: ${response.status}. Response: ${errorText}`);
+        verboseLog(`API error response: ${errorText}`);
       }
     } catch (error) {
       console.error(`[Insert Affiliate] Error storing expected transaction: ${error}`);
+      verboseLog(`Network error storing transaction: ${error}`);
     }
   };
 
   // MARK: Track Event
   const trackEvent = async (eventName: string): Promise<void> => {
     try {
-      if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
+      verboseLog(`Tracking event: ${eventName}`);
+      
+      const activeCompanyCode = await getActiveCompanyCode();
+      if (!activeCompanyCode) {
         console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+        verboseLog("Cannot track event: no company code available");
         return Promise.resolve();
       }
 
-      console.log("track event called with - companyCode: ", companyCode);
+      console.log("track event called with - companyCode: ", activeCompanyCode);
 
       if (!referrerLink || !userId) {
         console.warn(
           '[Insert Affiliate] No affiliate identifier found. Please set one before tracking events.'
         );
+        verboseLog("Cannot track event: no affiliate identifier available");
         return Promise.resolve();
       }
 
+      const deepLinkParam = `${referrerLink}-${userId}`;
+      verboseLog(`Deep link param: ${deepLinkParam}`);
+
       const payload = {
         eventName,
-        deepLinkParam: `${referrerLink}-${userId}`,
-        companyId: companyCode,
+        deepLinkParam: deepLinkParam,
+        companyId: activeCompanyCode,
       };
 
+      verboseLog(`Track event payload: ${JSON.stringify(payload)}`);
+
+      verboseLog("Making API call to track event...");
+      
       const response = await axios.post(
         'https://api.insertaffiliate.com/v1/trackEvent',
         payload,
@@ -491,15 +620,20 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         }
       );
 
+      verboseLog(`Track event API response status: ${response.status}`);
+
       if (response.status === 200) {
         console.log('[Insert Affiliate] Event tracked successfully');
+        verboseLog("Event tracked successfully on server");
       } else {
         console.error(
           `[Insert Affiliate] Failed to track event with status code: ${response.status}`
         );
+        verboseLog(`Track event API error: status ${response.status}, response: ${JSON.stringify(response.data)}`);
       }
     } catch (error) {
       console.error('[Insert Affiliate] Error tracking event:', error);
+      verboseLog(`Network error tracking event: ${error}`);
       return Promise.reject(error);
     }
   };
