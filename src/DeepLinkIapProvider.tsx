@@ -116,10 +116,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       try {
         const uId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
         const refLink = await getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
+        const companyCodeFromStorage = await getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
 
         if (uId && refLink) {
           setUserId(uId);
           setReferrerLink(refLink);
+        }
+
+        if (companyCodeFromStorage) {
+          setCompanyCode(companyCodeFromStorage);
         }
       } catch (error) {
         errorLog(`ERROR ~ fetchAsyncEssentials: ${error}`);
@@ -171,6 +176,20 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   const clearAsyncStorage = async () => {
     await AsyncStorage.clear();
+  };
+
+  // Helper function to get company code from state or storage
+  const getActiveCompanyCode = async (): Promise<string | null> => {
+    let activeCompanyCode = companyCode;
+    if (!activeCompanyCode || (activeCompanyCode.trim() === '' && activeCompanyCode !== null)) {
+      activeCompanyCode = await getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
+      
+      if (activeCompanyCode) {
+        // Update state for future use
+        setCompanyCode(activeCompanyCode);
+      }
+    }
+    return activeCompanyCode;
   };
 
   // Helper function to log errors
@@ -272,19 +291,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
       }
 
-      if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
-        let companyCodeFromStorage = await getValueFromAsync(
-          ASYNC_KEYS.COMPANY_CODE
+      // Get company code from state or storage
+      const activeCompanyCode = await getActiveCompanyCode();
+      if (!activeCompanyCode) {
+        console.error(
+          '[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.'
         );
-
-        if (companyCodeFromStorage !== null) {
-          setCompanyCode(companyCodeFromStorage);
-        } else {
-          console.error(
-            '[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.'
-          );
-          return;
-        }
+        return;
       }
 
       // Check if referring link is already a short code, if so save it and stop here.
@@ -309,7 +322,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
 
       // Create the request URL
-      const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${companyCode}&deepLinkUrl=${encodedAffiliateLink}`;
+      const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${activeCompanyCode}&deepLinkUrl=${encodedAffiliateLink}`;
       console.log('[Insert Affiliate] urlString .', urlString);
       const response = await axios.get(urlString, {
         headers: {
@@ -321,6 +334,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       if (response.status === 200 && response.data.shortLink) {
         const shortLink = response.data.shortLink;
         console.log('[Insert Affiliate] Short link received:', shortLink);
+        await storeInsertAffiliateIdentifier({ link: shortLink });
         return `${shortLink}-${customerID}`;
       } else {
         console.warn('[Insert Affiliate] Unexpected response format.');
@@ -419,7 +433,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   };
 
   const storeExpectedStoreTransaction = async (purchaseToken: string): Promise<void> => {
-    if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
+    const activeCompanyCode = await getActiveCompanyCode();
+    if (!activeCompanyCode) {
       console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
       return;
     }
@@ -433,7 +448,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     // Build JSON payload
     const payload = {
       UUID: purchaseToken,
-      companyCode,
+      companyCode: activeCompanyCode,
       shortCode,
       storedDate: new Date().toISOString(), // ISO8601 format
     };
@@ -463,12 +478,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // MARK: Track Event
   const trackEvent = async (eventName: string): Promise<void> => {
     try {
-      if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
+      const activeCompanyCode = await getActiveCompanyCode();
+      if (!activeCompanyCode) {
         console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
         return Promise.resolve();
       }
 
-      console.log("track event called with - companyCode: ", companyCode);
+      console.log("track event called with - companyCode: ", activeCompanyCode);
 
       if (!referrerLink || !userId) {
         console.warn(
@@ -480,7 +496,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       const payload = {
         eventName,
         deepLinkParam: `${referrerLink}-${userId}`,
-        companyId: companyCode,
+        companyId: activeCompanyCode,
       };
 
       const response = await axios.post(

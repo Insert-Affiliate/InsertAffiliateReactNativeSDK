@@ -90,9 +90,13 @@ const DeepLinkIapProvider = ({ children, }) => {
             try {
                 const uId = yield getValueFromAsync(ASYNC_KEYS.USER_ID);
                 const refLink = yield getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
+                const companyCodeFromStorage = yield getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
                 if (uId && refLink) {
                     setUserId(uId);
                     setReferrerLink(refLink);
+                }
+                if (companyCodeFromStorage) {
+                    setCompanyCode(companyCodeFromStorage);
                 }
             }
             catch (error) {
@@ -139,6 +143,18 @@ const DeepLinkIapProvider = ({ children, }) => {
     });
     const clearAsyncStorage = () => __awaiter(void 0, void 0, void 0, function* () {
         yield async_storage_1.default.clear();
+    });
+    // Helper function to get company code from state or storage
+    const getActiveCompanyCode = () => __awaiter(void 0, void 0, void 0, function* () {
+        let activeCompanyCode = companyCode;
+        if (!activeCompanyCode || (activeCompanyCode.trim() === '' && activeCompanyCode !== null)) {
+            activeCompanyCode = yield getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
+            if (activeCompanyCode) {
+                // Update state for future use
+                setCompanyCode(activeCompanyCode);
+            }
+        }
+        return activeCompanyCode;
     });
     // Helper function to log errors
     const errorLog = (message, type) => {
@@ -229,15 +245,11 @@ const DeepLinkIapProvider = ({ children, }) => {
                     yield storeInsertAffiliateIdentifier({ link: referringLink });
                     return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
                 }
-                if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
-                    let companyCodeFromStorage = yield getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
-                    if (companyCodeFromStorage !== null) {
-                        setCompanyCode(companyCodeFromStorage);
-                    }
-                    else {
-                        console.error('[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.');
-                        return;
-                    }
+                // Get company code from state or storage
+                const activeCompanyCode = yield getActiveCompanyCode();
+                if (!activeCompanyCode) {
+                    console.error('[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.');
+                    return;
                 }
                 // Check if referring link is already a short code, if so save it and stop here.
                 if (isShortCode(referringLink)) {
@@ -256,7 +268,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                     return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
                 }
                 // Create the request URL
-                const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${companyCode}&deepLinkUrl=${encodedAffiliateLink}`;
+                const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${activeCompanyCode}&deepLinkUrl=${encodedAffiliateLink}`;
                 console.log('[Insert Affiliate] urlString .', urlString);
                 const response = yield axios_1.default.get(urlString, {
                     headers: {
@@ -267,6 +279,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 if (response.status === 200 && response.data.shortLink) {
                     const shortLink = response.data.shortLink;
                     console.log('[Insert Affiliate] Short link received:', shortLink);
+                    yield storeInsertAffiliateIdentifier({ link: shortLink });
                     return `${shortLink}-${customerID}`;
                 }
                 else {
@@ -350,7 +363,8 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
     });
     const storeExpectedStoreTransaction = (purchaseToken) => __awaiter(void 0, void 0, void 0, function* () {
-        if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
+        const activeCompanyCode = yield getActiveCompanyCode();
+        if (!activeCompanyCode) {
             console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
             return;
         }
@@ -362,7 +376,7 @@ const DeepLinkIapProvider = ({ children, }) => {
         // Build JSON payload
         const payload = {
             UUID: purchaseToken,
-            companyCode,
+            companyCode: activeCompanyCode,
             shortCode,
             storedDate: new Date().toISOString(), // ISO8601 format
         };
@@ -390,11 +404,12 @@ const DeepLinkIapProvider = ({ children, }) => {
     // MARK: Track Event
     const trackEvent = (eventName) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
+            const activeCompanyCode = yield getActiveCompanyCode();
+            if (!activeCompanyCode) {
                 console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
                 return Promise.resolve();
             }
-            console.log("track event called with - companyCode: ", companyCode);
+            console.log("track event called with - companyCode: ", activeCompanyCode);
             if (!referrerLink || !userId) {
                 console.warn('[Insert Affiliate] No affiliate identifier found. Please set one before tracking events.');
                 return Promise.resolve();
@@ -402,7 +417,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             const payload = {
                 eventName,
                 deepLinkParam: `${referrerLink}-${userId}`,
-                companyId: companyCode,
+                companyId: activeCompanyCode,
             };
             const response = yield axios_1.default.post('https://api.insertaffiliate.com/v1/trackEvent', payload, {
                 headers: { 'Content-Type': 'application/json' },
