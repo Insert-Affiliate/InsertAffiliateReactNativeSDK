@@ -58,7 +58,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     trackEvent: (eventName) => __awaiter(void 0, void 0, void 0, function* () { }),
     setShortCode: (shortCode) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifier: (referringLink) => __awaiter(void 0, void 0, void 0, function* () { }),
-    initialize: (code) => __awaiter(void 0, void 0, void 0, function* () { }),
+    initialize: (code) => { },
     isInitialized: false,
 });
 const DeepLinkIapProvider = ({ children, }) => {

@@ -75,7 +75,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   trackEvent: async (eventName: string) => {},
   setShortCode: async (shortCode: string) => {},
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
-  initialize: async (code: string | null) => {},
+  initialize: (code: string | null) => {},
   isInitialized: false,
 });
 
