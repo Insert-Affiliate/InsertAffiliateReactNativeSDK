@@ -225,6 +225,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     // MARK: Return Insert Affiliate Identifier
     const returnInsertAffiliateIdentifier = () => __awaiter(void 0, void 0, void 0, function* () {
         try {
+            console.log('[Insert Affiliate] Returning insert affiliate identifier:', `${referrerLink}-${userId}`);
             return `${referrerLink}-${userId}`;
         }
         catch (error) {
@@ -241,9 +242,8 @@ const DeepLinkIapProvider = ({ children, }) => {
                 console.log('[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.');
                 if (!referringLink) {
                     console.warn('[Insert Affiliate] Referring link is invalid.');
-                    let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
                     yield storeInsertAffiliateIdentifier({ link: referringLink });
-                    return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+                    return `${referringLink}-${customerID}`;
                 }
                 // Get company code from state or storage
                 const activeCompanyCode = yield getActiveCompanyCode();
@@ -254,18 +254,16 @@ const DeepLinkIapProvider = ({ children, }) => {
                 // Check if referring link is already a short code, if so save it and stop here.
                 if (isShortCode(referringLink)) {
                     console.log('[Insert Affiliate] Referring link is already a short code.');
-                    let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
                     yield storeInsertAffiliateIdentifier({ link: referringLink });
-                    return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+                    return `${referringLink}-${customerID}`;
                 }
                 // If the code is not already a short code, encode it raedy to send to our endpoint to return the short code. Save it before making the call in case something goes wrong
                 // Encode the referring link
                 const encodedAffiliateLink = encodeURIComponent(referringLink);
                 if (!encodedAffiliateLink) {
                     console.error('[Insert Affiliate] Failed to encode affiliate link.');
-                    let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
                     yield storeInsertAffiliateIdentifier({ link: referringLink });
-                    return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+                    return `${referringLink}-${customerID}`;
                 }
                 // Create the request URL
                 const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${activeCompanyCode}&deepLinkUrl=${encodedAffiliateLink}`;
@@ -284,9 +282,8 @@ const DeepLinkIapProvider = ({ children, }) => {
                 }
                 else {
                     console.warn('[Insert Affiliate] Unexpected response format.');
-                    let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
                     yield storeInsertAffiliateIdentifier({ link: referringLink });
-                    return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+                    return `${referringLink}-${customerID}`;
                 }
             }
             catch (error) {

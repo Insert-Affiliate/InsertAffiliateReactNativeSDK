@@ -264,6 +264,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // MARK: Return Insert Affiliate Identifier
   const returnInsertAffiliateIdentifier = async (): Promise<string | null> => {
     try {
+      console.log('[Insert Affiliate] Returning insert affiliate identifier:', `${referrerLink}-${userId}`);
       return `${referrerLink}-${userId}`;
     } catch (error) {
       errorLog(`ERROR ~ returnInsertAffiliateIdentifier: ${error}`);
@@ -286,9 +287,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       if (!referringLink) {
         console.warn('[Insert Affiliate] Referring link is invalid.');
-        let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
         await storeInsertAffiliateIdentifier({ link: referringLink });
-        return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+        return `${referringLink}-${customerID}`;
       }
 
       // Get company code from state or storage
@@ -305,9 +305,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         console.log(
           '[Insert Affiliate] Referring link is already a short code.'
         );
-        let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
         await storeInsertAffiliateIdentifier({ link: referringLink });
-        return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+        return `${referringLink}-${customerID}`;
       }
 
       // If the code is not already a short code, encode it raedy to send to our endpoint to return the short code. Save it before making the call in case something goes wrong
@@ -316,9 +315,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       if (!encodedAffiliateLink) {
         console.error('[Insert Affiliate] Failed to encode affiliate link.');
 
-        let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
         await storeInsertAffiliateIdentifier({ link: referringLink });
-        return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+        return `${referringLink}-${customerID}`;
       }
 
       // Create the request URL
@@ -338,9 +336,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return `${shortLink}-${customerID}`;
       } else {
         console.warn('[Insert Affiliate] Unexpected response format.');
-        let heldReferrerLinkBeforeAsyncStateUpdate = referrerLink;
         await storeInsertAffiliateIdentifier({ link: referringLink });
-        return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
+        return `${referringLink}-${customerID}`;
       }
     } catch (error) {
       console.error('[Insert Affiliate] Error:', error);
