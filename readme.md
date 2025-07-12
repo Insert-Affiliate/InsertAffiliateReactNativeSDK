@@ -212,7 +212,6 @@ const Child = () => {
 
 const App = () => {
   return (
-    // Wrapped application code from the previous step...
     <Child />
   );
 };
@@ -253,7 +252,7 @@ Ensure you import the necessary dependencies, including `Platform` and `useDeepL
 
 ```javascript
 import { Platform } from 'react-native';
-import { DeepLinkIapProvider, useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 import { requestSubscription } from 'react-native-iap';
 
 const { returnUserAccountTokenAndStoreExpectedTransaction } = useDeepLinkIapProvider();
