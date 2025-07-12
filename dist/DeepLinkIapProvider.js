@@ -67,14 +67,13 @@ const DeepLinkIapProvider = ({ children, }) => {
     const [companyCode, setCompanyCode] = (0, react_1.useState)(null);
     const [isInitialized, setIsInitialized] = (0, react_1.useState)(false);
     // MARK: Initialize the SDK
-    const initialize = (companyCode) => __awaiter(void 0, void 0, void 0, function* () {
+    const initialize = (companyCode) => {
         if (isInitialized) {
             console.error('[Insert Affiliate] SDK is already initialized.');
             return;
         }
         if (companyCode && companyCode.trim() !== '') {
             setCompanyCode(companyCode);
-            yield saveValueInAsync(ASYNC_KEYS.COMPANY_CODE, companyCode);
             setIsInitialized(true);
             console.log(`[Insert Affiliate] SDK initialized with company code: ${companyCode}`);
         }
@@ -82,7 +81,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             console.warn('[Insert Affiliate] SDK initialized without a company code.');
             setIsInitialized(true);
         }
-    });
+    };
     // EFFECT TO FETCH USER ID AND REF LINK
     // IF ALREADY EXISTS IN ASYNC STORAGE
     (0, react_1.useEffect)(() => {
@@ -230,14 +229,8 @@ const DeepLinkIapProvider = ({ children, }) => {
                     return `${heldReferrerLinkBeforeAsyncStateUpdate}-${customerID}`;
                 }
                 if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
-                    let companyCodeFromStorage = yield getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
-                    if (companyCodeFromStorage !== null) {
-                        setCompanyCode(companyCodeFromStorage);
-                    }
-                    else {
-                        console.error('[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.');
-                        return;
-                    }
+                    console.error('[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.');
+                    return;
                 }
                 // Check if referring link is already a short code, if so save it and stop here.
                 if (isShortCode(referringLink)) {
@@ -267,6 +260,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 if (response.status === 200 && response.data.shortLink) {
                     const shortLink = response.data.shortLink;
                     console.log('[Insert Affiliate] Short link received:', shortLink);
+                    yield storeInsertAffiliateIdentifier({ link: shortLink });
                     return `${shortLink}-${customerID}`;
                 }
                 else {

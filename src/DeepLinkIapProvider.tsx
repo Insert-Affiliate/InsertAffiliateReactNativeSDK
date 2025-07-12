@@ -31,7 +31,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   setInsertAffiliateIdentifier: (
     referringLink: string
   ) => Promise<void | string>;
-  initialize: (code: string | null) => Promise<void>;
+  initialize: (code: string | null) => void;
   isInitialized: boolean;
 };
 
@@ -88,7 +88,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   // MARK: Initialize the SDK
-  const initialize = async (companyCode: string | null): Promise<void> => {
+  const initialize = (companyCode: string | null) => {
     if (isInitialized) {
       console.error('[Insert Affiliate] SDK is already initialized.');
       return;
@@ -96,7 +96,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
     if (companyCode && companyCode.trim() !== '') {
       setCompanyCode(companyCode);
-      await saveValueInAsync(ASYNC_KEYS.COMPANY_CODE, companyCode);
       setIsInitialized(true);
       console.log(
         `[Insert Affiliate] SDK initialized with company code: ${companyCode}`
@@ -273,18 +272,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
 
       if (!companyCode || (companyCode.trim() === '' && companyCode !== null)) {
-        let companyCodeFromStorage = await getValueFromAsync(
-          ASYNC_KEYS.COMPANY_CODE
+        console.error(
+          '[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.'
         );
-
-        if (companyCodeFromStorage !== null) {
-          setCompanyCode(companyCodeFromStorage);
-        } else {
-          console.error(
-            '[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.'
-          );
-          return;
-        }
+        return;
       }
 
       // Check if referring link is already a short code, if so save it and stop here.
