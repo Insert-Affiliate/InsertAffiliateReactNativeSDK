@@ -81,6 +81,55 @@ const App = () => {
 ```
 - Replace `{{ your_company_code }}` with the unique company code associated with your Insert Affiliate account. You can find this code in your dashboard under [Settings](http://app.insertaffiliate.com/settings).
 
+### Verbose Logging (Optional)
+
+For debugging and troubleshooting, you can enable verbose logging to get detailed insights into the SDK's operations:
+
+```javascript
+const Child = () => {
+  const { initialize, isInitialized } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    if (!isInitialized) {
+      // Enable verbose logging (second parameter)
+      initialize("{{ your-company-code }}", true);
+    }
+  }, [initialize, isInitialized]);
+}
+```
+
+**When verbose logging is enabled, you'll see detailed logs with the `[Insert Affiliate] [VERBOSE]` prefix that show:**
+
+- **Initialization Process**: SDK startup, company code validation, AsyncStorage operations
+- **Data Management**: User ID generation, referrer link storage, company code state management
+- **Deep Link Processing**: Input validation, short code detection, API conversion process
+- **API Communication**: Request/response details for all server calls
+- **Event Tracking**: Event parameters, payload construction, success/failure status
+- **Purchase Operations**: Transaction storage, token validation, webhook processing
+
+**Example verbose output:**
+```
+[Insert Affiliate] [VERBOSE] Starting SDK initialization...
+[Insert Affiliate] [VERBOSE] Company code provided: Yes
+[Insert Affiliate] [VERBOSE] Verbose logging enabled
+[Insert Affiliate] SDK initialized with company code: your-company-code
+[Insert Affiliate] [VERBOSE] Company code saved to AsyncStorage
+[Insert Affiliate] [VERBOSE] SDK marked as initialized
+[Insert Affiliate] [VERBOSE] Loading stored data from AsyncStorage...
+[Insert Affiliate] [VERBOSE] User ID found: Yes
+[Insert Affiliate] [VERBOSE] Referrer link found: Yes
+[Insert Affiliate] [VERBOSE] Company code found: Yes
+```
+
+**Benefits of verbose logging:**
+- **Debug Deep Linking Issues**: See exactly what links are being processed and how they're converted
+- **Monitor API Communication**: Track all server requests, responses, and error details
+- **Identify Storage Problems**: Understand AsyncStorage read/write operations and state sync
+- **Performance Insights**: Monitor async operation timing and identify bottlenecks
+- **Integration Troubleshooting**: Quickly identify configuration or setup issues
+
+⚠️ **Important**: Disable verbose logging in production builds to avoid exposing sensitive debugging information and to optimize performance.
+
 
 ## In-App Purchase Setup [Required]
 Insert Affiliate requires a Receipt Verification platform to validate in-app purchases. You must choose **one** of our supported partners:
