@@ -460,7 +460,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             storedDate: new Date().toISOString(), // ISO8601 format
         };
         console.log("[Insert Affiliate] Storing expected transaction: ", payload);
-        verboseLog("Making API call to store expected transaction...");
+        verboseLog("Making API call to store expected transaction... to https://6f924b891a7e.ngrok-free.app");
         try {
             const response = yield fetch("https://6f924b891a7e.ngrok-free.app/v1/api/app-store-webhook/create-expected-transaction", {
                 method: "POST",
