@@ -59,6 +59,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     setShortCode: (shortCode) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifier: (referringLink) => __awaiter(void 0, void 0, void 0, function* () { }),
     initialize: (code, verboseLogging) => __awaiter(void 0, void 0, void 0, function* () { }),
+    fetchAndConditionallyOpenUrl: (affiliateIdentifier, offerCodeUrlId) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     isInitialized: false,
 });
 const DeepLinkIapProvider = ({ children, }) => {
@@ -529,6 +530,49 @@ const DeepLinkIapProvider = ({ children, }) => {
             return Promise.reject(error);
         }
     });
+    const fetchAndConditionallyOpenUrl = (affiliateIdentifier, offerCodeUrlId) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            verboseLog(`Attempting to fetch and conditionally open URL for affiliate: ${affiliateIdentifier}, offerCodeUrlId: ${offerCodeUrlId}`);
+            const activeCompanyCode = yield getActiveCompanyCode();
+            if (!activeCompanyCode) {
+                console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+                verboseLog("Cannot open URL: no company code available");
+                return false;
+            }
+            const requestBody = {
+                affiliateIdentifier,
+                offerCodeUrlId,
+                companyId: activeCompanyCode,
+            };
+            verboseLog(`Making API call to fetch and open URL...`);
+            const response = yield (0, axios_1.default)({
+                url: `https://api.insertaffiliate.com/V1/fetch-and-open-url`,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: requestBody,
+            });
+            verboseLog(`API response status: ${response.status}`);
+            if (response.status === 200 && response.data.url) {
+                const urlToOpen = response.data.url;
+                console.log('[Insert Affiliate] URL to open:', urlToOpen);
+                verboseLog(`Successfully fetched and opened URL: ${urlToOpen}`);
+                yield react_native_1.Linking.openURL(urlToOpen);
+                return true;
+            }
+            else {
+                console.warn('[Insert Affiliate] Failed to fetch or open URL.');
+                verboseLog(`API error response: ${JSON.stringify(response.data)}`);
+                return false;
+            }
+        }
+        catch (error) {
+            console.error('[Insert Affiliate] Error fetching or opening URL:', error);
+            verboseLog(`Network error fetching or opening URL: ${error}`);
+            return false;
+        }
+    });
     return (react_1.default.createElement(exports.DeepLinkIapContext.Provider, { value: {
             referrerLink,
             userId,
@@ -541,6 +585,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             setInsertAffiliateIdentifier,
             initialize,
             isInitialized,
+            fetchAndConditionallyOpenUrl,
         } }, children));
 };
 exports.default = DeepLinkIapProvider;

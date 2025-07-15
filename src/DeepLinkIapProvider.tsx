@@ -1,5 +1,5 @@
 import React, { createContext, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -32,6 +32,10 @@ type T_DEEPLINK_IAP_CONTEXT = {
     referringLink: string
   ) => Promise<void | string>;
   initialize: (code: string | null, verboseLogging?: boolean) => Promise<void>;
+  fetchAndConditionallyOpenUrl: (
+    affiliateIdentifier: string,
+    offerCodeUrlId: string
+  ) => Promise<boolean>;
   isInitialized: boolean;
 };
 
@@ -76,6 +80,10 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   setShortCode: async (shortCode: string) => {},
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
   initialize: async (code: string | null, verboseLogging?: boolean) => {},
+  fetchAndConditionallyOpenUrl: async (
+    affiliateIdentifier: string,
+    offerCodeUrlId: string
+  ) => false,
   isInitialized: false,
 });
 
@@ -638,6 +646,56 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
+  const fetchAndConditionallyOpenUrl = async (
+    affiliateIdentifier: string,
+    offerCodeUrlId: string
+  ): Promise<boolean> => {
+    try {
+      verboseLog(`Attempting to fetch and conditionally open URL for affiliate: ${affiliateIdentifier}, offerCodeUrlId: ${offerCodeUrlId}`);
+
+      const activeCompanyCode = await getActiveCompanyCode();
+      if (!activeCompanyCode) {
+        console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+        verboseLog("Cannot open URL: no company code available");
+        return false;
+      }
+
+      const requestBody = {
+        affiliateIdentifier,
+        offerCodeUrlId,
+        companyId: activeCompanyCode,
+      };
+
+      verboseLog(`Making API call to fetch and open URL...`);
+      const response = await axios({
+        url: `https://api.insertaffiliate.com/V1/fetch-and-open-url`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        data: requestBody,
+      });
+
+      verboseLog(`API response status: ${response.status}`);
+
+      if (response.status === 200 && response.data.url) {
+        const urlToOpen = response.data.url;
+        console.log('[Insert Affiliate] URL to open:', urlToOpen);
+        verboseLog(`Successfully fetched and opened URL: ${urlToOpen}`);
+        await Linking.openURL(urlToOpen);
+        return true;
+      } else {
+        console.warn('[Insert Affiliate] Failed to fetch or open URL.');
+        verboseLog(`API error response: ${JSON.stringify(response.data)}`);
+        return false;
+      }
+    } catch (error) {
+      console.error('[Insert Affiliate] Error fetching or opening URL:', error);
+      verboseLog(`Network error fetching or opening URL: ${error}`);
+      return false;
+    }
+  };
+
   return (
     <DeepLinkIapContext.Provider
       value={{
@@ -652,6 +710,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         setInsertAffiliateIdentifier,
         initialize,
         isInitialized,
+        fetchAndConditionallyOpenUrl,
       }}
     >
       {children}

@@ -498,7 +498,7 @@ At this stage, we cannot guarantee that this feature is fully resistant to tampe
 
 #### Using `trackEvent`
 
-To track an event, use the `trackEvent` function. Make sure to set an affiliate identifier first; otherwise, event tracking won’t work. Here’s an example:
+To track an event, use the `trackEvent` function. Make sure to set an affiliate identifier first; otherwise, event tracking won't work. Here's an example:
 
 ```javascript
 const {
@@ -520,7 +520,127 @@ const {
 />
 ```
 
-### 2. Short Codes (Beta)
+### 2. Offer Codes
+
+Offer Codes allow you to automatically present a discount to users who access an affiliate's link or enter a short code. This provides affiliates with a compelling incentive to promote your app, as discounts are automatically applied during the redemption flow [(learn more)](https://docs.insertaffiliate.com/offer-codes). 
+
+**Note: Offer Codes are currently only supported on iOS.**
+
+You'll need your Offer Code URL ID, which can be created and retrieved from App Store Connect. Instructions to retrieve your Offer Code URL ID are available [here](https://docs.insertaffiliate.com/offer-codes#create-the-codes-within-app-store-connect).
+
+To fetch an Offer Code and conditionally redirect the user to redeem it, pass the affiliate identifier (deep link or short code) to:
+
+```javascript
+const { fetchAndConditionallyOpenUrl } = useDeepLinkIapProvider();
+
+await fetchAndConditionallyOpenUrl("your_affiliate_identifier", "your_offer_code_url_id");
+```
+
+#### Branch.io Example
+
+```javascript
+import React, { useEffect } from 'react';
+import branch from 'react-native-branch';
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+
+const DeepLinkHandler = () => {
+  const { fetchAndConditionallyOpenUrl } = useDeepLinkIapProvider();
+  
+  useEffect(() => {
+    const branchSubscription = branch.subscribe(async ({ error, params }) => {
+      if (error) {
+        console.error('Error from Branch:', error);
+        return;
+      }
+
+      if (params['+clicked_branch_link']) {
+        const referringLink = params['~referring_link'];
+        if (referringLink) {
+          try {
+            await fetchAndConditionallyOpenUrl(
+              referringLink,
+              "{{ your_offer_code_url_id }}"
+            );
+
+            // Other code required for Insert Affiliate in the other listed steps...
+          } catch (err) {
+            console.error('Error with offer code:', err);
+          }
+        }
+      }
+    });
+
+    return () => branchSubscription();
+  }, [fetchAndConditionallyOpenUrl]);
+
+  return <App />;
+};
+```
+
+#### Short Code Example
+
+```javascript
+import React, { useState } from 'react';
+import { View, TextInput, Button, StyleSheet } from 'react-native';
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+
+const ShortCodeInputWidget = () => {
+  const [shortCode, setShortCode] = useState('');
+  const { setShortCode: setInsertAffiliateShortCode, fetchAndConditionallyOpenUrl } = useDeepLinkIapProvider();
+
+  const handleShortCodeSubmission = async () => {
+    const trimmedCode = shortCode.trim();
+    
+    if (trimmedCode.length > 0) {
+      try {
+        // Set the short code for affiliate tracking
+        await setInsertAffiliateShortCode(trimmedCode);
+        
+        // Fetch and conditionally open offer code URL
+        await fetchAndConditionallyOpenUrl(
+          trimmedCode, 
+          "{{ your_offer_code_url_id }}"
+        );
+      } catch (error) {
+        console.error('Error handling short code:', error);
+      }
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <TextInput
+        style={styles.input}
+        value={shortCode}
+        onChangeText={setShortCode}
+        placeholder="Enter your code"
+        placeholderTextColor="#ABC123"
+      />
+      <Button
+        title="Apply Code"
+        onPress={handleShortCodeSubmission}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 5,
+  },
+});
+
+export default ShortCodeInputWidget;
+```
+
+### 3. Short Codes (Beta)
 
 #### What are Short Codes?
 
