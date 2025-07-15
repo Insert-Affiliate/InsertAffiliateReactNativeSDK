@@ -13,7 +13,8 @@ const useDeepLinkIapProvider = () => {
     setShortCode,
     setInsertAffiliateIdentifier,
     initialize,
-    isInitialized
+    isInitialized,
+    fetchAndConditionallyOpenUrl
   } = useContext(DeepLinkIapContext);
 
   return {
@@ -27,7 +28,8 @@ const useDeepLinkIapProvider = () => {
     setShortCode,
     setInsertAffiliateIdentifier,
     initialize,
-    isInitialized
+    isInitialized,
+    fetchAndConditionallyOpenUrl
   };
 };
 

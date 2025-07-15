@@ -59,6 +59,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     setShortCode: (shortCode) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifier: (referringLink) => __awaiter(void 0, void 0, void 0, function* () { }),
     initialize: (code, verboseLogging) => __awaiter(void 0, void 0, void 0, function* () { }),
+    fetchAndConditionallyOpenUrl: (affiliateIdentifier, offerCodeUrlId) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     isInitialized: false,
 });
 const DeepLinkIapProvider = ({ children, }) => {
@@ -529,6 +530,87 @@ const DeepLinkIapProvider = ({ children, }) => {
             return Promise.reject(error);
         }
     });
+    const fetchAndConditionallyOpenUrl = (affiliateIdentifier, offerCodeUrlId) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            verboseLog(`Attempting to fetch and conditionally open URL for affiliate: ${affiliateIdentifier}, offerCodeUrlId: ${offerCodeUrlId}`);
+            if (react_native_1.Platform.OS !== 'ios') {
+                console.warn("[Insert Affiliate] Offer codes are only supported on iOS");
+                verboseLog("Offer codes are only supported on iOS");
+                return false;
+            }
+            const offerCode = yield fetchOfferCode(affiliateIdentifier);
+            if (offerCode && offerCode.length > 0) {
+                yield openRedeemURL(offerCode, offerCodeUrlId);
+                return true;
+            }
+            else {
+                verboseLog("No valid offer code found");
+                return false;
+            }
+        }
+        catch (error) {
+            console.error('[Insert Affiliate] Error fetching and opening offer code URL:', error);
+            verboseLog(`Error fetching and opening offer code URL: ${error}`);
+            return false;
+        }
+    });
+    const fetchOfferCode = (affiliateLink) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const encodedAffiliateLink = encodeURIComponent(affiliateLink);
+            const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${encodedAffiliateLink}`;
+            verboseLog(`Fetching offer code from: ${url}`);
+            const response = yield axios_1.default.get(url);
+            if (response.status === 200) {
+                const offerCode = response.data;
+                // Check for specific error strings from API
+                if (typeof offerCode === 'string' && (offerCode.includes("errorofferCodeNotFound") ||
+                    offerCode.includes("errorAffiliateoffercodenotfoundinanycompany") ||
+                    offerCode.includes("errorAffiliateoffercodenotfoundinanycompanyAffiliatelinkwas") ||
+                    offerCode.includes("Routenotfound"))) {
+                    console.warn(`[Insert Affiliate] Offer code not found or invalid: ${offerCode}`);
+                    verboseLog(`Offer code not found or invalid: ${offerCode}`);
+                    return null;
+                }
+                const cleanedOfferCode = cleanOfferCode(offerCode);
+                verboseLog(`Successfully fetched and cleaned offer code: ${cleanedOfferCode}`);
+                return cleanedOfferCode;
+            }
+            else {
+                console.error(`[Insert Affiliate] Failed to fetch offer code. Status code: ${response.status}, Response: ${JSON.stringify(response.data)}`);
+                verboseLog(`Failed to fetch offer code. Status code: ${response.status}, Response: ${JSON.stringify(response.data)}`);
+                return null;
+            }
+        }
+        catch (error) {
+            console.error('[Insert Affiliate] Error fetching offer code:', error);
+            verboseLog(`Error fetching offer code: ${error}`);
+            return null;
+        }
+    });
+    const openRedeemURL = (offerCode, offerCodeUrlId) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const redeemUrl = `https://apps.apple.com/redeem?ctx=offercodes&id=${offerCodeUrlId}&code=${offerCode}`;
+            verboseLog(`Opening redeem URL: ${redeemUrl}`);
+            const canOpen = yield react_native_1.Linking.canOpenURL(redeemUrl);
+            if (canOpen) {
+                yield react_native_1.Linking.openURL(redeemUrl);
+                console.log('[Insert Affiliate] Successfully opened redeem URL');
+                verboseLog('Successfully opened redeem URL');
+            }
+            else {
+                console.error(`[Insert Affiliate] Could not launch redeem URL: ${redeemUrl}`);
+                verboseLog(`Could not launch redeem URL: ${redeemUrl}`);
+            }
+        }
+        catch (error) {
+            console.error('[Insert Affiliate] Error opening redeem URL:', error);
+            verboseLog(`Error opening redeem URL: ${error}`);
+        }
+    });
+    const cleanOfferCode = (offerCode) => {
+        // Remove special characters, keep only alphanumeric
+        return offerCode.replace(/[^a-zA-Z0-9]/g, '');
+    };
     return (react_1.default.createElement(exports.DeepLinkIapContext.Provider, { value: {
             referrerLink,
             userId,
@@ -541,6 +623,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             setInsertAffiliateIdentifier,
             initialize,
             isInitialized,
+            fetchAndConditionallyOpenUrl,
         } }, children));
 };
 exports.default = DeepLinkIapProvider;
