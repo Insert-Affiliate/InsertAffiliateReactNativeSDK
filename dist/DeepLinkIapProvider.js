@@ -533,46 +533,84 @@ const DeepLinkIapProvider = ({ children, }) => {
     const fetchAndConditionallyOpenUrl = (affiliateIdentifier, offerCodeUrlId) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             verboseLog(`Attempting to fetch and conditionally open URL for affiliate: ${affiliateIdentifier}, offerCodeUrlId: ${offerCodeUrlId}`);
-            const activeCompanyCode = yield getActiveCompanyCode();
-            if (!activeCompanyCode) {
-                console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
-                verboseLog("Cannot open URL: no company code available");
+            if (react_native_1.Platform.OS !== 'ios') {
+                console.warn("[Insert Affiliate] Offer codes are only supported on iOS");
+                verboseLog("Offer codes are only supported on iOS");
                 return false;
             }
-            const requestBody = {
-                affiliateIdentifier,
-                offerCodeUrlId,
-                companyId: activeCompanyCode,
-            };
-            verboseLog(`Making API call to fetch and open URL...`);
-            const response = yield (0, axios_1.default)({
-                url: `https://api.insertaffiliate.com/V1/fetch-and-open-url`,
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                data: requestBody,
-            });
-            verboseLog(`API response status: ${response.status}`);
-            if (response.status === 200 && response.data.url) {
-                const urlToOpen = response.data.url;
-                console.log('[Insert Affiliate] URL to open:', urlToOpen);
-                verboseLog(`Successfully fetched and opened URL: ${urlToOpen}`);
-                yield react_native_1.Linking.openURL(urlToOpen);
+            const offerCode = yield fetchOfferCode(affiliateIdentifier);
+            if (offerCode && offerCode.length > 0) {
+                yield openRedeemURL(offerCode, offerCodeUrlId);
                 return true;
             }
             else {
-                console.warn('[Insert Affiliate] Failed to fetch or open URL.');
-                verboseLog(`API error response: ${JSON.stringify(response.data)}`);
+                verboseLog("No valid offer code found");
                 return false;
             }
         }
         catch (error) {
-            console.error('[Insert Affiliate] Error fetching or opening URL:', error);
-            verboseLog(`Network error fetching or opening URL: ${error}`);
+            console.error('[Insert Affiliate] Error fetching and opening offer code URL:', error);
+            verboseLog(`Error fetching and opening offer code URL: ${error}`);
             return false;
         }
     });
+    const fetchOfferCode = (affiliateLink) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const encodedAffiliateLink = encodeURIComponent(affiliateLink);
+            const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${encodedAffiliateLink}`;
+            verboseLog(`Fetching offer code from: ${url}`);
+            const response = yield axios_1.default.get(url);
+            if (response.status === 200) {
+                const offerCode = response.data;
+                // Check for specific error strings from API
+                if (typeof offerCode === 'string' && (offerCode.includes("errorofferCodeNotFound") ||
+                    offerCode.includes("errorAffiliateoffercodenotfoundinanycompany") ||
+                    offerCode.includes("errorAffiliateoffercodenotfoundinanycompanyAffiliatelinkwas") ||
+                    offerCode.includes("Routenotfound"))) {
+                    console.warn(`[Insert Affiliate] Offer code not found or invalid: ${offerCode}`);
+                    verboseLog(`Offer code not found or invalid: ${offerCode}`);
+                    return null;
+                }
+                const cleanedOfferCode = cleanOfferCode(offerCode);
+                verboseLog(`Successfully fetched and cleaned offer code: ${cleanedOfferCode}`);
+                return cleanedOfferCode;
+            }
+            else {
+                console.error(`[Insert Affiliate] Failed to fetch offer code. Status code: ${response.status}, Response: ${JSON.stringify(response.data)}`);
+                verboseLog(`Failed to fetch offer code. Status code: ${response.status}, Response: ${JSON.stringify(response.data)}`);
+                return null;
+            }
+        }
+        catch (error) {
+            console.error('[Insert Affiliate] Error fetching offer code:', error);
+            verboseLog(`Error fetching offer code: ${error}`);
+            return null;
+        }
+    });
+    const openRedeemURL = (offerCode, offerCodeUrlId) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const redeemUrl = `https://apps.apple.com/redeem?ctx=offercodes&id=${offerCodeUrlId}&code=${offerCode}`;
+            verboseLog(`Opening redeem URL: ${redeemUrl}`);
+            const canOpen = yield react_native_1.Linking.canOpenURL(redeemUrl);
+            if (canOpen) {
+                yield react_native_1.Linking.openURL(redeemUrl);
+                console.log('[Insert Affiliate] Successfully opened redeem URL');
+                verboseLog('Successfully opened redeem URL');
+            }
+            else {
+                console.error(`[Insert Affiliate] Could not launch redeem URL: ${redeemUrl}`);
+                verboseLog(`Could not launch redeem URL: ${redeemUrl}`);
+            }
+        }
+        catch (error) {
+            console.error('[Insert Affiliate] Error opening redeem URL:', error);
+            verboseLog(`Error opening redeem URL: ${error}`);
+        }
+    });
+    const cleanOfferCode = (offerCode) => {
+        // Remove special characters, keep only alphanumeric
+        return offerCode.replace(/[^a-zA-Z0-9]/g, '');
+    };
     return (react_1.default.createElement(exports.DeepLinkIapContext.Provider, { value: {
             referrerLink,
             userId,
