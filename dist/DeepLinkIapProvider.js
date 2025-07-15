@@ -556,14 +556,8 @@ const DeepLinkIapProvider = ({ children, }) => {
     });
     const fetchOfferCode = (affiliateLink) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const activeCompanyCode = yield getActiveCompanyCode();
-            if (!activeCompanyCode) {
-                console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
-                verboseLog("Cannot fetch offer code: no company code available");
-                return null;
-            }
             const encodedAffiliateLink = encodeURIComponent(affiliateLink);
-            const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
+            const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${encodedAffiliateLink}`;
             verboseLog(`Fetching offer code from: ${url}`);
             const response = yield axios_1.default.get(url);
             if (response.status === 200) {

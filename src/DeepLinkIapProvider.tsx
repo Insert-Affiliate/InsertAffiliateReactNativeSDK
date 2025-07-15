@@ -677,15 +677,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   const fetchOfferCode = async (affiliateLink: string): Promise<string | null> => {
     try {
-      const activeCompanyCode = await getActiveCompanyCode();
-      if (!activeCompanyCode) {
-        console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
-        verboseLog("Cannot fetch offer code: no company code available");
-        return null;
-      }
+
 
       const encodedAffiliateLink = encodeURIComponent(affiliateLink);
-      const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
+      const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${encodedAffiliateLink}`;
       
       verboseLog(`Fetching offer code from: ${url}`);
       
