@@ -12,6 +12,6 @@ declare const useDeepLinkIapProvider: () => {
     setInsertAffiliateIdentifier: (referringLink: string) => Promise<void | string>;
     initialize: (code: string | null, verboseLogging?: boolean) => Promise<void>;
     isInitialized: boolean;
-    fetchAndConditionallyOpenUrl: (affiliateIdentifier: string, offerCodeUrlId: string) => Promise<boolean>;
+    iOSOfferCode: string | null;
 };
 export default useDeepLinkIapProvider;
