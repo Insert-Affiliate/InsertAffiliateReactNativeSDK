@@ -520,131 +520,180 @@ const {
 />
 ```
 
-### 2. Offer Codes
+### 2. Discounts for Users → Offer Codes / Dynamic Product IDs
 
-Offer Codes allow you to automatically present a discount to users who access an affiliate's link or enter a short code. This provides affiliates with a compelling incentive to promote your app, as discounts are automatically applied during the redemption flow [(learn more)](https://docs.insertaffiliate.com/offer-codes). 
+The SDK lets you pass modifiers based on if the app was installed due to the work of an affiliate for your in app purchases. These modifiers can be used to swap your in app purchase being offered to the end user out for one with a discount or trial offer, similar to giving the end user an offer code.
 
 **Note: Offer Codes are currently only supported on iOS.**
 
-You'll need your Offer Code URL ID, which can be created and retrieved from App Store Connect. Instructions to retrieve your Offer Code URL ID are available [here](https://docs.insertaffiliate.com/offer-codes#create-the-codes-within-app-store-connect).
+#### How It Works
 
-To fetch an Offer Code and conditionally redirect the user to redeem it, pass the affiliate identifier (deep link or short code) to:
+When someone clicks an affiliate link or enters a short code linked to an offer (set up in the Insert Affiliate Dashboard), the SDK fills in `iOSOfferCode` with the right modifier (like `_oneWeekFree`). You can then add this to your regular product ID to load the correct version of the subscription in your app.
+
+#### Basic Usage
+
+**1. Automatic Offer Code Fetching**
+When you store an affiliate identifier using a short code, the SDK automatically fetches and stores the associated offer code modifier.
+
+**2. Access the Offer Code Modifier**
+The offer code modifier is available through the context:
 
 ```javascript
-const { fetchAndConditionallyOpenUrl } = useDeepLinkIapProvider();
+const { iOSOfferCode } = useDeepLinkIapProvider();
 
-await fetchAndConditionallyOpenUrl("your_affiliate_identifier", "your_offer_code_url_id");
+// Access directly from state (synchronous)
+const currentOfferCode = iOSOfferCode;
 ```
 
-#### Branch.io Example
+**3. Dynamic Product ID Construction**
+Use the offer code modifier to dynamically create product IDs:
 
 ```javascript
-import React, { useEffect } from 'react';
+const { iOSOfferCode } = useDeepLinkIapProvider();
+
+const baseProductId = "premium_monthly";
+const dynamicProductId = iOSOfferCode 
+  ? `${baseProductId}${iOSOfferCode}`  // e.g., "premium_monthly_oneWeekFree"
+  : baseProductId;                      // fallback to base product
+
+// Use dynamicProductId for your in-app purchase
+await requestSubscription({ sku: dynamicProductId });
+```
+
+#### Integration Examples
+
+**RevenueCat Integration with Dynamic Product IDs**
+```javascript
+import React, { useEffect, useState } from 'react';
 import branch from 'react-native-branch';
 import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import Purchases from 'react-native-purchases';
+import { requestSubscription } from 'react-native-iap';
 
-const DeepLinkHandler = () => {
-  const { fetchAndConditionallyOpenUrl } = useDeepLinkIapProvider();
+const PurchaseHandler = () => {
+  const { 
+    setInsertAffiliateIdentifier,
+    iOSOfferCode,
+    returnInsertAffiliateIdentifier 
+  } = useDeepLinkIapProvider();
   
-  useEffect(() => {
-    const branchSubscription = branch.subscribe(async ({ error, params }) => {
-      if (error) {
-        console.error('Error from Branch:', error);
-        return;
-      }
+  const [baseProductId] = useState("premium_monthly");
 
-      if (params['+clicked_branch_link']) {
-        const referringLink = params['~referring_link'];
-        if (referringLink) {
-          try {
-            await fetchAndConditionallyOpenUrl(
-              referringLink,
-              "{{ your_offer_code_url_id }}"
-            );
 
-            // Other code required for Insert Affiliate in the other listed steps...
-          } catch (err) {
-            console.error('Error with offer code:', err);
-          }
-        }
-      }
-    });
+  const handlePurchase = async () => {
+    // Dynamically construct product ID based on offer code
+    const dynamicProductId = iOSOfferCode 
+      ? `${baseProductId}${iOSOfferCode}`  // e.g., "premium_monthly_oneWeekFree"
+      : baseProductId;                      // fallback to base product
 
-    return () => branchSubscription();
-  }, [fetchAndConditionallyOpenUrl]);
-
-  return <App />;
-};
-```
-
-#### Short Code Example
-
-```javascript
-import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet } from 'react-native';
-import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
-
-const ShortCodeInputWidget = () => {
-  const [shortCode, setShortCode] = useState('');
-  const { setShortCode: setInsertAffiliateShortCode, fetchAndConditionallyOpenUrl } = useDeepLinkIapProvider();
-
-  const handleShortCodeSubmission = async () => {
-    const trimmedCode = shortCode.trim();
+    console.log(`Purchasing: ${dynamicProductId}`);
     
-    if (trimmedCode.length > 0) {
-      try {
-        // Set the short code for affiliate tracking
-        await setInsertAffiliateShortCode(trimmedCode);
-        
-        // Fetch and conditionally open offer code URL
-        await fetchAndConditionallyOpenUrl(
-          trimmedCode, 
-          "{{ your_offer_code_url_id }}"
-        );
-      } catch (error) {
-        console.error('Error handling short code:', error);
-      }
+    try {
+      await requestSubscription({ sku: dynamicProductId });
+    } catch (error) {
+      console.error('Purchase failed:', error);
     }
   };
 
   return (
+    <View>
+      <Button title="Subscribe" onPress={handlePurchase} />
+      {iOSOfferCode && (
+        <Text>Special offer applied: {iOSOfferCode}</Text>
+      )}
+    </View>
+  );
+};
+```
+
+**Complete Purchase UI Example**
+```javascript
+import React, { useState } from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+
+const PurchaseScreen = () => {
+  const { iOSOfferCode } = useDeepLinkIapProvider();
+  const [baseProductId] = useState("premium_monthly");
+  const [basePrice] = useState("$9.99/month");
+  
+  // Dynamic content based on offer code
+  const getPurchaseDetails = () => {
+    if (!iOSOfferCode) {
+      return {
+        productId: baseProductId,
+        buttonText: "Start Premium",
+        priceText: basePrice,
+        offerText: null,
+        hasOffer: false
+      };
+    }
+    
+    // Customize based on your offer codes
+    const offerMappings = {
+      '_oneWeekFree': {
+        buttonText: "Start 1 Week Free Trial",
+        priceText: "Free for 1 week, then $9.99/month",
+        offerText: "🎉 Special Offer: 1 Week Free!",
+        hasOffer: true
+      },
+      '_50percentOff': {
+        buttonText: "Get 50% Off First Month",
+        priceText: "$4.99 first month, then $9.99/month",
+        offerText: "🔥 Limited Time: 50% Off!",
+        hasOffer: true
+      }
+    };
+    
+    const offerDetails = offerMappings[iOSOfferCode] || {
+      buttonText: "Start Premium",
+      priceText: basePrice,
+      offerText: null,
+      hasOffer: false
+    };
+    
+    return {
+      productId: `${baseProductId}${iOSOfferCode}`,
+      ...offerDetails
+    };
+  };
+  
+  const purchaseDetails = getPurchaseDetails();
+  
+  const handlePurchase = async () => {
+    try {
+      await requestSubscription({ sku: purchaseDetails.productId });
+    } catch (error) {
+      console.error('Purchase failed:', error);
+    }
+  };
+  
+  return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        value={shortCode}
-        onChangeText={setShortCode}
-        placeholder="Enter your code"
-        placeholderTextColor="#ABC123"
-      />
+      <Text style={styles.title}>Premium Subscription</Text>
+      
+      {purchaseDetails.hasOffer && (
+        <View style={styles.offerBanner}>
+          <Text style={styles.offerText}>{purchaseDetails.offerText}</Text>
+        </View>
+      )}
+      
+      <Text style={styles.priceText}>{purchaseDetails.priceText}</Text>
+      
       <Button
-        title="Apply Code"
-        onPress={handleShortCodeSubmission}
+        title={purchaseDetails.buttonText}
+        onPress={handlePurchase}
       />
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 5,
-  },
-});
-
-export default ShortCodeInputWidget;
 ```
 
 ### 3. Short Codes (Beta)
 
 #### What are Short Codes?
 
-Short codes are unique, 10-character alphanumeric identifiers that affiliates can use to promote products or subscriptions. These codes are ideal for influencers or partners, making them easier to share than long URLs.
+Short codes are unique identifiers that affiliates can use to promote products or subscriptions. These codes are ideal for influencers or partners, making them easier to share than long URLs.
 
 **Example Use Case**: An influencer promotes a subscription with the short code "JOIN12345" within their TikTok video's description. When users enter this code within your app during sign-up or before purchase, the app tracks the subscription back to the influencer for commission payouts.
 
@@ -655,9 +704,11 @@ For more information, visit the [Insert Affiliate Short Codes Documentation](htt
 Use the `setShortCode` method to associate a short code with an affiliate. This is ideal for scenarios where users enter the code via an input field, pop-up, or similar UI element.
 
 Short codes must meet the following criteria:
-- Exactly **10 characters long**.
-- Contain only **letters and numbers** (alphanumeric characters).
+- Between **3-25 characters long**.
+- Contain only **letters, numbers, and underscores** (alphanumeric characters and underscores).
 - Replace {{ user_entered_short_code }} with the short code the user enters through your chosen input method, i.e. an input field / pop up element
+
+When a short code is set, the SDK automatically attempts to fetch and store any associated offer codes for iOS users.
 
 ```javascript
   import {
@@ -670,6 +721,6 @@ Short codes must meet the following criteria:
 
   <Button
     title={'Set Short Code'}
-    onPress={() => setShortCode('JOIN123456')}
+    onPress={() => setShortCode('JOIN_123')}
   />
 ```
