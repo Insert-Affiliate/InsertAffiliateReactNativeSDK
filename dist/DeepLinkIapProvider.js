@@ -543,8 +543,13 @@ const DeepLinkIapProvider = ({ children, }) => {
     });
     const fetchOfferCode = (affiliateLink) => __awaiter(void 0, void 0, void 0, function* () {
         try {
+            const activeCompanyCode = yield getActiveCompanyCode();
+            if (!activeCompanyCode) {
+                verboseLog('Cannot fetch offer code: no company code available');
+                return null;
+            }
             const encodedAffiliateLink = encodeURIComponent(affiliateLink);
-            const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${encodedAffiliateLink}`;
+            const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
             verboseLog(`Fetching offer code from: ${url}`);
             const response = yield axios_1.default.get(url);
             if (response.status === 200) {
