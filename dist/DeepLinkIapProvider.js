@@ -603,8 +603,8 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
     });
     const removeSpecialCharacters = (offerCode) => {
-        // Remove special characters, keep only alphanumeric
-        return offerCode.replace(/[^a-zA-Z0-9]/g, '');
+        // Remove special characters, keep only alphanumeric and underscores
+        return offerCode.replace(/[^a-zA-Z0-9_]/g, '');
     };
     const cleanOfferCode = (offerCode) => {
         // Remove special characters, keep only alphanumeric
