@@ -662,7 +662,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
 
       const encodedAffiliateLink = encodeURIComponent(affiliateLink);
-      const url = `https://cce19ff35f70.ngrok-free.app/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
+      const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
       
       verboseLog(`Fetching offer code from: ${url}`);
       
