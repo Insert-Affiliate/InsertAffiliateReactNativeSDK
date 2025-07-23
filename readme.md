@@ -545,59 +545,138 @@ const { iOSOfferCode } = useDeepLinkIapProvider();
 const currentOfferCode = iOSOfferCode;
 ```
 
-**3. Dynamic Product ID Construction**
-Use the offer code modifier to dynamically create product IDs:
+**3. RevenueCat Package Selection**
+Use the offer code modifier to find and purchase the correct RevenueCat package:
 
 ```javascript
+import Purchases from 'react-native-purchases';
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+
 const { iOSOfferCode } = useDeepLinkIapProvider();
 
-const baseProductId = "premium_monthly";
-const dynamicProductId = iOSOfferCode 
-  ? `${baseProductId}${iOSOfferCode}`  // e.g., "premium_monthly_oneWeekFree"
-  : baseProductId;                      // fallback to base product
+// Get offerings and find the constructed product ID
+const offerings = await Purchases.getOfferings();
+const allOfferings = Object.values(offerings.all);
 
-// Use dynamicProductId for your in-app purchase
-await requestSubscription({ sku: dynamicProductId });
+let targetPackage = null;
+if (iOSOfferCode) {
+  
+  // Construct the modified product ID
+  const baseProductId = "premium_monthly";
+  const dynamicProductId = `${baseProductId}_${iOSOfferCode}`;
+  
+  // Find the package with the constructed product ID
+  for (const offering of allOfferings) {
+    targetPackage = offering.availablePackages.find(pkg =>
+      pkg.product.identifier === dynamicProductId
+    );
+    if (targetPackage) break;
+  }
+}
+
+// Fallback to current offering if no modified product found
+if (!targetPackage) {
+  targetPackage = offerings.current.availablePackages[0];
+}
+
+if (targetPackage) {
+  await Purchases.purchasePackage(targetPackage);
+} else {
+  console.error('No suitable product found');
+}
 ```
+
+#### Setup Requirements
+
+**RevenueCat Dashboard Configuration:**
+1. Create separate offerings for base and modified products:
+   - Base offering: `premium_monthly`
+   - Modified offering: `premium_monthly_oneWeekFree`
+
+2. Both products must be configured in your RevenueCat dashboard under different offerings
+
+3. Ensure modified products follow the naming pattern: `{baseProductId}_{cleanOfferCode}`
+
+**Offer Code Format:**
+- Offer codes include leading underscore: `_oneWeekFree`
+- The SDK automatically cleans this to `oneWeekFree` for product construction
 
 #### Integration Examples
 
 **RevenueCat Integration with Dynamic Product IDs**
 ```javascript
 import React, { useEffect, useState } from 'react';
-import branch from 'react-native-branch';
+import { View, Button, Text } from 'react-native';
 import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 import Purchases from 'react-native-purchases';
-import { requestSubscription } from 'react-native-iap';
 
 const PurchaseHandler = () => {
-  const { 
-    setInsertAffiliateIdentifier,
-    iOSOfferCode,
-    returnInsertAffiliateIdentifier 
-  } = useDeepLinkIapProvider();
-  
-  const [baseProductId] = useState("premium_monthly");
+  const { iOSOfferCode } = useDeepLinkIapProvider();
+  const [subscriptions, setSubscriptions] = useState([]);
 
+  const fetchSubscriptions = async () => {
+    const offerings = await Purchases.getOfferings();
+    let packagesToUse = [];
 
-  const handlePurchase = async () => {
-    // Dynamically construct product ID based on offer code
-    const dynamicProductId = iOSOfferCode 
-      ? `${baseProductId}${iOSOfferCode}`  // e.g., "premium_monthly_oneWeekFree"
-      : baseProductId;                      // fallback to base product
-
-    console.log(`Purchasing: ${dynamicProductId}`);
+    if (iOSOfferCode) {
     
+
+      // Construct modified product IDs from base products
+      const baseProducts = offerings.current.availablePackages;
+
+      for (const basePackage of baseProducts) {
+        const baseProductId = basePackage.product.identifier;
+        const modifiedProductId = `${baseProductId}_${iOSOfferCode}`;
+
+        // Search all offerings for the modified product
+        const allOfferings = Object.values(offerings.all);
+        let foundModified = false;
+
+        for (const offering of allOfferings) {
+          const modifiedPackage = offering.availablePackages.find(pkg =>
+            pkg.product.identifier === modifiedProductId
+          );
+
+          if (modifiedPackage) {
+            packagesToUse.push(modifiedPackage);
+            foundModified = true;
+            break;
+          }
+        }
+
+        // Fallback to base product if no modified version
+        if (!foundModified) {
+          packagesToUse.push(basePackage);
+        }
+      }
+    } else {
+      packagesToUse = offerings.current.availablePackages;
+    }
+
+    setSubscriptions(packagesToUse);
+  };
+
+  const handlePurchase = async (subscriptionPackage) => {
     try {
-      await requestSubscription({ sku: dynamicProductId });
+      await Purchases.purchasePackage(subscriptionPackage);
     } catch (error) {
       console.error('Purchase failed:', error);
     }
   };
 
+  useEffect(() => {
+    fetchSubscriptions();
+  }, [iOSOfferCode]);
+
   return (
     <View>
-      <Button title="Subscribe" onPress={handlePurchase} />
+      {subscriptions.map((pkg) => (
+        <Button
+          key={pkg.identifier}
+          title={`Buy: ${pkg.product.identifier}`}
+          onPress={() => handlePurchase(pkg)}
+        />
+      ))}
       {iOSOfferCode && (
         <Text>Special offer applied: {iOSOfferCode}</Text>
       )}
@@ -608,65 +687,120 @@ const PurchaseHandler = () => {
 
 **Complete Purchase UI Example**
 ```javascript
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
 import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import Purchases from 'react-native-purchases';
 
 const PurchaseScreen = () => {
   const { iOSOfferCode } = useDeepLinkIapProvider();
-  const [baseProductId] = useState("premium_monthly");
-  const [basePrice] = useState("$9.99/month");
+  const [availablePackages, setAvailablePackages] = useState([]);
+  const [selectedPackage, setSelectedPackage] = useState(null);
   
-  // Dynamic content based on offer code
-  const getPurchaseDetails = () => {
-    if (!iOSOfferCode) {
-      return {
-        productId: baseProductId,
-        buttonText: "Start Premium",
-        priceText: basePrice,
-        offerText: null,
-        hasOffer: false
-      };
-    }
-    
-    // Customize based on your offer codes
-    const offerMappings = {
-      '_oneWeekFree': {
-        buttonText: "Start 1 Week Free Trial",
-        priceText: "Free for 1 week, then $9.99/month",
-        offerText: "🎉 Special Offer: 1 Week Free!",
-        hasOffer: true
-      },
-      '_50percentOff': {
-        buttonText: "Get 50% Off First Month",
-        priceText: "$4.99 first month, then $9.99/month",
-        offerText: "🔥 Limited Time: 50% Off!",
-        hasOffer: true
+  // Fetch available packages and select appropriate one based on offer code
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        const offerings = await Purchases.getOfferings();
+        let packagesToUse = [];
+
+        if (iOSOfferCode) {
+
+          // Look for modified products in all offerings
+          const baseProducts = offerings.current.availablePackages;
+          const allOfferings = Object.values(offerings.all);
+
+          for (const basePackage of baseProducts) {
+            const baseProductId = basePackage.product.identifier;
+            const modifiedProductId = `${baseProductId}_${iOSOfferCode}`;
+
+            let foundModified = false;
+            for (const offering of allOfferings) {
+              const modifiedPackage = offering.availablePackages.find(pkg =>
+                pkg.product.identifier === modifiedProductId
+              );
+
+              if (modifiedPackage) {
+                packagesToUse.push(modifiedPackage);
+                foundModified = true;
+                break;
+              }
+            }
+
+            if (!foundModified) {
+              packagesToUse.push(basePackage);
+            }
+          }
+        } else {
+          packagesToUse = offerings.current.availablePackages;
+        }
+
+        setAvailablePackages(packagesToUse);
+        // Select the first package by default
+        if (packagesToUse.length > 0) {
+          setSelectedPackage(packagesToUse[0]);
+        }
+      } catch (error) {
+        console.error('Error fetching packages:', error);
       }
     };
-    
-    const offerDetails = offerMappings[iOSOfferCode] || {
+
+    fetchPackages();
+  }, [iOSOfferCode]);
+  
+  // Get display details based on offer code
+  const getPurchaseDetails = () => {
+    if (!selectedPackage) return null;
+
+    const baseDetails = {
       buttonText: "Start Premium",
-      priceText: basePrice,
+      priceText: selectedPackage.product.priceString + "/month",
       offerText: null,
       hasOffer: false
     };
     
-    return {
-      productId: `${baseProductId}${iOSOfferCode}`,
-      ...offerDetails
-    };
+    // Customize based on your offer codes
+    if (iOSOfferCode) {
+      const offerMappings = {
+        '_oneWeekFree': {
+          buttonText: "Start 1 Week Free Trial",
+          priceText: `Free for 1 week, then ${selectedPackage.product.priceString}/month`,
+          offerText: "🎉 Special Offer: 1 Week Free!",
+          hasOffer: true
+        },
+        '_50percentOff': {
+          buttonText: "Get 50% Off First Month",
+          priceText: `Special price first month, then ${selectedPackage.product.priceString}/month`,
+          offerText: "🔥 Limited Time: 50% Off!",
+          hasOffer: true
+        }
+      };
+      
+      return offerMappings[iOSOfferCode] || baseDetails;
+    }
+    
+    return baseDetails;
   };
   
   const purchaseDetails = getPurchaseDetails();
   
   const handlePurchase = async () => {
+    if (!selectedPackage) return;
+    
     try {
-      await requestSubscription({ sku: purchaseDetails.productId });
+      await Purchases.purchasePackage(selectedPackage);
     } catch (error) {
       console.error('Purchase failed:', error);
     }
   };
+  
+  if (!purchaseDetails) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
   
   return (
     <View style={styles.container}>
@@ -684,6 +818,12 @@ const PurchaseScreen = () => {
         title={purchaseDetails.buttonText}
         onPress={handlePurchase}
       />
+      
+      {selectedPackage && (
+        <Text style={styles.productInfo}>
+          Product: {selectedPackage.product.identifier}
+        </Text>
+      )}
     </View>
   );
 };
