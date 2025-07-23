@@ -545,7 +545,9 @@ const { iOSOfferCode } = useDeepLinkIapProvider();
 const currentOfferCode = iOSOfferCode;
 ```
 
-**3. RevenueCat Package Selection**
+**3. Package Selection**
+
+#### RevenueCat Example
 Use the offer code modifier to find and purchase the correct RevenueCat package:
 
 ```javascript
@@ -586,7 +588,7 @@ if (targetPackage) {
 }
 ```
 
-#### Setup Requirements
+##### Setup Requirements
 
 **RevenueCat Dashboard Configuration:**
 1. Create separate offerings for base and modified products:
@@ -684,6 +686,207 @@ const PurchaseHandler = () => {
   );
 };
 ```
+
+
+#### Native IAP Example
+
+For apps using `react-native-iap` directly:
+
+```javascript
+import React, { useState, useEffect } from 'react';
+import { View, Text, Button, Platform } from 'react-native';
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import { 
+  initConnection, 
+  getSubscriptions, 
+  requestSubscription,
+  useIAP 
+} from 'react-native-iap';
+
+const NativeIAPPurchaseView = () => {
+  const { iOSOfferCode, returnUserAccountTokenAndStoreExpectedTransaction } = useDeepLinkIapProvider();
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { currentPurchase, connected } = useIAP();
+  
+  const baseProductIdentifier = "oneMonthSubscriptionTwo";
+  
+  // Dynamic product identifier that includes offer code
+  const dynamicProductIdentifier = iOSOfferCode 
+    ? `${baseProductIdentifier}${iOSOfferCode}`  // e.g., "oneMonthSubscriptionTwo_oneWeekFree"
+    : baseProductIdentifier;
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      
+      // Try to fetch the dynamic product first
+      let productIds = [dynamicProductIdentifier];
+      
+      // Also include base product as fallback
+      if (iOSOfferCode) {
+        productIds.push(baseProductIdentifier);
+      }
+      
+      const products = await getSubscriptions({ skus: productIds });
+      
+      // Prioritize the dynamic product if it exists
+      let sortedProducts = products;
+      if (iOSOfferCode && products.length > 1) {
+        sortedProducts = products.sort((a, b) => 
+          a.productId === dynamicProductIdentifier ? -1 : 1
+        );
+      }
+      
+      setAvailableProducts(sortedProducts);
+      console.log(`Loaded products for: ${productIds.join(', ')}`);
+      
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
+      // Fallback to base product only
+      try {
+        const baseProducts = await getSubscriptions({ skus: [baseProductIdentifier] });
+        setAvailableProducts(baseProducts);
+      } catch (fallbackError) {
+        console.error('Failed to fetch base products:', fallbackError);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePurchase = async (productId) => {
+    try {
+      setLoading(true);
+      
+      let purchaseOptions = { sku: productId };
+      
+      // For iOS direct integration, add user account token
+      if (Platform.OS === 'ios') {
+        const userAccountToken = await returnUserAccountTokenAndStoreExpectedTransaction();
+        if (userAccountToken) {
+          purchaseOptions.applicationUsername = userAccountToken;
+        }
+      }
+      
+      await requestSubscription(purchaseOptions);
+      console.log(`Purchase initiated for: ${productId}`);
+      
+    } catch (error) {
+      console.error('Purchase error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (connected) {
+      fetchProducts();
+    }
+  }, [connected, iOSOfferCode]);
+
+  // Handle purchase completion
+  useEffect(() => {
+    if (currentPurchase) {
+      console.log('Purchase completed:', currentPurchase.productId);
+      // Handle purchase completion logic here
+    }
+  }, [currentPurchase]);
+
+  const primaryProduct = availableProducts[0];
+
+  return (
+    <View style={{ padding: 20 }}>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
+        Premium Subscription
+      </Text>
+      
+      {iOSOfferCode && (
+        <View style={{ backgroundColor: '#e3f2fd', padding: 10, marginBottom: 15, borderRadius: 8 }}>
+          <Text style={{ color: '#1976d2', fontWeight: 'bold' }}>
+            🎉 Special Offer Applied: {iOSOfferCode}
+          </Text>
+        </View>
+      )}
+      
+      {loading ? (
+        <Text>Loading products...</Text>
+      ) : primaryProduct ? (
+        <View>
+          <Text style={{ fontSize: 16, marginBottom: 5 }}>
+            {primaryProduct.title}
+          </Text>
+          <Text style={{ fontSize: 14, color: '#666', marginBottom: 5 }}>
+            Price: {primaryProduct.localizedPrice}
+          </Text>
+          <Text style={{ fontSize: 12, color: '#999', marginBottom: 15 }}>
+            Product ID: {primaryProduct.productId}
+          </Text>
+          
+          <Button
+            title={loading ? "Processing..." : "Subscribe Now"}
+            onPress={() => handlePurchase(primaryProduct.productId)}
+            disabled={loading}
+          />
+          
+          {primaryProduct.productId === dynamicProductIdentifier && iOSOfferCode && (
+            <Text style={{ fontSize: 12, color: '#4caf50', marginTop: 10 }}>
+              ✓ Promotional pricing applied
+            </Text>
+          )}
+        </View>
+      ) : (
+        <View>
+          <Text style={{ color: '#f44336', marginBottom: 10 }}>
+            Product not found: {dynamicProductIdentifier}
+          </Text>
+          <Button
+            title="Retry"
+            onPress={fetchProducts}
+          />
+        </View>
+      )}
+      
+      {availableProducts.length > 1 && (
+        <View style={{ marginTop: 20 }}>
+          <Text style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 10 }}>
+            Other Options:
+          </Text>
+          {availableProducts.slice(1).map((product) => (
+            <Button
+              key={product.productId}
+              title={`${product.title} - ${product.localizedPrice}`}
+              onPress={() => handlePurchase(product.productId)}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+};
+```
+
+##### Key Features of Native IAP Integration:
+
+1. **Dynamic Product Loading**: Automatically constructs product IDs using the offer code modifier
+2. **Fallback Strategy**: If the promotional product isn't found, falls back to the base product
+3. **Visual Feedback**: Shows users when promotional pricing is applied
+4. **Error Handling**: Graceful handling when products aren't available
+
+##### Setup Requirements for Native IAP:
+
+**App Store Connect Configuration:**
+1. Create both base and promotional products in App Store Connect:
+   - Base product: `oneMonthSubscriptionTwo`
+   - Promotional product: `oneMonthSubscriptionTwo_oneWeekFree`
+
+2. Ensure both products are approved and available for sale
+
+**Product Naming Convention:**
+- Follow the pattern: `{baseProductId}{iOSOfferCode}`
+- Example: `oneMonthSubscriptionTwo` + `_oneWeekFree` = `oneMonthSubscriptionTwo_oneWeekFree`
+
+### Native Receipt Verification
 
 **Complete Purchase UI Example**
 ```javascript
