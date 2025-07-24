@@ -549,7 +549,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 return null;
             }
             const encodedAffiliateLink = encodeURIComponent(affiliateLink);
-            const url = `https://cce19ff35f70.ngrok-free.app/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
+            const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
             verboseLog(`Fetching offer code from: ${url}`);
             const response = yield axios_1.default.get(url);
             if (response.status === 200) {
