@@ -522,57 +522,55 @@ const {
 
 ### 2. Discounts for Users → Offer Codes / Dynamic Product IDs
 
-The SDK lets you pass modifiers based on if the app was installed due to the work of an affiliate for your in app purchases. These modifiers can be used to swap your in app purchase being offered to the end user out for one with a discount or trial offer, similar to giving the end user an offer code.
+The SDK allows you to apply dynamic modifiers to in-app purchases based on whether the app was installed via an affiliate. These modifiers can be used to swap the default product ID for a discounted or trial-based one — similar to applying an offer code.
 
-**Note: Offer Codes are currently only supported on iOS.**
+> **Note:** Offer Codes are currently supported on **iOS only**.
 
 #### How It Works
 
-When someone clicks an affiliate link or enters a short code linked to an offer (set up in the Insert Affiliate Dashboard), the SDK fills in `iOSOfferCode` with the right modifier (like `_oneWeekFree`). You can then add this to your regular product ID to load the correct version of the subscription in your app.
+When a user clicks an affiliate link or enters a short code linked to an offer (set up in the **Insert Affiliate Dashboard**), the SDK auto-populates the `iOSOfferCode` field with a relevant modifier (e.g., `_oneWeekFree`). You can append this to your base product ID to dynamically display the correct subscription.
+
 
 #### Basic Usage
 
-**1. Automatic Offer Code Fetching**
-When you store an affiliate identifier using a short code, the SDK automatically fetches and stores the associated offer code modifier.
+##### 1. Automatic Offer Code Fetching
+If an affiliate short code is stored, the SDK automatically fetches and saves the associated offer code modifier.
 
-**2. Access the Offer Code Modifier**
+##### 2. Access the Offer Code Modifier
 The offer code modifier is available through the context:
 
 ```javascript
 const { iOSOfferCode } = useDeepLinkIapProvider();
-
-// Access directly from state (synchronous)
-const currentOfferCode = iOSOfferCode;
 ```
 
 ##### Setup Requirements
 
-**App Store Connect Configuration:**
-1. Create both base and promotional products in App Store Connect:
+#### App Store Connect Configuration
+1. Create both a base and a promotional product:
    - Base product: `oneMonthSubscription`
-   - Promotional product: `oneMonthSubscription_oneWeekFree`
+   - Promo product: `oneMonthSubscription_oneWeekFree`
+2. Ensure **both** products are approved and available for sale.
 
-2. Ensure both products are approved and available for sale
 
-**Product Naming Convention:**
+**Product Naming Pattern:**
 - Follow the pattern: `{baseProductId}{iOSOfferCode}`
 - Example: `oneMonthSubscription` + `_oneWeekFree` = `oneMonthSubscription_oneWeekFree`
 
+---
 
-
-
-**RevenueCat Integration with Dynamic Product IDs**
+#### 📊 RevenueCat Dashboard Configuration
 
 #### RevenueCat Dashboard Configuration:
-1. Create separate offerings for base and modified products:
+1. Create separate offerings:
    - Base offering: `premium_monthly`
    - Modified offering: `premium_monthly_oneWeekFree`
 
-2. Both products must be configured in your RevenueCat dashboard under different offerings
+2. Add both product IDs under different offerings in RevenueCat.
 
-3. Ensure modified products follow the naming pattern: `{baseProductId}_{cleanOfferCode}`
+3. Ensure modified products follow this naming pattern: {baseProductId}_{cleanOfferCode}. e.g. premium_monthly_oneWeekFree
 
-#### Integration Example
+
+### Integration Example
 ```javascript
 import React, { useEffect, useState } from 'react';
 import { View, Button, Text } from 'react-native';
