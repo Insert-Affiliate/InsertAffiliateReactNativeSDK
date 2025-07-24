@@ -8,6 +8,7 @@ type CustomPurchase = {
 type T_DEEPLINK_IAP_CONTEXT = {
     referrerLink: string;
     userId: string;
+    iOSOfferCode: string | null;
     returnInsertAffiliateIdentifier: () => Promise<string | null>;
     validatePurchaseWithIapticAPI: (jsonIapPurchase: CustomPurchase, iapticAppId: string, iapticAppName: string, iapticPublicKey: string) => Promise<boolean>;
     returnUserAccountTokenAndStoreExpectedTransaction: () => Promise<string | null>;
@@ -16,7 +17,6 @@ type T_DEEPLINK_IAP_CONTEXT = {
     setShortCode: (shortCode: string) => Promise<void>;
     setInsertAffiliateIdentifier: (referringLink: string) => Promise<void | string>;
     initialize: (code: string | null, verboseLogging?: boolean) => Promise<void>;
-    fetchAndConditionallyOpenUrl: (affiliateIdentifier: string, offerCodeUrlId: string) => Promise<boolean>;
     isInitialized: boolean;
 };
 export declare const DeepLinkIapContext: React.Context<T_DEEPLINK_IAP_CONTEXT>;

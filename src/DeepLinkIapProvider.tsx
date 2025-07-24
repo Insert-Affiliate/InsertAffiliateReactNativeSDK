@@ -15,6 +15,7 @@ type CustomPurchase = {
 type T_DEEPLINK_IAP_CONTEXT = {
   referrerLink: string;
   userId: string;
+  iOSOfferCode: string | null;
   returnInsertAffiliateIdentifier: () => Promise<string | null>;
   validatePurchaseWithIapticAPI: (
     jsonIapPurchase: CustomPurchase,
@@ -32,10 +33,6 @@ type T_DEEPLINK_IAP_CONTEXT = {
     referringLink: string
   ) => Promise<void | string>;
   initialize: (code: string | null, verboseLogging?: boolean) => Promise<void>;
-  fetchAndConditionallyOpenUrl: (
-    affiliateIdentifier: string,
-    offerCodeUrlId: string
-  ) => Promise<boolean>;
   isInitialized: boolean;
 };
 
@@ -61,12 +58,14 @@ const ASYNC_KEYS = {
   USER_ID: '@app_user_id',
   COMPANY_CODE: '@app_company_code',
   USER_ACCOUNT_TOKEN: '@app_user_account_token',
+  IOS_OFFER_CODE: '@app_ios_offer_code',
 };
 
 // STARTING CONTEXT IMPLEMENTATION
 export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   referrerLink: '',
   userId: '',
+  iOSOfferCode: null,
   returnInsertAffiliateIdentifier: async () => '',
   validatePurchaseWithIapticAPI: async (
     jsonIapPurchase: CustomPurchase,
@@ -80,10 +79,6 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   setShortCode: async (shortCode: string) => {},
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
   initialize: async (code: string | null, verboseLogging?: boolean) => {},
-  fetchAndConditionallyOpenUrl: async (
-    affiliateIdentifier: string,
-    offerCodeUrlId: string
-  ) => false,
   isInitialized: false,
 });
 
@@ -95,6 +90,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [verboseLogging, setVerboseLogging] = useState<boolean>(false);
+  const [iOSOfferCode, setIOSOfferCode] = useState<string | null>(null);
 
   // MARK: Initialize the SDK
   const initialize = async (companyCode: string | null, verboseLogging: boolean = false): Promise<void> => {
@@ -142,10 +138,12 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         const uId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
         const refLink = await getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
         const companyCodeFromStorage = await getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
+        const storedIOSOfferCode = await getValueFromAsync(ASYNC_KEYS.IOS_OFFER_CODE);
 
         verboseLog(`User ID found: ${uId ? 'Yes' : 'No'}`);
         verboseLog(`Referrer link found: ${refLink ? 'Yes' : 'No'}`);
         verboseLog(`Company code found: ${companyCodeFromStorage ? 'Yes' : 'No'}`);
+        verboseLog(`iOS Offer Code found: ${storedIOSOfferCode ? 'Yes' : 'No'}`);
 
         if (uId && refLink) {
           setUserId(uId);
@@ -156,6 +154,11 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         if (companyCodeFromStorage) {
           setCompanyCode(companyCodeFromStorage);
           verboseLog('Company code restored from storage');
+        }
+
+        if (storedIOSOfferCode) {
+          setIOSOfferCode(storedIOSOfferCode);
+          verboseLog('iOS Offer Code restored from storage');
         }
       } catch (error) {
         errorLog(`ERROR ~ fetchAsyncEssentials: ${error}`);
@@ -259,9 +262,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   // MARK: Short Codes
   const isShortCode = (referringLink: string): boolean => {
-    // Short codes are less than 10 characters
-    const isValidCharacters = /^[a-zA-Z0-9]+$/.test(referringLink);
-    return isValidCharacters && referringLink.length < 25 && referringLink.length > 3;
+    // Short codes are 3-25 characters and can include underscores
+    const isValidCharacters = /^[a-zA-Z0-9_]+$/.test(referringLink);
+    return isValidCharacters && referringLink.length >= 3 && referringLink.length <= 25;
   };
 
   async function setShortCode(shortCode: string): Promise<void> {
@@ -449,6 +452,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     verboseLog(`Saving referrer link to AsyncStorage...`);
     await saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, link);
     verboseLog(`Referrer link saved to AsyncStorage successfully`);
+    
+    // Automatically fetch and store offer code for any affiliate identifier
+    verboseLog('Attempting to fetch offer code for stored affiliate identifier...');
+    await retrieveAndStoreOfferCode(link);
   }
 
   const validatePurchaseWithIapticAPI = async (
@@ -646,41 +653,16 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
-  const fetchAndConditionallyOpenUrl = async (
-    affiliateIdentifier: string,
-    offerCodeUrlId: string
-  ): Promise<boolean> => {
-    try {
-      verboseLog(`Attempting to fetch and conditionally open URL for affiliate: ${affiliateIdentifier}, offerCodeUrlId: ${offerCodeUrlId}`);
-
-      if (Platform.OS !== 'ios') {
-        console.warn("[Insert Affiliate] Offer codes are only supported on iOS");
-        verboseLog("Offer codes are only supported on iOS");
-        return false;
-      }
-
-      const offerCode = await fetchOfferCode(affiliateIdentifier);
-      
-      if (offerCode && offerCode.length > 0) {
-        await openRedeemURL(offerCode, offerCodeUrlId);
-        return true;
-      } else {
-        verboseLog("No valid offer code found");
-        return false;
-      }
-    } catch (error) {
-      console.error('[Insert Affiliate] Error fetching and opening offer code URL:', error);
-      verboseLog(`Error fetching and opening offer code URL: ${error}`);
-      return false;
-    }
-  };
-
   const fetchOfferCode = async (affiliateLink: string): Promise<string | null> => {
     try {
-
+      const activeCompanyCode = await getActiveCompanyCode();
+      if (!activeCompanyCode) {
+        verboseLog('Cannot fetch offer code: no company code available');
+        return null;
+      }
 
       const encodedAffiliateLink = encodeURIComponent(affiliateLink);
-      const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${encodedAffiliateLink}`;
+      const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
       
       verboseLog(`Fetching offer code from: ${url}`);
       
@@ -716,29 +698,38 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
-  const openRedeemURL = async (offerCode: string, offerCodeUrlId: string): Promise<void> => {
+  const retrieveAndStoreOfferCode = async (affiliateLink: string): Promise<void> => {
     try {
-      const redeemUrl = `https://apps.apple.com/redeem?ctx=offercodes&id=${offerCodeUrlId}&code=${offerCode}`;
-      verboseLog(`Opening redeem URL: ${redeemUrl}`);
+      verboseLog(`Attempting to retrieve and store offer code for: ${affiliateLink}`);
       
-      const canOpen = await Linking.canOpenURL(redeemUrl);
-      if (canOpen) {
-        await Linking.openURL(redeemUrl);
-        console.log('[Insert Affiliate] Successfully opened redeem URL');
-        verboseLog('Successfully opened redeem URL');
+      const offerCode = await fetchOfferCode(affiliateLink);
+      
+      if (offerCode && offerCode.length > 0) {
+        // Store in both AsyncStorage and state
+        await saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, offerCode);
+        setIOSOfferCode(offerCode);
+        verboseLog(`Successfully stored offer code: ${offerCode}`);
+        console.log('[Insert Affiliate] Offer code retrieved and stored successfully');
       } else {
-        console.error(`[Insert Affiliate] Could not launch redeem URL: ${redeemUrl}`);
-        verboseLog(`Could not launch redeem URL: ${redeemUrl}`);
+        verboseLog('No valid offer code found to store');
+        // Clear stored offer code if none found
+        await saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, '');
+        setIOSOfferCode(null);
       }
     } catch (error) {
-      console.error('[Insert Affiliate] Error opening redeem URL:', error);
-      verboseLog(`Error opening redeem URL: ${error}`);
+      console.error('[Insert Affiliate] Error retrieving and storing offer code:', error);
+      verboseLog(`Error in retrieveAndStoreOfferCode: ${error}`);
     }
+  };
+
+  const removeSpecialCharacters = (offerCode: string): string => {
+    // Remove special characters, keep only alphanumeric and underscores
+    return offerCode.replace(/[^a-zA-Z0-9_]/g, '');
   };
 
   const cleanOfferCode = (offerCode: string): string => {
     // Remove special characters, keep only alphanumeric
-    return offerCode.replace(/[^a-zA-Z0-9]/g, '');
+    return removeSpecialCharacters(offerCode);
   };
 
   return (
@@ -746,6 +737,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       value={{
         referrerLink,
         userId,
+        iOSOfferCode,
         setShortCode,
         returnInsertAffiliateIdentifier,
         storeExpectedStoreTransaction,
@@ -755,7 +747,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         setInsertAffiliateIdentifier,
         initialize,
         isInitialized,
-        fetchAndConditionallyOpenUrl,
       }}
     >
       {children}
