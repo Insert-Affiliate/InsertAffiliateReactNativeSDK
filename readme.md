@@ -252,7 +252,7 @@ const Child = () => {
             <Button
                 disabled={iapLoading}
                 title={`Click to Buy Subscription`}
-                onPress={() => handleBuySubscription("oneMonthSubscriptionTwo")}
+                onPress={() => handleBuySubscription("oneMonthSubscription")}
             />
             {iapLoading && <ActivityIndicator size={"small"} color={"black"} />}
         </View>
@@ -545,52 +545,25 @@ const { iOSOfferCode } = useDeepLinkIapProvider();
 const currentOfferCode = iOSOfferCode;
 ```
 
-**3. Package Selection**
-
-#### RevenueCat Example
-Use the offer code modifier to find and purchase the correct RevenueCat package:
-
-```javascript
-import Purchases from 'react-native-purchases';
-import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
-
-const { iOSOfferCode } = useDeepLinkIapProvider();
-
-// Get offerings and find the constructed product ID
-const offerings = await Purchases.getOfferings();
-const allOfferings = Object.values(offerings.all);
-
-let targetPackage = null;
-if (iOSOfferCode) {
-  
-  // Construct the modified product ID
-  const baseProductId = "premium_monthly";
-  const dynamicProductId = `${baseProductId}_${iOSOfferCode}`;
-  
-  // Find the package with the constructed product ID
-  for (const offering of allOfferings) {
-    targetPackage = offering.availablePackages.find(pkg =>
-      pkg.product.identifier === dynamicProductId
-    );
-    if (targetPackage) break;
-  }
-}
-
-// Fallback to current offering if no modified product found
-if (!targetPackage) {
-  targetPackage = offerings.current.availablePackages[0];
-}
-
-if (targetPackage) {
-  await Purchases.purchasePackage(targetPackage);
-} else {
-  console.error('No suitable product found');
-}
-```
-
 ##### Setup Requirements
 
-**RevenueCat Dashboard Configuration:**
+**App Store Connect Configuration:**
+1. Create both base and promotional products in App Store Connect:
+   - Base product: `oneMonthSubscription`
+   - Promotional product: `oneMonthSubscription_oneWeekFree`
+
+2. Ensure both products are approved and available for sale
+
+**Product Naming Convention:**
+- Follow the pattern: `{baseProductId}{iOSOfferCode}`
+- Example: `oneMonthSubscription` + `_oneWeekFree` = `oneMonthSubscription_oneWeekFree`
+
+
+
+
+**RevenueCat Integration with Dynamic Product IDs**
+
+#### RevenueCat Dashboard Configuration:
 1. Create separate offerings for base and modified products:
    - Base offering: `premium_monthly`
    - Modified offering: `premium_monthly_oneWeekFree`
@@ -599,13 +572,7 @@ if (targetPackage) {
 
 3. Ensure modified products follow the naming pattern: `{baseProductId}_{cleanOfferCode}`
 
-**Offer Code Format:**
-- Offer codes include leading underscore: `_oneWeekFree`
-- The SDK automatically cleans this to `oneWeekFree` for product construction
-
-#### Integration Examples
-
-**RevenueCat Integration with Dynamic Product IDs**
+#### Integration Example
 ```javascript
 import React, { useEffect, useState } from 'react';
 import { View, Button, Text } from 'react-native';
@@ -688,7 +655,7 @@ const PurchaseHandler = () => {
 ```
 
 
-#### Native IAP Example
+#### Native Receipt Verification Example
 
 For apps using `react-native-iap` directly:
 
@@ -709,11 +676,11 @@ const NativeIAPPurchaseView = () => {
   const [loading, setLoading] = useState(false);
   const { currentPurchase, connected } = useIAP();
   
-  const baseProductIdentifier = "oneMonthSubscriptionTwo";
+  const baseProductIdentifier = "oneMonthSubscription";
   
   // Dynamic product identifier that includes offer code
   const dynamicProductIdentifier = iOSOfferCode 
-    ? `${baseProductIdentifier}${iOSOfferCode}`  // e.g., "oneMonthSubscriptionTwo_oneWeekFree"
+    ? `${baseProductIdentifier}${iOSOfferCode}`  // e.g., "oneMonthSubscription_oneWeekFree"
     : baseProductIdentifier;
 
   const fetchProducts = async () => {
@@ -742,9 +709,8 @@ const NativeIAPPurchaseView = () => {
       console.log(`Loaded products for: ${productIds.join(', ')}`);
       
     } catch (error) {
-      console.error('Failed to fetch products:', error);
-      // Fallback to base product only
       try {
+        // Fallback logic
         const baseProducts = await getSubscriptions({ skus: [baseProductIdentifier] });
         setAvailableProducts(baseProducts);
       } catch (fallbackError) {
@@ -756,42 +722,14 @@ const NativeIAPPurchaseView = () => {
   };
 
   const handlePurchase = async (productId) => {
-    try {
-      setLoading(true);
-      
-      let purchaseOptions = { sku: productId };
-      
-      // For iOS direct integration, add user account token
-      if (Platform.OS === 'ios') {
-        const userAccountToken = await returnUserAccountTokenAndStoreExpectedTransaction();
-        if (userAccountToken) {
-          purchaseOptions.applicationUsername = userAccountToken;
-        }
-      }
-      
-      await requestSubscription(purchaseOptions);
-      console.log(`Purchase initiated for: ${productId}`);
-      
-    } catch (error) {
-      console.error('Purchase error:', error);
-    } finally {
-      setLoading(false);
-    }
+    // Implement the purchase handling logic as outlined in the remaining SDK integration steps.
   };
 
   useEffect(() => {
     if (connected) {
       fetchProducts();
     }
-  }, [connected, iOSOfferCode]);
-
-  // Handle purchase completion
-  useEffect(() => {
-    if (currentPurchase) {
-      console.log('Purchase completed:', currentPurchase.productId);
-      // Handle purchase completion logic here
-    }
-  }, [currentPurchase]);
+  }, [connected, iOSOfferCode]);;
 
   const primaryProduct = availableProducts[0];
 
@@ -873,164 +811,6 @@ const NativeIAPPurchaseView = () => {
 3. **Visual Feedback**: Shows users when promotional pricing is applied
 4. **Error Handling**: Graceful handling when products aren't available
 
-##### Setup Requirements for Native IAP:
-
-**App Store Connect Configuration:**
-1. Create both base and promotional products in App Store Connect:
-   - Base product: `oneMonthSubscriptionTwo`
-   - Promotional product: `oneMonthSubscriptionTwo_oneWeekFree`
-
-2. Ensure both products are approved and available for sale
-
-**Product Naming Convention:**
-- Follow the pattern: `{baseProductId}{iOSOfferCode}`
-- Example: `oneMonthSubscriptionTwo` + `_oneWeekFree` = `oneMonthSubscriptionTwo_oneWeekFree`
-
-### Native Receipt Verification
-
-**Complete Purchase UI Example**
-```javascript
-import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
-import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
-import Purchases from 'react-native-purchases';
-
-const PurchaseScreen = () => {
-  const { iOSOfferCode } = useDeepLinkIapProvider();
-  const [availablePackages, setAvailablePackages] = useState([]);
-  const [selectedPackage, setSelectedPackage] = useState(null);
-  
-  // Fetch available packages and select appropriate one based on offer code
-  useEffect(() => {
-    const fetchPackages = async () => {
-      try {
-        const offerings = await Purchases.getOfferings();
-        let packagesToUse = [];
-
-        if (iOSOfferCode) {
-
-          // Look for modified products in all offerings
-          const baseProducts = offerings.current.availablePackages;
-          const allOfferings = Object.values(offerings.all);
-
-          for (const basePackage of baseProducts) {
-            const baseProductId = basePackage.product.identifier;
-            const modifiedProductId = `${baseProductId}_${iOSOfferCode}`;
-
-            let foundModified = false;
-            for (const offering of allOfferings) {
-              const modifiedPackage = offering.availablePackages.find(pkg =>
-                pkg.product.identifier === modifiedProductId
-              );
-
-              if (modifiedPackage) {
-                packagesToUse.push(modifiedPackage);
-                foundModified = true;
-                break;
-              }
-            }
-
-            if (!foundModified) {
-              packagesToUse.push(basePackage);
-            }
-          }
-        } else {
-          packagesToUse = offerings.current.availablePackages;
-        }
-
-        setAvailablePackages(packagesToUse);
-        // Select the first package by default
-        if (packagesToUse.length > 0) {
-          setSelectedPackage(packagesToUse[0]);
-        }
-      } catch (error) {
-        console.error('Error fetching packages:', error);
-      }
-    };
-
-    fetchPackages();
-  }, [iOSOfferCode]);
-  
-  // Get display details based on offer code
-  const getPurchaseDetails = () => {
-    if (!selectedPackage) return null;
-
-    const baseDetails = {
-      buttonText: "Start Premium",
-      priceText: selectedPackage.product.priceString + "/month",
-      offerText: null,
-      hasOffer: false
-    };
-    
-    // Customize based on your offer codes
-    if (iOSOfferCode) {
-      const offerMappings = {
-        '_oneWeekFree': {
-          buttonText: "Start 1 Week Free Trial",
-          priceText: `Free for 1 week, then ${selectedPackage.product.priceString}/month`,
-          offerText: "🎉 Special Offer: 1 Week Free!",
-          hasOffer: true
-        },
-        '_50percentOff': {
-          buttonText: "Get 50% Off First Month",
-          priceText: `Special price first month, then ${selectedPackage.product.priceString}/month`,
-          offerText: "🔥 Limited Time: 50% Off!",
-          hasOffer: true
-        }
-      };
-      
-      return offerMappings[iOSOfferCode] || baseDetails;
-    }
-    
-    return baseDetails;
-  };
-  
-  const purchaseDetails = getPurchaseDetails();
-  
-  const handlePurchase = async () => {
-    if (!selectedPackage) return;
-    
-    try {
-      await Purchases.purchasePackage(selectedPackage);
-    } catch (error) {
-      console.error('Purchase failed:', error);
-    }
-  };
-  
-  if (!purchaseDetails) {
-    return (
-      <View style={styles.container}>
-        <Text>Loading...</Text>
-      </View>
-    );
-  }
-  
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Premium Subscription</Text>
-      
-      {purchaseDetails.hasOffer && (
-        <View style={styles.offerBanner}>
-          <Text style={styles.offerText}>{purchaseDetails.offerText}</Text>
-        </View>
-      )}
-      
-      <Text style={styles.priceText}>{purchaseDetails.priceText}</Text>
-      
-      <Button
-        title={purchaseDetails.buttonText}
-        onPress={handlePurchase}
-      />
-      
-      {selectedPackage && (
-        <Text style={styles.productInfo}>
-          Product: {selectedPackage.product.identifier}
-        </Text>
-      )}
-    </View>
-  );
-};
-```
 
 ### 3. Short Codes (Beta)
 
