@@ -528,7 +528,7 @@ The SDK allows you to apply dynamic modifiers to in-app purchases based on wheth
 
 #### How It Works
 
-When a user clicks an affiliate link or enters a short code linked to an offer (set up in the **Insert Affiliate Dashboard**), the SDK auto-populates the `iOSOfferCode` field with a relevant modifier (e.g., `_oneWeekFree`). You can append this to your base product ID to dynamically display the correct subscription.
+When a user clicks an affiliate link or enters a short code linked to an offer (set up in the **Insert Affiliate Dashboard**), the SDK auto-populates the `OfferCode` field with a relevant modifier (e.g., `_oneWeekFree`). You can append this to your base product ID to dynamically display the correct subscription.
 
 
 #### Basic Usage
@@ -540,7 +540,7 @@ If an affiliate short code is stored, the SDK automatically fetches and saves th
 The offer code modifier is available through the context:
 
 ```javascript
-const { iOSOfferCode } = useDeepLinkIapProvider();
+const { OfferCode } = useDeepLinkIapProvider();
 ```
 
 ##### Setup Requirements
@@ -553,7 +553,7 @@ const { iOSOfferCode } = useDeepLinkIapProvider();
 
 
 **Product Naming Pattern:**
-- Follow the pattern: `{baseProductId}{iOSOfferCode}`
+- Follow the pattern: `{baseProductId}{OfferCode}`
 - Example: `oneMonthSubscription` + `_oneWeekFree` = `oneMonthSubscription_oneWeekFree`
 
 ---
@@ -578,14 +578,14 @@ import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 import Purchases from 'react-native-purchases';
 
 const PurchaseHandler = () => {
-  const { iOSOfferCode } = useDeepLinkIapProvider();
+  const { OfferCode } = useDeepLinkIapProvider();
   const [subscriptions, setSubscriptions] = useState([]);
 
   const fetchSubscriptions = async () => {
     const offerings = await Purchases.getOfferings();
     let packagesToUse = [];
 
-    if (iOSOfferCode) {
+    if (OfferCode) {
     
 
       // Construct modified product IDs from base products
@@ -593,7 +593,7 @@ const PurchaseHandler = () => {
 
       for (const basePackage of baseProducts) {
         const baseProductId = basePackage.product.identifier;
-        const modifiedProductId = `${baseProductId}_${iOSOfferCode}`;
+        const modifiedProductId = `${baseProductId}_${OfferCode}`;
 
         // Search all offerings for the modified product
         const allOfferings = Object.values(offerings.all);
@@ -633,7 +633,7 @@ const PurchaseHandler = () => {
 
   useEffect(() => {
     fetchSubscriptions();
-  }, [iOSOfferCode]);
+  }, [OfferCode]);
 
   return (
     <View>
@@ -644,8 +644,8 @@ const PurchaseHandler = () => {
           onPress={() => handlePurchase(pkg)}
         />
       ))}
-      {iOSOfferCode && (
-        <Text>Special offer applied: {iOSOfferCode}</Text>
+      {OfferCode && (
+        <Text>Special offer applied: {OfferCode}</Text>
       )}
     </View>
   );
@@ -669,7 +669,7 @@ import {
 } from 'react-native-iap';
 
 const NativeIAPPurchaseView = () => {
-  const { iOSOfferCode, returnUserAccountTokenAndStoreExpectedTransaction } = useDeepLinkIapProvider();
+  const { OfferCode, returnUserAccountTokenAndStoreExpectedTransaction } = useDeepLinkIapProvider();
   const [availableProducts, setAvailableProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const { currentPurchase, connected } = useIAP();
@@ -677,8 +677,8 @@ const NativeIAPPurchaseView = () => {
   const baseProductIdentifier = "oneMonthSubscription";
   
   // Dynamic product identifier that includes offer code
-  const dynamicProductIdentifier = iOSOfferCode 
-    ? `${baseProductIdentifier}${iOSOfferCode}`  // e.g., "oneMonthSubscription_oneWeekFree"
+  const dynamicProductIdentifier = OfferCode 
+    ? `${baseProductIdentifier}${OfferCode}`  // e.g., "oneMonthSubscription_oneWeekFree"
     : baseProductIdentifier;
 
   const fetchProducts = async () => {
@@ -689,7 +689,7 @@ const NativeIAPPurchaseView = () => {
       let productIds = [dynamicProductIdentifier];
       
       // Also include base product as fallback
-      if (iOSOfferCode) {
+      if (OfferCode) {
         productIds.push(baseProductIdentifier);
       }
       
@@ -697,7 +697,7 @@ const NativeIAPPurchaseView = () => {
       
       // Prioritize the dynamic product if it exists
       let sortedProducts = products;
-      if (iOSOfferCode && products.length > 1) {
+      if (OfferCode && products.length > 1) {
         sortedProducts = products.sort((a, b) => 
           a.productId === dynamicProductIdentifier ? -1 : 1
         );
@@ -727,7 +727,7 @@ const NativeIAPPurchaseView = () => {
     if (connected) {
       fetchProducts();
     }
-  }, [connected, iOSOfferCode]);;
+  }, [connected, OfferCode]);;
 
   const primaryProduct = availableProducts[0];
 
@@ -737,10 +737,10 @@ const NativeIAPPurchaseView = () => {
         Premium Subscription
       </Text>
       
-      {iOSOfferCode && (
+      {OfferCode && (
         <View style={{ backgroundColor: '#e3f2fd', padding: 10, marginBottom: 15, borderRadius: 8 }}>
           <Text style={{ color: '#1976d2', fontWeight: 'bold' }}>
-            🎉 Special Offer Applied: {iOSOfferCode}
+            🎉 Special Offer Applied: {OfferCode}
           </Text>
         </View>
       )}
@@ -765,7 +765,7 @@ const NativeIAPPurchaseView = () => {
             disabled={loading}
           />
           
-          {primaryProduct.productId === dynamicProductIdentifier && iOSOfferCode && (
+          {primaryProduct.productId === dynamicProductIdentifier && OfferCode && (
             <Text style={{ fontSize: 12, color: '#4caf50', marginTop: 10 }}>
               ✓ Promotional pricing applied
             </Text>

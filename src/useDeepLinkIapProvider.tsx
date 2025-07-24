@@ -14,7 +14,7 @@ const useDeepLinkIapProvider = () => {
     setInsertAffiliateIdentifier,
     initialize,
     isInitialized,
-    iOSOfferCode,
+    OfferCode,
   } = useContext(DeepLinkIapContext);
 
   return {
@@ -29,7 +29,7 @@ const useDeepLinkIapProvider = () => {
     setInsertAffiliateIdentifier,
     initialize,
     isInitialized,
-    iOSOfferCode,
+    OfferCode,
   };
 };
 

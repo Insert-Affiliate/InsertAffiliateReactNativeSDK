@@ -52,7 +52,7 @@ const ASYNC_KEYS = {
 exports.DeepLinkIapContext = (0, react_1.createContext)({
     referrerLink: '',
     userId: '',
-    iOSOfferCode: null,
+    OfferCode: null,
     returnInsertAffiliateIdentifier: () => __awaiter(void 0, void 0, void 0, function* () { return ''; }),
     validatePurchaseWithIapticAPI: (jsonIapPurchase, iapticAppId, iapticAppName, iapticPublicKey) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     returnUserAccountTokenAndStoreExpectedTransaction: () => __awaiter(void 0, void 0, void 0, function* () { return ''; }),
@@ -69,7 +69,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     const [companyCode, setCompanyCode] = (0, react_1.useState)(null);
     const [isInitialized, setIsInitialized] = (0, react_1.useState)(false);
     const [verboseLogging, setVerboseLogging] = (0, react_1.useState)(false);
-    const [iOSOfferCode, setIOSOfferCode] = (0, react_1.useState)(null);
+    const [OfferCode, setOfferCode] = (0, react_1.useState)(null);
     // MARK: Initialize the SDK
     const initialize = (companyCode_1, ...args_1) => __awaiter(void 0, [companyCode_1, ...args_1], void 0, function* (companyCode, verboseLogging = false) {
         setVerboseLogging(verboseLogging);
@@ -109,11 +109,11 @@ const DeepLinkIapProvider = ({ children, }) => {
                 const uId = yield getValueFromAsync(ASYNC_KEYS.USER_ID);
                 const refLink = yield getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
                 const companyCodeFromStorage = yield getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
-                const storedIOSOfferCode = yield getValueFromAsync(ASYNC_KEYS.IOS_OFFER_CODE);
+                const storedOfferCode = yield getValueFromAsync(ASYNC_KEYS.IOS_OFFER_CODE);
                 verboseLog(`User ID found: ${uId ? 'Yes' : 'No'}`);
                 verboseLog(`Referrer link found: ${refLink ? 'Yes' : 'No'}`);
                 verboseLog(`Company code found: ${companyCodeFromStorage ? 'Yes' : 'No'}`);
-                verboseLog(`iOS Offer Code found: ${storedIOSOfferCode ? 'Yes' : 'No'}`);
+                verboseLog(`iOS Offer Code found: ${storedOfferCode ? 'Yes' : 'No'}`);
                 if (uId && refLink) {
                     setUserId(uId);
                     setReferrerLink(refLink);
@@ -123,8 +123,8 @@ const DeepLinkIapProvider = ({ children, }) => {
                     setCompanyCode(companyCodeFromStorage);
                     verboseLog('Company code restored from storage');
                 }
-                if (storedIOSOfferCode) {
-                    setIOSOfferCode(storedIOSOfferCode);
+                if (storedOfferCode) {
+                    setOfferCode(storedOfferCode);
                     verboseLog('iOS Offer Code restored from storage');
                 }
             }
@@ -586,7 +586,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             if (offerCode && offerCode.length > 0) {
                 // Store in both AsyncStorage and state
                 yield saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, offerCode);
-                setIOSOfferCode(offerCode);
+                setOfferCode(offerCode);
                 verboseLog(`Successfully stored offer code: ${offerCode}`);
                 console.log('[Insert Affiliate] Offer code retrieved and stored successfully');
             }
@@ -594,7 +594,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 verboseLog('No valid offer code found to store');
                 // Clear stored offer code if none found
                 yield saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, '');
-                setIOSOfferCode(null);
+                setOfferCode(null);
             }
         }
         catch (error) {
@@ -613,7 +613,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     return (react_1.default.createElement(exports.DeepLinkIapContext.Provider, { value: {
             referrerLink,
             userId,
-            iOSOfferCode,
+            OfferCode,
             setShortCode,
             returnInsertAffiliateIdentifier,
             storeExpectedStoreTransaction,

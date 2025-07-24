@@ -8,7 +8,7 @@ type CustomPurchase = {
 type T_DEEPLINK_IAP_CONTEXT = {
     referrerLink: string;
     userId: string;
-    iOSOfferCode: string | null;
+    OfferCode: string | null;
     returnInsertAffiliateIdentifier: () => Promise<string | null>;
     validatePurchaseWithIapticAPI: (jsonIapPurchase: CustomPurchase, iapticAppId: string, iapticAppName: string, iapticPublicKey: string) => Promise<boolean>;
     returnUserAccountTokenAndStoreExpectedTransaction: () => Promise<string | null>;
