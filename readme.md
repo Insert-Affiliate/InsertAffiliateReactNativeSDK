@@ -522,7 +522,7 @@ const {
 
 ### 2. Discounts for Users → Offer Codes / Dynamic Product IDs
 
-The SDK allows you to apply dynamic modifiers to in-app purchases based on whether the app was installed via an affiliate. These modifiers can be used to swap the default product ID for a discounted or trial-based one — similar to applying an offer code.
+The SDK allows you to apply dynamic modifiers to in-app purchases based on whether the app was installed via an affiliate. These modifiers can be used to swap the default product ID for a discounted or trial-based one - similar to applying an offer code.
 
 > **Note:** Offer Codes are currently supported on **iOS only**.
 
@@ -558,7 +558,7 @@ const { iOSOfferCode } = useDeepLinkIapProvider();
 
 ---
 
-#### 📊 RevenueCat Dashboard Configuration
+#### RevenueCat Dashboard Configuration
 
 #### RevenueCat Dashboard Configuration:
 1. Create separate offerings:
@@ -651,7 +651,7 @@ const PurchaseHandler = () => {
   );
 };
 ```
-
+---
 
 #### Native Receipt Verification Example
 
