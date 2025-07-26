@@ -545,12 +545,28 @@ const { OfferCode } = useDeepLinkIapProvider();
 
 ##### Setup Requirements
 
+#### Insert Affiliate Setup Instructions
+
+1. Go to your Insert Affiliate dashboard at [app.insertaffiliate.com/affiliates](https://app.insertaffiliate.com/affiliates)
+2. Select the affiliate you want to configure
+3. Click "View" to access the affiliate's settings
+4. Assign an iOS IAP Modifier to the affiliate (e.g., `_oneWeekFree`, `_threeMonthsFree`)
+5. Assign an Android IAP Modifier to the affiliate (e.g., `-oneweekfree`, `-threemonthsfree`)
+5. Save the settings
+
+Once configured, when users click that affiliate's links or enter their short codes, your app will automatically receive the modifier and can load the appropriate discounted product.
+
 #### App Store Connect Configuration
 1. Create both a base and a promotional product:
    - Base product: `oneMonthSubscription`
    - Promo product: `oneMonthSubscription_oneWeekFree`
 2. Ensure **both** products are approved and available for sale.
 
+#### Google Play Console Configuration
+1. Create both a base and a promotional product:
+   - Base product: `oneMonthSubscription`
+   - Promo product: `oneMonthSubscription-oneweekfree`
+2. Ensure **both** products are activated and available for purchase.
 
 **Product Naming Pattern:**
 - Follow the pattern: `{baseProductId}{OfferCode}`
