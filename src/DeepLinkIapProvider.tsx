@@ -673,7 +673,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       const encodedAffiliateLink = encodeURIComponent(affiliateLink);
       const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}?platformType=${platformType}`;
       
-      verboseLog(`Fetching offer code from: ${url}`);
+      verboseLog(`Starting to fetch offer code from: ${url}`);
       
       const response = await axios.get(url);
       

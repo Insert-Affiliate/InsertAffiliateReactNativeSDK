@@ -559,7 +559,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             }
             const encodedAffiliateLink = encodeURIComponent(affiliateLink);
             const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}?platformType=${platformType}`;
-            verboseLog(`Fetching offer code from: ${url}`);
+            verboseLog(`Starting to fetch offer code from: ${url}`);
             const response = yield axios_1.default.get(url);
             if (response.status === 200) {
                 const offerCode = response.data;
