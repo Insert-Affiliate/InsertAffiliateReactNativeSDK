@@ -661,8 +661,14 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return null;
       }
 
+      let platformType = 'ios'
+      // Check if its iOs or Android here
+      if (Platform.OS !== 'ios') {
+        platformType = 'android'
+      }
+
       const encodedAffiliateLink = encodeURIComponent(affiliateLink);
-      const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
+      const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}?platformType=${platformType}`;
       
       verboseLog(`Fetching offer code from: ${url}`);
       

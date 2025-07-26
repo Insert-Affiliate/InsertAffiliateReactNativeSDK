@@ -548,8 +548,13 @@ const DeepLinkIapProvider = ({ children, }) => {
                 verboseLog('Cannot fetch offer code: no company code available');
                 return null;
             }
+            let platformType = 'ios';
+            // Check if its iOs or Android here
+            if (react_native_1.Platform.OS !== 'ios') {
+                platformType = 'android';
+            }
             const encodedAffiliateLink = encodeURIComponent(affiliateLink);
-            const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
+            const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}?platformType=${platformType}`;
             verboseLog(`Fetching offer code from: ${url}`);
             const response = yield axios_1.default.get(url);
             if (response.status === 200) {
