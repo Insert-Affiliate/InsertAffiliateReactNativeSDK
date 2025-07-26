@@ -664,7 +664,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       let platformType = 'ios'
       // Check if its iOs or Android here
       if (Platform.OS !== 'ios') {
+        verboseLog('Platform is not iOS, setting platform type to android');
         platformType = 'android'
+      } else {
+        verboseLog('Platform is iOS, setting platform type to ios');
       }
 
       const encodedAffiliateLink = encodeURIComponent(affiliateLink);

@@ -551,7 +551,11 @@ const DeepLinkIapProvider = ({ children, }) => {
             let platformType = 'ios';
             // Check if its iOs or Android here
             if (react_native_1.Platform.OS !== 'ios') {
+                verboseLog('Platform is not iOS, setting platform type to android');
                 platformType = 'android';
+            }
+            else {
+                verboseLog('Platform is iOS, setting platform type to ios');
             }
             const encodedAffiliateLink = encodeURIComponent(affiliateLink);
             const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}?platformType=${platformType}`;
