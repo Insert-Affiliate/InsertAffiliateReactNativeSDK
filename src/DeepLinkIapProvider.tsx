@@ -732,8 +732,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   };
 
   const removeSpecialCharacters = (offerCode: string): string => {
-    // Remove special characters, keep only alphanumeric and underscores
-    return offerCode.replace(/[^a-zA-Z0-9_]/g, '');
+    // Remove special characters, keep only alphanumeric, underscores, and hyphens
+    return offerCode.replace(/[^a-zA-Z0-9_-]/g, '');
   };
 
   const cleanOfferCode = (offerCode: string): string => {

@@ -612,8 +612,8 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
     });
     const removeSpecialCharacters = (offerCode) => {
-        // Remove special characters, keep only alphanumeric and underscores
-        return offerCode.replace(/[^a-zA-Z0-9_]/g, '');
+        // Remove special characters, keep only alphanumeric, underscores, and hyphens
+        return offerCode.replace(/[^a-zA-Z0-9_-]/g, '');
     };
     const cleanOfferCode = (offerCode) => {
         // Remove special characters, keep only alphanumeric
