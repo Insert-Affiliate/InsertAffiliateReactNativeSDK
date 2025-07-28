@@ -845,8 +845,6 @@ Short codes must meet the following criteria:
 - Contain only **letters, numbers, and underscores** (alphanumeric characters and underscores).
 - Replace {{ user_entered_short_code }} with the short code the user enters through your chosen input method, i.e. an input field / pop up element
 
-When a short code is set, the SDK automatically attempts to fetch and store any associated offer codes for iOS users.
-
 ```javascript
   import {
     DeepLinkIapProvider,
