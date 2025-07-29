@@ -661,10 +661,19 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return null;
       }
 
+      let platformType = 'ios'
+      // Check if its iOs or Android here
+      if (Platform.OS !== 'ios') {
+        verboseLog('Platform is not iOS, setting platform type to android');
+        platformType = 'android'
+      } else {
+        verboseLog('Platform is iOS, setting platform type to ios');
+      }
+
       const encodedAffiliateLink = encodeURIComponent(affiliateLink);
-      const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
+      const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}?platformType=${platformType}`;
       
-      verboseLog(`Fetching offer code from: ${url}`);
+      verboseLog(`Starting to fetch offer code from: ${url}`);
       
       const response = await axios.get(url);
       
@@ -723,8 +732,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   };
 
   const removeSpecialCharacters = (offerCode: string): string => {
-    // Remove special characters, keep only alphanumeric and underscores
-    return offerCode.replace(/[^a-zA-Z0-9_]/g, '');
+    // Remove special characters, keep only alphanumeric, underscores, and hyphens
+    return offerCode.replace(/[^a-zA-Z0-9_-]/g, '');
   };
 
   const cleanOfferCode = (offerCode: string): string => {

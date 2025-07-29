@@ -548,9 +548,18 @@ const DeepLinkIapProvider = ({ children, }) => {
                 verboseLog('Cannot fetch offer code: no company code available');
                 return null;
             }
+            let platformType = 'ios';
+            // Check if its iOs or Android here
+            if (react_native_1.Platform.OS !== 'ios') {
+                verboseLog('Platform is not iOS, setting platform type to android');
+                platformType = 'android';
+            }
+            else {
+                verboseLog('Platform is iOS, setting platform type to ios');
+            }
             const encodedAffiliateLink = encodeURIComponent(affiliateLink);
-            const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}`;
-            verboseLog(`Fetching offer code from: ${url}`);
+            const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}?platformType=${platformType}`;
+            verboseLog(`Starting to fetch offer code from: ${url}`);
             const response = yield axios_1.default.get(url);
             if (response.status === 200) {
                 const offerCode = response.data;
@@ -603,8 +612,8 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
     });
     const removeSpecialCharacters = (offerCode) => {
-        // Remove special characters, keep only alphanumeric and underscores
-        return offerCode.replace(/[^a-zA-Z0-9_]/g, '');
+        // Remove special characters, keep only alphanumeric, underscores, and hyphens
+        return offerCode.replace(/[^a-zA-Z0-9_-]/g, '');
     };
     const cleanOfferCode = (offerCode) => {
         // Remove special characters, keep only alphanumeric
