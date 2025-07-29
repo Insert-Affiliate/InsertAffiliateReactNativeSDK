@@ -524,12 +524,9 @@ const {
 
 The SDK allows you to apply dynamic modifiers to in-app purchases based on whether the app was installed via an affiliate. These modifiers can be used to swap the default product ID for a discounted or trial-based one - similar to applying an offer code.
 
-> **Note:** Offer Codes are currently supported on **iOS only**.
-
 #### How It Works
 
 When a user clicks an affiliate link or enters a short code linked to an offer (set up in the **Insert Affiliate Dashboard**), the SDK auto-populates the `OfferCode` field with a relevant modifier (e.g., `_oneWeekFree`). You can append this to your base product ID to dynamically display the correct subscription.
-
 
 #### Basic Usage
 
@@ -563,10 +560,23 @@ Once configured, when users click that affiliate's links or enter their short co
 2. Ensure **both** products are approved and available for sale.
 
 #### Google Play Console Configuration
-1. Create both a base and a promotional product:
+There are multiple ways you can configure your products in Google Play Console:
+
+1. **Multiple Products Approach**: Create both a base and a promotional product:
    - Base product: `oneMonthSubscription`
    - Promo product: `oneMonthSubscription-oneweekfree`
-2. Ensure **both** products are activated and available for purchase.
+
+2. **Single Product with Multiple Base Plans**: Create one product with multiple base plans, one with an offer attached
+
+3. **Developer Triggered Offers**: Have one base product and apply the offer through developer-triggered offers
+
+4. **Base Product with Intro Offers**: Have one base product that includes an introductory offer
+
+Any of these approaches are suitable and work with the SDK. The important part is that your product naming follows the pattern where the offer code modifier can be appended to identify the promotional version.
+
+**If using the Multiple Products Approach:**
+- Ensure **both** products are activated and available for purchase.
+- Generate a release to at least **Internal Testing** to make the products available in your current app build
 
 **Product Naming Pattern:**
 - Follow the pattern: `{baseProductId}{OfferCode}`
