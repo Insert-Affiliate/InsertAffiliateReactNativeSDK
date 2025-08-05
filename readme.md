@@ -145,7 +145,6 @@ First, complete the [RevenueCat SDK installation](https://www.revenuecat.com/doc
 ```javascript
 import React, {useEffect} from 'react'; 
 import {AppRegistry} from 'react-native';
-import branch from 'react-native-branch';
 import App from './App';
 import {name as appName} from './app.json';
 import {useDeepLinkIapProvider, DeepLinkIapProvider} from 'insert-affiliate-react-native-sdk';
@@ -372,7 +371,7 @@ useEffect(() => {
 
 ## Deep Link Setup [Required]
 
-Insert Affiliate requires a Deep Linking platform to create links for your affiliates. Our platform works with **any** deep linking provider, and you only need to follow these steps:
+Insert Affiliate requires a Deep Linking platform to create links for your affiliates. Our platform works with **any** deep linking provider. Below are examples for popular providers including Branch.io and AppsFlyer:
 1. **Create a deep link** in your chosen third-party platform and pass it to our dashboard when an affiliate signs up. 
 2. **Handle deep link clicks** in your app by passing the clicked link:
    ```javascript
@@ -472,6 +471,159 @@ const DeepLinkHandler = () => {
 
     return () => branchSubscription();
   }, [setInsertAffiliateIdentifier]);
+
+  return <App />;
+};
+
+const RootComponent = () => {
+  return (
+    <DeepLinkIapProvider>
+      <DeepLinkHandler />
+    </DeepLinkIapProvider>
+  );
+};
+```
+
+### Deep Linking with AppsFlyer
+To set up deep linking with AppsFlyer, follow these steps:
+
+1. Create a OneLink in AppsFlyer and pass it to our dashboard when an affiliate signs up.
+  - Example: [Create Affiliate](https://docs.insertaffiliate.com/create-affiliate).
+2. Initialize AppsFlyer SDK and set up deep link handling in your app.
+
+#### Platform Setup
+Complete the deep linking setup for AppsFlyer by following their official documentation:
+- [AppsFlyer Deep Link Integration Guide](https://dev.appsflyer.com/hc/docs/deeplinkintegrate)
+
+This covers all platform-specific configurations including:
+- iOS: Info.plist configuration, AppDelegate setup, and universal links
+- Android: AndroidManifest.xml intent filters, MainActivity setup, and App Links
+- Testing and troubleshooting for both platforms
+
+#### Example with RevenueCat
+
+```javascript
+import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
+import appsFlyer from 'react-native-appsflyer';
+import { useDeepLinkIapProvider, DeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import Purchases from 'react-native-purchases';
+
+const DeepLinkHandler = () => {
+  const { setInsertAffiliateIdentifier, isInitialized } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    // Initialize AppsFlyer
+    const initAppsFlyer = async () => {
+      try {
+        const initOptions = {
+          devKey: 'your-appsflyer-dev-key',
+          isDebug: true,
+          appId: Platform.OS === 'ios' ? 'your-ios-app-id' : 'your-android-package-name',
+        };
+
+        await appsFlyer.initSdk(initOptions);
+        console.log('AppsFlyer initialized successfully');
+      } catch (error) {
+        console.error('AppsFlyer initialization error:', error);
+      }
+    };
+
+    // Handle deep link data
+    const handleDeepLink = async (deepLinkData) => {
+      console.log('AppsFlyer Deep Link Data:', deepLinkData);
+
+      if (deepLinkData && deepLinkData.data) {
+        let referringLink = deepLinkData.data.link || deepLinkData.data.deep_link_value;
+
+        if (referringLink) {
+          try {
+            let insertAffiliateIdentifier = await setInsertAffiliateIdentifier(referringLink);
+
+            if (insertAffiliateIdentifier) {
+              console.log("Insert Affiliate Identifier:", insertAffiliateIdentifier);
+              await Purchases.setAttributes({"insert_affiliate": insertAffiliateIdentifier});
+            }
+          } catch (err) {
+            console.error('Error setting affiliate identifier:', err);
+          }
+        }
+      }
+    };
+
+    // Listen for both deep link types
+    appsFlyer.onDeepLink(handleDeepLink);
+    appsFlyer.onAppOpenAttribution(handleDeepLink);
+
+    initAppsFlyer();
+  }, [setInsertAffiliateIdentifier, isInitialized]);
+
+  return <App />;
+};
+
+const RootComponent = () => {
+  return (
+    <DeepLinkIapProvider>
+      <DeepLinkHandler />
+    </DeepLinkIapProvider>
+  );
+};
+
+AppRegistry.registerComponent(appName, () => RootComponent);
+```
+
+#### Example with Iaptic / App Store Direct Integration / Google Play Direct Integration
+
+```javascript
+import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
+import appsFlyer from 'react-native-appsflyer';
+import { useDeepLinkIapProvider, DeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+
+const DeepLinkHandler = () => {
+  const { setInsertAffiliateIdentifier, isInitialized } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    // Initialize AppsFlyer
+    const initAppsFlyer = async () => {
+      try {
+        const initOptions = {
+          devKey: 'your-appsflyer-dev-key',
+          isDebug: true,
+          appId: Platform.OS === 'ios' ? 'your-ios-app-id' : 'your-android-package-name',
+        };
+
+        await appsFlyer.initSdk(initOptions);
+      } catch (error) {
+        console.error('AppsFlyer initialization error:', error);
+      }
+    };
+
+    // Handle deep link data
+    const handleDeepLink = async (deepLinkData) => {
+      if (deepLinkData && deepLinkData.data) {
+        let referringLink = deepLinkData.data.link || deepLinkData.data.deep_link_value;
+
+        if (referringLink) {
+          try {
+            await setInsertAffiliateIdentifier(referringLink);
+          } catch (err) {
+            console.error('Error setting affiliate identifier:', err);
+          }
+        }
+      }
+    };
+
+    // Listen for both deep link types
+    appsFlyer.onDeepLink(handleDeepLink);
+    appsFlyer.onAppOpenAttribution(handleDeepLink);
+
+    initAppsFlyer();
+  }, [setInsertAffiliateIdentifier, isInitialized]);
 
   return <App />;
 };
