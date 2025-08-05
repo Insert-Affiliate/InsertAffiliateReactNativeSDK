@@ -487,13 +487,13 @@ const RootComponent = () => {
 ### Deep Linking with AppsFlyer
 To set up deep linking with AppsFlyer, follow these steps:
 
-1. Create a OneLink in AppsFlyer and pass it to our dashboard when an affiliate signs up.
+1. Create a [OneLink](https://support.appsflyer.com/hc/en-us/articles/208874366-Create-a-OneLink-link-for-your-campaigns) in AppsFlyer and pass it to our dashboard when an affiliate signs up.
   - Example: [Create Affiliate](https://docs.insertaffiliate.com/create-affiliate).
 2. Initialize AppsFlyer SDK and set up deep link handling in your app.
 
 #### Platform Setup
 Complete the deep linking setup for AppsFlyer by following their official documentation:
-- [AppsFlyer Deep Link Integration Guide](https://dev.appsflyer.com/hc/docs/deeplinkintegrate)
+- [AppsFlyer Deferred Deep Link Integration Guide](https://dev.appsflyer.com/hc/docs/deeplinkintegrate)
 
 This covers all platform-specific configurations including:
 - iOS: Info.plist configuration, AppDelegate setup, and universal links
@@ -525,7 +525,6 @@ const DeepLinkHandler = () => {
         };
 
         await appsFlyer.initSdk(initOptions);
-        console.log('AppsFlyer initialized successfully');
       } catch (error) {
         console.error('AppsFlyer initialization error:', error);
       }
@@ -533,8 +532,6 @@ const DeepLinkHandler = () => {
 
     // Handle deep link data
     const handleDeepLink = async (deepLinkData) => {
-      console.log('AppsFlyer Deep Link Data:', deepLinkData);
-
       if (deepLinkData && deepLinkData.data) {
         let referringLink = deepLinkData.data.link || deepLinkData.data.deep_link_value;
 
@@ -543,7 +540,6 @@ const DeepLinkHandler = () => {
             let insertAffiliateIdentifier = await setInsertAffiliateIdentifier(referringLink);
 
             if (insertAffiliateIdentifier) {
-              console.log("Insert Affiliate Identifier:", insertAffiliateIdentifier);
               await Purchases.setAttributes({"insert_affiliate": insertAffiliateIdentifier});
             }
           } catch (err) {
