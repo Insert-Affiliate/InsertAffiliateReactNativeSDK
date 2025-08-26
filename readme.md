@@ -135,8 +135,8 @@ const Child = () => {
 Insert Affiliate requires a Receipt Verification platform to validate in-app purchases. You must choose **one** of our supported partners:
 - [RevenueCat](https://www.revenuecat.com/)
 - [Iaptic](https://www.iaptic.com/account)
-- [App Store Direct Integration](#app-store-direct-integration)
-- [Google Play Store Direct Integration](#google-play-store-direct-integration)
+- [App Store Direct Integration](#option-3-app-store-direct-integration)
+- [Google Play Store Direct Integration](#option-4-google-play-store-direct-integration)
 
 ### Option 1: RevenueCat Integration
 #### Step 1. Code Setup
