@@ -83,7 +83,9 @@ const App = () => {
 
 ### Verbose Logging (Optional)
 
-For debugging and troubleshooting, you can enable verbose logging to get detailed insights into the SDK's operations:
+By default, the SDK operates silently to avoid interrupting the user experience. However, you can enable verbose logging to see visual confirmation when affiliate attribution is processed. This is particularly useful for debugging during development or TestFlight testing.
+
+#### Enable Verbose Logging
 
 ```javascript
 const Child = () => {
@@ -102,7 +104,7 @@ const Child = () => {
 
 - **Initialization Process**: SDK startup, company code validation, AsyncStorage operations
 - **Data Management**: User ID generation, referrer link storage, company code state management
-- **Deep Link Processing**: Input validation, short code detection, API conversion process
+- **Deep Link / Insert Link Processing**: Input validation, short code detection, API conversion process
 - **API Communication**: Request/response details for all server calls
 - **Event Tracking**: Event parameters, payload construction, success/failure status
 - **Purchase Operations**: Transaction storage, token validation, webhook processing
@@ -129,6 +131,43 @@ const Child = () => {
 - **Integration Troubleshooting**: Quickly identify configuration or setup issues
 
 ⚠️ **Important**: Disable verbose logging in production builds to avoid exposing sensitive debugging information and to optimize performance.
+
+### Insert Link and Clipboard Control (BETA)
+We are currently beta testing our in-house deep linking provider, Insert Links, which generates links for use with your affiliates.
+
+For larger projects where accuracy is critical, we recommend using established third-party deep linking platforms to generate the links you use within Insert Affiliate - such as Appsflyer or Branch.io, as described in the rest of this README.
+
+If you encounter any issues while using Insert Links, please raise an issue on this GitHub repository or contact us directly at michael@insertaffiliate.com
+
+#### Initialize with Insert Links
+
+When using Insert Affiliate's built-in deep link handling (Insert Links), you can enable these features during initialization:
+
+```javascript
+const Child = () => {
+  const { initialize, isInitialized } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    if (!isInitialized) {
+      initialize(
+        "{{ your-company-code }}", 
+        false, // Enable for debugging
+        true,  // Enables Insert Links
+        true   // Enable Insert Links Clipboard access to avoid permission prompt
+      );
+    }
+  }, [initialize, isInitialized]);
+}
+```
+
+**When to use `insertLinksEnabled`:**
+- Set to `true` (default: `false`) if you are using Insert Affiliate's built-in deep link and universal link handling (Insert Links)
+- Set to `false` if you are using an external provider for deep links
+
+**When to use `insertLinksClipboardEnabled`:**
+- Set to `true` (default: `false`) if you are using Insert Affiliate's built-in deep links (Insert Links) **and** would like to improve the effectiveness of our deep links through the clipboard
+- **Important caveat**: This will trigger a system prompt asking the user for permission to access the clipboard when the SDK initializes
+
 
 
 ## In-App Purchase Setup [Required]
@@ -378,6 +417,18 @@ Insert Affiliate requires a Deep Linking platform to create links for your affil
    await setInsertAffiliateIdentifier(referringLink)
    ```
 3. **Integrate with a Receipt Verification platform** by using the result from `setInsertAffiliateIdentifier` to log in or set your application’s username. Examples below include [**Iaptic**](https://github.com/Insert-Affiliate/InsertAffiliateReactNativeSDK?tab=readme-ov-file#example-with-iaptic) and [**RevenueCat**](https://github.com/Insert-Affiliate/InsertAffiliateReactNativeSDK?tab=readme-ov-file#example-with-revenuecat)
+
+### Deep Linking with Insert Links
+
+Insert Links by Insert Affiliate supports direct deep linking into your app. This allows you to track affiliate attribution when end users are referred to your app by clicking on one of your affiliates Insert Links.
+
+#### Initial Setup
+
+1. Before you can use Insert Links, you must complete the setup steps in [our docs](https://docs.insertaffiliate.com/insert-links)
+
+2. **Initialization** of the Insert Affiliate SDK with Insert Links
+
+You must enable *insertLinksEnabled* when [initialising our SDK](https://github.com/Insert-Affiliate/InsertAffiliateSwiftSDK/?tab=readme-ov-file#insert-link-initialization)
 
 ### Deep Linking with Branch.io
 To set up deep linking with Branch.io, follow these steps:
