@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useState, useRef } from 'react';
 import { Platform, Linking } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,6 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 type T_DEEPLINK_IAP_PROVIDER = {
   children: React.ReactNode;
 };
+
+export type InsertAffiliateIdentifierChangeCallback = (identifier: string | null) => void;
 
 type CustomPurchase = {
   [key: string]: any; // Accept any fields to allow it to work wtih multiple IAP libraries
@@ -32,7 +34,9 @@ type T_DEEPLINK_IAP_CONTEXT = {
   setInsertAffiliateIdentifier: (
     referringLink: string
   ) => Promise<void | string>;
-  initialize: (code: string | null, verboseLogging?: boolean) => Promise<void>;
+  setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => void;
+  handleInsertLinks: (url: string) => Promise<boolean>;
+  initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean) => Promise<void>;
   isInitialized: boolean;
 };
 
@@ -78,7 +82,9 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   trackEvent: async (eventName: string) => {},
   setShortCode: async (shortCode: string) => {},
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
-  initialize: async (code: string | null, verboseLogging?: boolean) => {},
+  setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => {},
+  handleInsertLinks: async (url: string) => false,
+  initialize: async (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean) => {},
   isInitialized: false,
 });
 
@@ -90,11 +96,14 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [verboseLogging, setVerboseLogging] = useState<boolean>(false);
+  const [insertLinksEnabled, setInsertLinksEnabled] = useState<boolean>(false);
   const [OfferCode, setOfferCode] = useState<string | null>(null);
+  const insertAffiliateIdentifierChangeCallbackRef = useRef<InsertAffiliateIdentifierChangeCallback | null>(null);
 
   // MARK: Initialize the SDK
-  const initialize = async (companyCode: string | null, verboseLogging: boolean = false): Promise<void> => {
+  const initialize = async (companyCode: string | null, verboseLogging: boolean = false, insertLinksEnabled: boolean = false, insertLinksClipboardEnabled: boolean = false): Promise<void> => {
     setVerboseLogging(verboseLogging);
+    setInsertLinksEnabled(insertLinksEnabled);
     
     if (verboseLogging) {
       console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
@@ -169,6 +178,62 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     fetchAsyncEssentials();
   }, []);
 
+  // Cleanup callback on unmount
+  useEffect(() => {
+    return () => {
+      insertAffiliateIdentifierChangeCallbackRef.current = null;
+    };
+  }, []);
+
+  // Deep link event listeners - equivalent to iOS AppDelegate methods
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    // Handle app launch with URL (equivalent to didFinishLaunchingWithOptions)
+    const handleInitialURL = async () => {
+      try {
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl) {
+          verboseLog(`App launched with URL: ${initialUrl}`);
+          const handled = await handleInsertLinks(initialUrl);
+          if (handled) {
+            verboseLog('URL was handled by Insert Affiliate SDK');
+          } else {
+            verboseLog('URL was not handled by Insert Affiliate SDK');
+          }
+        }
+      } catch (error) {
+        console.error('[Insert Affiliate] Error getting initial URL:', error);
+      }
+    };
+
+    // Handle URL opening while app is running (equivalent to open url)
+    const handleUrlChange = async (event: { url: string }) => {
+      try {
+        verboseLog(`URL opened while app running: ${event.url}`);
+        const handled = await handleInsertLinks(event.url);
+        if (handled) {
+          verboseLog('URL was handled by Insert Affiliate SDK');
+        } else {
+          verboseLog('URL was not handled by Insert Affiliate SDK');
+        }
+      } catch (error) {
+        console.error('[Insert Affiliate] Error handling URL change:', error);
+      }
+    };
+
+    // Set up listeners
+    const urlListener = Linking.addEventListener('url', handleUrlChange);
+    
+    // Handle initial URL
+    handleInitialURL();
+
+    // Cleanup
+    return () => {
+      urlListener?.remove();
+    };
+  }, [isInitialized]);
+
   async function generateThenSetUserID() {
     verboseLog('Getting or generating user ID...');
     let userId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
@@ -202,6 +267,131 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     setCompanyCode(null);
     setIsInitialized(false);
     console.log('[Insert Affiliate] SDK has been reset.');
+  };
+
+  // MARK: Callback Management
+  // Sets a callback that will be triggered whenever storeInsertAffiliateIdentifier is called
+  // The callback receives the current affiliate identifier (returnInsertAffiliateIdentifier result)
+  const setInsertAffiliateIdentifierChangeCallbackHandler = (callback: InsertAffiliateIdentifierChangeCallback | null): void => {
+    insertAffiliateIdentifierChangeCallbackRef.current = callback;
+  };
+
+  // MARK: Deep Link Handling
+  // Handles Insert Links deep linking - equivalent to iOS handleInsertLinks
+  const handleInsertLinks = async (url: string): Promise<boolean> => {
+    try {
+      console.log(`[Insert Affiliate] Attempting to handle URL: ${url}`);
+      
+      if (!url || typeof url !== 'string') {
+        console.log('[Insert Affiliate] Invalid URL provided to handleInsertLinks');
+        return false;
+      }
+
+      // Check if deep links are enabled synchronously
+      if (!insertLinksEnabled) {
+        console.log('[Insert Affiliate] Deep links are disabled, not handling URL');
+        return false;
+      }
+
+      const urlObj = new URL(url);
+
+      // Handle custom URL schemes (ia-companycode://shortcode)
+      if (urlObj.protocol && urlObj.protocol.startsWith('ia-')) {
+        return await handleCustomURLScheme(urlObj);
+      }
+
+      // Handle universal links (https://insertaffiliate.link/V1/companycode/shortcode)
+      // if (urlObj.protocol === 'https:' && urlObj.hostname?.includes('insertaffiliate.link')) {
+      //   return await handleUniversalLink(urlObj);
+      // }
+
+      return false;
+    } catch (error) {
+      console.error('[Insert Affiliate] Error handling Insert Link:', error);
+      verboseLog(`Error in handleInsertLinks: ${error}`);
+      return false;
+    }
+  };
+
+  // Handle custom URL schemes like ia-companycode://shortcode
+  const handleCustomURLScheme = async (url: URL): Promise<boolean> => {
+    try {
+      const scheme = url.protocol.replace(':', '');
+      
+      if (!scheme.startsWith('ia-')) {
+        return false;
+      }
+
+      // Extract company code from scheme (remove "ia-" prefix)
+      const companyCode = scheme.substring(3);
+      
+      const shortCode = parseShortCodeFromURL(url);
+      if (!shortCode) {
+        console.log(`[Insert Affiliate] Failed to parse short code from deep link: ${url.href}`);
+        return false;
+      }
+
+      console.log(`[Insert Affiliate] Custom URL scheme detected - Company: ${companyCode}, Short code: ${shortCode}`);
+
+      // Validate company code matches initialized one
+      const activeCompanyCode = await getActiveCompanyCode();
+      if (activeCompanyCode && companyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
+        console.log(`[Insert Affiliate] Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
+      }
+
+      // If URL scheme is used, we can straight away store the short code as the referring link
+      await storeInsertAffiliateIdentifier({ link: shortCode });
+
+      return true;
+    } catch (error) {
+      console.error('[Insert Affiliate] Error handling custom URL scheme:', error);
+      return false;
+    }
+  };
+
+  // Handle universal links like https://insertaffiliate.link/V1/companycode/shortcode
+  // const handleUniversalLink = async (url: URL): Promise<boolean> => {
+  //   try {
+  //     const pathComponents = url.pathname.split('/').filter(segment => segment.length > 0);
+      
+  //     // Expected format: /V1/companycode/shortcode
+  //     if (pathComponents.length < 3 || pathComponents[0] !== 'V1') {
+  //       console.log(`[Insert Affiliate] Invalid universal link format: ${url.href}`);
+  //       return false;
+  //     }
+
+  //     const companyCode = pathComponents[1];
+  //     const shortCode = pathComponents[2];
+
+  //     console.log(`[Insert Affiliate] Universal link detected - Company: ${companyCode}, Short code: ${shortCode}`);
+
+  //     // Validate company code matches initialized one
+  //     const activeCompanyCode = await getActiveCompanyCode();
+  //     if (activeCompanyCode && companyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
+  //       console.log(`[Insert Affiliate] Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
+  //     }
+
+  //     // Process the affiliate attribution
+  //     await storeInsertAffiliateIdentifier({ link: shortCode });
+
+
+  //     return true;
+  //   } catch (error) {
+  //     console.error('[Insert Affiliate] Error handling universal link:', error);
+  //     return false;
+  //   }
+  // };
+
+  // Parse short code from URL
+  const parseShortCodeFromURL = (url: URL): string | null => {
+    try {
+      // For custom schemes like ia-companycode://shortcode, everything after :// is the short code
+      // Remove leading slash from pathname
+      return url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
+    } catch (error) {
+      verboseLog(`Error parsing short code from URL: ${error}`);
+      return null;
+    }
   };
 
   // Helper funciton Storage / Retrieval
@@ -456,6 +646,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     // Automatically fetch and store offer code for any affiliate identifier
     verboseLog('Attempting to fetch offer code for stored affiliate identifier...');
     await retrieveAndStoreOfferCode(link);
+    
+    // Trigger callback with the current affiliate identifier
+    if (insertAffiliateIdentifierChangeCallbackRef.current) {
+      const currentIdentifier = await returnInsertAffiliateIdentifier();
+      verboseLog(`Triggering callback with identifier: ${currentIdentifier}`);
+      insertAffiliateIdentifierChangeCallbackRef.current(currentIdentifier);
+    }
   }
 
   const validatePurchaseWithIapticAPI = async (
@@ -754,6 +951,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         validatePurchaseWithIapticAPI,
         trackEvent,
         setInsertAffiliateIdentifier,
+        setInsertAffiliateIdentifierChangeCallback: setInsertAffiliateIdentifierChangeCallbackHandler,
+        handleInsertLinks,
         initialize,
         isInitialized,
       }}

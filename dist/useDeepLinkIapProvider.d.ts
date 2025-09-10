@@ -10,7 +10,9 @@ declare const useDeepLinkIapProvider: () => {
     trackEvent: (eventName: string) => Promise<void>;
     setShortCode: (shortCode: string) => Promise<void>;
     setInsertAffiliateIdentifier: (referringLink: string) => Promise<void | string>;
-    initialize: (code: string | null, verboseLogging?: boolean) => Promise<void>;
+    setInsertAffiliateIdentifierChangeCallback: (callback: import("./DeepLinkIapProvider").InsertAffiliateIdentifierChangeCallback | null) => void;
+    handleInsertLinks: (url: string) => Promise<boolean>;
+    initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean) => Promise<void>;
     isInitialized: boolean;
     OfferCode: string | null;
 };
