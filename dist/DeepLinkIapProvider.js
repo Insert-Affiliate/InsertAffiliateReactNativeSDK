@@ -233,6 +233,32 @@ const DeepLinkIapProvider = ({ children, }) => {
         insertAffiliateIdentifierChangeCallbackRef.current = callback;
     };
     // MARK: Deep Link Handling
+    // Helper function to parse URLs in React Native compatible way
+    const parseURL = (url) => {
+        try {
+            // Extract protocol
+            const protocolMatch = url.match(/^([^:]+):/);
+            const protocol = protocolMatch ? protocolMatch[1] + ':' : '';
+            // Extract hostname for https URLs
+            let hostname = '';
+            if (protocol === 'https:' || protocol === 'http:') {
+                const hostnameMatch = url.match(/^https?:\/\/([^\/]+)/);
+                hostname = hostnameMatch ? hostnameMatch[1] : '';
+            }
+            return {
+                protocol,
+                hostname,
+                href: url
+            };
+        }
+        catch (error) {
+            return {
+                protocol: '',
+                hostname: '',
+                href: url
+            };
+        }
+    };
     // Handles Insert Links deep linking - equivalent to iOS handleInsertLinks
     const handleInsertLinks = (url) => __awaiter(void 0, void 0, void 0, function* () {
         try {
@@ -246,10 +272,10 @@ const DeepLinkIapProvider = ({ children, }) => {
                 console.log('[Insert Affiliate] Deep links are disabled, not handling URL');
                 return false;
             }
-            const urlObj = new URL(url);
+            const urlObj = parseURL(url);
             // Handle custom URL schemes (ia-companycode://shortcode)
             if (urlObj.protocol && urlObj.protocol.startsWith('ia-')) {
-                return yield handleCustomURLScheme(urlObj);
+                return yield handleCustomURLScheme(url, urlObj.protocol);
             }
             // Handle universal links (https://insertaffiliate.link/V1/companycode/shortcode)
             // if (urlObj.protocol === 'https:' && urlObj.hostname?.includes('insertaffiliate.link')) {
@@ -264,17 +290,17 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
     });
     // Handle custom URL schemes like ia-companycode://shortcode
-    const handleCustomURLScheme = (url) => __awaiter(void 0, void 0, void 0, function* () {
+    const handleCustomURLScheme = (url, protocol) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const scheme = url.protocol.replace(':', '');
+            const scheme = protocol.replace(':', '');
             if (!scheme.startsWith('ia-')) {
                 return false;
             }
             // Extract company code from scheme (remove "ia-" prefix)
             const companyCode = scheme.substring(3);
-            const shortCode = parseShortCodeFromURL(url);
+            const shortCode = parseShortCodeFromURLString(url);
             if (!shortCode) {
-                console.log(`[Insert Affiliate] Failed to parse short code from deep link: ${url.href}`);
+                console.log(`[Insert Affiliate] Failed to parse short code from deep link: ${url}`);
                 return false;
             }
             console.log(`[Insert Affiliate] Custom URL scheme detected - Company: ${companyCode}, Short code: ${shortCode}`);
@@ -326,6 +352,22 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
         catch (error) {
             verboseLog(`Error parsing short code from URL: ${error}`);
+            return null;
+        }
+    };
+    const parseShortCodeFromURLString = (url) => {
+        try {
+            // For custom schemes like ia-companycode://shortcode, everything after :// is the short code
+            const match = url.match(/^[^:]+:\/\/(.+)$/);
+            if (match) {
+                const shortCode = match[1];
+                // Remove leading slash if present
+                return shortCode.startsWith('/') ? shortCode.substring(1) : shortCode;
+            }
+            return null;
+        }
+        catch (error) {
+            verboseLog(`Error parsing short code from URL string: ${error}`);
             return null;
         }
     };
