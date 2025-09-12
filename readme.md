@@ -169,7 +169,6 @@ const Child = () => {
 - **Important caveat**: This will trigger a system prompt asking the user for permission to access the clipboard when the SDK initializes
 
 
-
 ## In-App Purchase Setup [Required]
 Insert Affiliate requires a Receipt Verification platform to validate in-app purchases. You must choose **one** of our supported partners:
 - [RevenueCat](https://www.revenuecat.com/)
@@ -442,6 +441,43 @@ The SDK provides automatic deep link handling that works similarly to the iOS `h
 - **App Running (Warm Start)**: When user clicks a deep link while app is already running, processes the URL immediately  
 - **App Backgrounded**: When user clicks a deep link while app is backgrounded, brings app to foreground and processes the URL
 - **Automatic Processing**: Parses Insert Link URLs and sets affiliate identifiers without additional code
+
+##### iOS Setup Required
+
+To enable deep linking and universal links on iOS, you need to configure your app's Info.plist and AppDelegate files.
+
+**AppDelegate Setup**
+
+Update your `ios/YourApp/AppDelegate.mm` (or `AppDelegate.m`) file:
+
+```objc
+#import <React/RCTLinkingManager.h>
+
+// Handle URL opening when app is already running (iOS 9+)
+- (BOOL)application:(UIApplication *)application
+            openURL:(NSURL *)url
+            options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options
+{
+  return [RCTLinkingManager application:application openURL:url options:options];
+}
+
+// Handle URL opening (iOS 8 and below - for backward compatibility)
+- (BOOL)application:(UIApplication *)application openURL:(NSURL *)url
+  sourceApplication:(NSString *)sourceApplication annotation:(id)annotation
+{
+  return [RCTLinkingManager application:application openURL:url
+                      sourceApplication:sourceApplication annotation:annotation];
+}
+
+// Handle universal links (iOS 9+)
+- (BOOL)application:(UIApplication *)application continueUserActivity:(NSUserActivity *)userActivity
+ restorationHandler:(void(^)(NSArray * __nullable restorableObjects))restorationHandler
+{
+  return [RCTLinkingManager application:application
+                   continueUserActivity:userActivity
+                     restorationHandler:restorationHandler];
+}
+```
 
 4. **Automatic Deep Link Handling**
 
