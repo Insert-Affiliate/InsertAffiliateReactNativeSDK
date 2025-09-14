@@ -177,7 +177,6 @@ const DeepLinkIapProvider = ({ children, }) => {
                     }
                     else {
                         verboseLog('URL was not handled by Insert Affiliate SDK');
-                        // Even if URL wasn't handled by our SDK, still send system info if clipboard is enabled
                     }
                 }
             }
@@ -535,10 +534,8 @@ const DeepLinkIapProvider = ({ children, }) => {
             };
         }
     });
-    // Gets detailed network path information
     const getNetworkPathInfo = () => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            // Get network information using NetInfo
             const netInfo = yield netinfo_1.default.fetch();
             // Default values - only set to true when proven
             let supportsIPv4 = false;
@@ -548,9 +545,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             let gatewayCount = 0;
             let gateways = [];
             let interfaceDetails = [];
-            // Check if we have network details and connectivity
             if (netInfo.details && netInfo.isConnected) {
-                // Only set to true when we have actual connectivity
                 supportsIPv4 = true;
                 // IPv6 support based on interface type (following Swift logic)
                 if (netInfo.type === 'wifi' || netInfo.type === 'cellular' || netInfo.type === 'ethernet') {
@@ -559,7 +554,6 @@ const DeepLinkIapProvider = ({ children, }) => {
                 else {
                     supportsIPv6 = false;
                 }
-                // DNS support - only true if we can reach the internet
                 supportsDNS = netInfo.isInternetReachable === true;
                 // Get interface details from NetInfo
                 if (netInfo.details && 'isConnectionExpensive' in netInfo.details) {
@@ -584,7 +578,6 @@ const DeepLinkIapProvider = ({ children, }) => {
                         type: 'wiredEthernet'
                     });
                 }
-                // Set gateway count based on available interfaces
                 gatewayCount = interfaceDetails.length;
                 hasUnsatisfiedGateway = gatewayCount === 0;
                 // For React Native, we can't easily get actual gateway IPs
@@ -595,7 +588,6 @@ const DeepLinkIapProvider = ({ children, }) => {
             }
             // Fallback if NetInfo doesn't provide enough details
             if (interfaceDetails.length === 0) {
-                // Basic fallback based on platform
                 interfaceDetails = [{
                         name: 'en0',
                         index: 0,
@@ -633,42 +625,34 @@ const DeepLinkIapProvider = ({ children, }) => {
             };
         }
     });
-    // Collects basic system information for analytics (non-identifying data only)
+    // Collects basic system information for deep linking (non-identifying data only)
     const getSystemInfo = () => __awaiter(void 0, void 0, void 0, function* () {
         const systemInfo = {};
         try {
-            // Get accurate system info using DeviceInfo
-            try {
-                systemInfo.systemName = yield react_native_device_info_1.default.getSystemName();
-                systemInfo.systemVersion = yield react_native_device_info_1.default.getSystemVersion();
-                systemInfo.model = yield react_native_device_info_1.default.getModel();
-                systemInfo.localizedModel = yield react_native_device_info_1.default.getModel();
-                systemInfo.isPhysicalDevice = !(yield react_native_device_info_1.default.isEmulator());
-                systemInfo.bundleId = yield react_native_device_info_1.default.getBundleId();
-                systemInfo.deviceType = yield react_native_device_info_1.default.getDeviceType();
-            }
-            catch (error) {
-                verboseLog(`Error getting device info: ${error}`);
-                // Fallback to basic platform detection
-                systemInfo.systemName = 'iOS';
-                systemInfo.systemVersion = react_native_1.Platform.Version.toString();
-                systemInfo.model = 'iPhone';
-                systemInfo.localizedModel = systemInfo.model;
-                systemInfo.isPhysicalDevice = true; // Assume physical device if we can't detect
-                systemInfo.bundleId = 'null'; // Fallback if we can't get bundle ID
-                systemInfo.deviceType = 'unknown';
-            }
-            if (verboseLogging) {
-                console.log('[Insert Affiliate] system info:', systemInfo);
-            }
-            return systemInfo;
+            systemInfo.systemName = yield react_native_device_info_1.default.getSystemName();
+            systemInfo.systemVersion = yield react_native_device_info_1.default.getSystemVersion();
+            systemInfo.model = yield react_native_device_info_1.default.getModel();
+            systemInfo.localizedModel = yield react_native_device_info_1.default.getModel();
+            systemInfo.isPhysicalDevice = !(yield react_native_device_info_1.default.isEmulator());
+            systemInfo.bundleId = yield react_native_device_info_1.default.getBundleId();
+            systemInfo.deviceType = yield react_native_device_info_1.default.getDeviceType();
         }
         catch (error) {
-            verboseLog(`Error collecting system info: ${error}`);
-            return systemInfo;
+            verboseLog(`Error getting device info: ${error}`);
+            // Fallback to basic platform detection
+            systemInfo.systemName = 'iOS';
+            systemInfo.systemVersion = react_native_1.Platform.Version.toString();
+            systemInfo.model = 'iPhone';
+            systemInfo.localizedModel = systemInfo.model;
+            systemInfo.isPhysicalDevice = true; // Assume physical device if we can't detect
+            systemInfo.bundleId = 'null'; // Fallback if we can't get bundle ID
+            systemInfo.deviceType = 'unknown';
         }
+        if (verboseLogging) {
+            console.log('[Insert Affiliate] system info:', systemInfo);
+        }
+        return systemInfo;
     });
-    // Enhanced system info that includes data for API requests
     const getEnhancedSystemInfo = () => __awaiter(void 0, void 0, void 0, function* () {
         var _a, _b, _c, _d, _e;
         verboseLog('Collecting enhanced system information...');
