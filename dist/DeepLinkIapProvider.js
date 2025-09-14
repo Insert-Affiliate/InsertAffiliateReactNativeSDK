@@ -38,7 +38,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DeepLinkIapContext = void 0;
 const react_1 = __importStar(require("react"));
 const react_native_1 = require("react-native");
-const react_native_2 = require("react-native");
 const axios_1 = __importDefault(require("axios"));
 const async_storage_1 = __importDefault(require("@react-native-async-storage/async-storage"));
 const clipboard_1 = __importDefault(require("@react-native-clipboard/clipboard"));
@@ -656,7 +655,6 @@ const DeepLinkIapProvider = ({ children, }) => {
         return systemInfo;
     });
     const getEnhancedSystemInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e;
         verboseLog('Collecting enhanced system information...');
         let systemInfo = yield getSystemInfo();
         verboseLog(`System info: ${JSON.stringify(systemInfo)}`);
@@ -706,30 +704,43 @@ const DeepLinkIapProvider = ({ children, }) => {
                     verboseLog('Clipboard access is disabled - it may require NSPasteboardGeneralUseDescription in Info.plist');
                 }
             }
-            // Add language information using system locale
+            // Add language information using Intl API
             try {
-                let locale = 'en-US';
-                let language = 'en';
-                let country = 'US';
-                // Try to get locale from system
-                const localeIdentifier = ((_b = (_a = react_native_2.NativeModules.SettingsManager) === null || _a === void 0 ? void 0 : _a.settings) === null || _b === void 0 ? void 0 : _b.AppleLocale) ||
-                    ((_e = (_d = (_c = react_native_2.NativeModules.SettingsManager) === null || _c === void 0 ? void 0 : _c.settings) === null || _d === void 0 ? void 0 : _d.AppleLanguages) === null || _e === void 0 ? void 0 : _e[0]);
-                if (localeIdentifier) {
-                    locale = localeIdentifier;
+                // Get locale with region information
+                const locale = Intl.DateTimeFormat().resolvedOptions().locale;
+                const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                // Try to get more specific locale information
+                let bestLocale = locale;
+                // If the locale doesn't have region info, try to infer from timezone
+                if (!locale.includes('-') && timeZone) {
+                    try {
+                        // Create a locale-specific date formatter to get region
+                        const regionLocale = new Intl.DateTimeFormat(undefined, {
+                            timeZone: timeZone
+                        }).resolvedOptions().locale;
+                        if (regionLocale && regionLocale.includes('-')) {
+                            bestLocale = regionLocale;
+                        }
+                    }
+                    catch (e) {
+                        // Fallback to original locale
+                    }
                 }
-                // Parse locale
-                const parts = locale.replace('_', '-').split('-');
-                language = parts[0] || 'en';
-                country = parts[1] || 'US';
-                systemInfo.language = language;
-                systemInfo.country = country;
-                systemInfo.languages = [locale, language];
+                // Try navigator.language as fallback for better region detection
+                if (!bestLocale.includes('-') && typeof navigator !== 'undefined' && navigator.language) {
+                    bestLocale = navigator.language;
+                }
+                const parts = bestLocale.split('-');
+                systemInfo.language = parts[0] || 'en';
+                systemInfo.country = parts[1] || null; // Set to null instead of defaulting to 'US'
+                systemInfo.languages = [bestLocale, parts[0] || 'en'];
             }
             catch (error) {
+                verboseLog(`Error getting device locale: ${error}`);
                 // Fallback to defaults
                 systemInfo.language = 'en';
-                systemInfo.country = 'US';
-                systemInfo.languages = ['en-US', 'en'];
+                systemInfo.country = null; // Set to null instead of defaulting to 'US'
+                systemInfo.languages = ['en'];
             }
             // Add timezone info (matching exact field names)
             const timezoneOffset = new Date().getTimezoneOffset();
