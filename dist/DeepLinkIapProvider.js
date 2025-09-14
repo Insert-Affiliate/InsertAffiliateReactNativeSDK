@@ -635,7 +635,9 @@ const DeepLinkIapProvider = ({ children, }) => {
             systemInfo.localizedModel = yield react_native_device_info_1.default.getModel();
             systemInfo.isPhysicalDevice = !(yield react_native_device_info_1.default.isEmulator());
             systemInfo.bundleId = yield react_native_device_info_1.default.getBundleId();
-            systemInfo.deviceType = yield react_native_device_info_1.default.getDeviceType();
+            // Map device type to more readable format
+            const deviceType = yield react_native_device_info_1.default.getDeviceType();
+            systemInfo.deviceType = deviceType === 'Handset' ? 'mobile' : deviceType;
         }
         catch (error) {
             verboseLog(`Error getting device info: ${error}`);

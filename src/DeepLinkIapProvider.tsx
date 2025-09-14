@@ -733,7 +733,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       systemInfo.localizedModel = await DeviceInfo.getModel();
       systemInfo.isPhysicalDevice = !(await DeviceInfo.isEmulator());
       systemInfo.bundleId = await DeviceInfo.getBundleId();
-      systemInfo.deviceType = await DeviceInfo.getDeviceType();
+      
+      // Map device type to more readable format
+      const deviceType = await DeviceInfo.getDeviceType();
+      systemInfo.deviceType = deviceType === 'Handset' ? 'mobile' : deviceType;
     } catch (error) {
       verboseLog(`Error getting device info: ${error}`);
       // Fallback to basic platform detection
