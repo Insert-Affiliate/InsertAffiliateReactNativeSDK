@@ -1,7 +1,11 @@
 import React, { createContext, useEffect, useState, useRef } from 'react';
-import { Platform, Linking } from 'react-native';
+import { Platform, Linking, Dimensions, PixelRatio } from 'react-native';
+import { NativeModules } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Clipboard from '@react-native-clipboard/clipboard';
+import NetInfo from '@react-native-community/netinfo';
+import DeviceInfo from 'react-native-device-info';
 
 // TYPES USED IN THIS PROVIDER
 type T_DEEPLINK_IAP_PROVIDER = {
@@ -97,6 +101,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [verboseLogging, setVerboseLogging] = useState<boolean>(false);
   const [insertLinksEnabled, setInsertLinksEnabled] = useState<boolean>(false);
+  const [insertLinksClipboardEnabled, setInsertLinksClipboardEnabled] = useState<boolean>(false);
   const [OfferCode, setOfferCode] = useState<string | null>(null);
   const insertAffiliateIdentifierChangeCallbackRef = useRef<InsertAffiliateIdentifierChangeCallback | null>(null);
 
@@ -104,6 +109,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const initialize = async (companyCode: string | null, verboseLogging: boolean = false, insertLinksEnabled: boolean = false, insertLinksClipboardEnabled: boolean = false): Promise<void> => {
     setVerboseLogging(verboseLogging);
     setInsertLinksEnabled(insertLinksEnabled);
+    setInsertLinksClipboardEnabled(insertLinksClipboardEnabled);
     
     if (verboseLogging) {
       console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
@@ -134,6 +140,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       setIsInitialized(true);
       if (verboseLogging) {
         console.log('[Insert Affiliate] [VERBOSE] No company code provided, SDK initialized in limited mode');
+      }
+    }
+
+    if (insertLinksEnabled && Platform.OS === 'ios') {
+      try {
+        const enhancedSystemInfo = await getEnhancedSystemInfo();
+        await sendSystemInfoToBackend(enhancedSystemInfo);
+      } catch (error) {
+        verboseLog(`Error sending system info for clipboard check: ${error}`);
       }
     }
   };
@@ -370,6 +385,14 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       // If URL scheme is used, we can straight away store the short code as the referring link
       await storeInsertAffiliateIdentifier({ link: shortCode });
 
+      // Collect and send enhanced system info to backend
+      try {
+        const enhancedSystemInfo = await getEnhancedSystemInfo();
+        await sendSystemInfoToBackend(enhancedSystemInfo);
+      } catch (error) {
+        verboseLog(`Error sending system info for deep link: ${error}`);
+      }
+
       return true;
     } catch (error) {
       console.error('[Insert Affiliate] Error handling custom URL scheme:', error);
@@ -491,6 +514,427 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       default:
         console.log(`LOGGING ~ ${message}`);
         break;
+    }
+  };
+
+  // MARK: - Deep Linking Utilities
+  
+  // Retrieves and validates clipboard content for UUID format
+  const getClipboardUUID = async (): Promise<string | null> => {
+    // Check if clipboard access is enabled
+    if (!insertLinksClipboardEnabled) {
+      return null;
+    }
+    
+    verboseLog('Getting clipboard UUID');
+    
+    try {
+      const clipboardString = await Clipboard.getString();
+
+      if (!clipboardString) {
+        verboseLog('No clipboard string found or access denied');
+        return null;
+      }
+
+      const trimmedString = clipboardString.trim();
+      
+      if (isValidUUID(trimmedString)) {
+        verboseLog(`Valid clipboard UUID found: ${trimmedString}`);
+        return trimmedString;
+      }
+      
+      verboseLog(`Invalid clipboard UUID found: ${trimmedString}`);
+      return null;
+    } catch (error) {
+      verboseLog(`Clipboard access error: ${error}`);
+      return null;
+    }
+  };
+
+  // Validates if a string is a properly formatted UUID (36 characters)
+  const isValidUUID = (string: string): boolean => {
+    if (string.length !== 36) return false;
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(string);
+  };
+
+  // MARK: - System Info Collection
+  
+  // Gets network connection type and interface information
+  const getNetworkInfo = async (): Promise<{[key: string]: any}> => {
+    try {
+      const connectionInfo = {
+        connectionType: 'unknown',
+        interfaceTypes: [] as string[],
+        isExpensive: false,
+        isConstrained: false,
+        status: 'disconnected',
+        availableInterfaces: [] as string[]
+      };
+
+      try {
+        // Use NetInfo to get accurate network information
+        const netInfo = await NetInfo.fetch();
+        
+        connectionInfo.status = netInfo.isConnected ? 'connected' : 'disconnected';
+        connectionInfo.connectionType = netInfo.type || 'unknown';
+        connectionInfo.isExpensive = netInfo.isInternetReachable === false ? true : false;
+        connectionInfo.isConstrained = false; // NetInfo doesn't provide this directly
+        
+        // Map NetInfo types to our interface format
+        if (netInfo.type) {
+          connectionInfo.interfaceTypes = [netInfo.type];
+          connectionInfo.availableInterfaces = [netInfo.type];
+        }
+        
+        // Additional details if available
+        if (netInfo.details && 'isConnectionExpensive' in netInfo.details) {
+          connectionInfo.isExpensive = netInfo.details.isConnectionExpensive || false;
+        }
+        
+      } catch (error) {
+        verboseLog(`Network info fetch failed: ${error}`);
+        // Fallback to basic connectivity test
+        try {
+          const response = await fetch('https://www.google.com/favicon.ico', {
+            method: 'HEAD'
+          });
+          if (response.ok) {
+            connectionInfo.status = 'connected';
+          }
+        } catch (fetchError) {
+          verboseLog(`Fallback connectivity test failed: ${fetchError}`);
+        }
+      }
+
+      return connectionInfo;
+    } catch (error) {
+      verboseLog(`Error getting network info: ${error}`);
+      return {
+        connectionType: 'unknown',
+        interfaceTypes: [],
+        isExpensive: false,
+        isConstrained: false,
+        status: 'disconnected',
+        availableInterfaces: []
+      };
+    }
+  };
+  
+
+  const getNetworkPathInfo = async (): Promise<{[key: string]: any}> => {
+    try {
+      const netInfo = await NetInfo.fetch();
+      
+      // Default values - only set to true when proven
+      let supportsIPv4 = false;
+      let supportsIPv6 = false;
+      let supportsDNS = false;
+      let hasUnsatisfiedGateway = false;
+      let gatewayCount = 0;
+      let gateways: string[] = [];
+      let interfaceDetails: Array<{[key: string]: any}> = [];
+
+      if (netInfo.details && netInfo.isConnected) {
+        supportsIPv4 = true;
+        
+        // IPv6 support based on interface type (following Swift logic)
+        if (netInfo.type === 'wifi' || netInfo.type === 'cellular' || netInfo.type === 'ethernet') {
+          supportsIPv6 = true;
+        } else {
+          supportsIPv6 = false;
+        }
+        
+        supportsDNS = netInfo.isInternetReachable === true;
+        
+        // Get interface details from NetInfo
+        if (netInfo.details && 'isConnectionExpensive' in netInfo.details) {
+          // This is a cellular connection
+          interfaceDetails.push({
+            name: 'cellular',
+            index: 0,
+            type: 'cellular'
+          });
+        } else if (netInfo.type === 'wifi') {
+          interfaceDetails.push({
+            name: 'en0',
+            index: 0,
+            type: 'wifi'
+          });
+        } else if (netInfo.type === 'ethernet') {
+          interfaceDetails.push({
+            name: 'en0',
+            index: 0,
+            type: 'wiredEthernet'
+          });
+        }
+        
+        gatewayCount = interfaceDetails.length;
+        hasUnsatisfiedGateway = gatewayCount === 0;
+        
+        // For React Native, we can't easily get actual gateway IPs
+        // but we can indicate if we have network connectivity
+        if (netInfo.isConnected) {
+          gateways = ['default']; // Placeholder since we can't get actual gateway IPs
+        }
+      }
+      
+      // Fallback if NetInfo doesn't provide enough details
+      if (interfaceDetails.length === 0) {
+        interfaceDetails = [{
+          name: 'en0',
+          index: 0,
+          type: netInfo.type || 'unknown'
+        }];
+        gatewayCount = 1;
+        hasUnsatisfiedGateway = false;
+        gateways = ['default'];
+      }
+      
+      return {
+        supportsIPv4,
+        supportsIPv6,
+        supportsDNS,
+        hasUnsatisfiedGateway,
+        gatewayCount,
+        gateways,
+        interfaceDetails
+      };
+      
+    } catch (error) {
+      verboseLog(`Error getting network path info: ${error}`);
+      
+      // Fallback to basic defaults if NetInfo fails
+      return {
+        supportsIPv4: true,
+        supportsIPv6: false,
+        supportsDNS: true,
+        hasUnsatisfiedGateway: false,
+        gatewayCount: 1,
+        gateways: ['default'],
+        interfaceDetails: [{
+          name: 'en0',
+          index: 0,
+          type: 'unknown'
+        }]
+      };
+    }
+  };
+
+  // Collects basic system information for deep linking (non-identifying data only)
+  const getSystemInfo = async (): Promise<{[key: string]: any}> => {
+    const systemInfo: {[key: string]: any} = {};
+
+    try {
+      systemInfo.systemName = await DeviceInfo.getSystemName();
+      systemInfo.systemVersion = await DeviceInfo.getSystemVersion();
+      systemInfo.model = await DeviceInfo.getModel();
+      systemInfo.localizedModel = await DeviceInfo.getModel();
+      systemInfo.isPhysicalDevice = !(await DeviceInfo.isEmulator());
+      systemInfo.bundleId = await DeviceInfo.getBundleId();
+      systemInfo.deviceType = await DeviceInfo.getDeviceType();
+    } catch (error) {
+      verboseLog(`Error getting device info: ${error}`);
+      // Fallback to basic platform detection
+      systemInfo.systemName = 'iOS';
+      systemInfo.systemVersion = Platform.Version.toString();
+      systemInfo.model = 'iPhone';
+      systemInfo.localizedModel = systemInfo.model;
+      systemInfo.isPhysicalDevice = true; // Assume physical device if we can't detect
+      systemInfo.bundleId = 'null'; // Fallback if we can't get bundle ID
+      systemInfo.deviceType = 'unknown';
+    }
+
+    if (verboseLogging) {
+      console.log('[Insert Affiliate] system info:', systemInfo);
+    }
+
+    return systemInfo;
+  };
+
+  const getEnhancedSystemInfo = async (): Promise<{[key: string]: any}> => {
+    verboseLog('Collecting enhanced system information...');
+    
+    let systemInfo = await getSystemInfo();
+
+    verboseLog(`System info: ${JSON.stringify(systemInfo)}`);
+    
+    try {
+      // Add timestamp
+      const now = new Date();
+      systemInfo.requestTime = now.toISOString();
+      systemInfo.requestTimestamp = Math.floor(now.getTime());
+      
+      // Add user agent style information
+      const systemName = systemInfo.systemName;
+      const systemVersion = systemInfo.systemVersion;
+      const model = systemInfo.model;
+      
+      systemInfo.userAgent = `${model}; ${systemName} ${systemVersion}`;
+      
+      // Add screen dimensions and device pixel ratio (matching exact field names)
+      const { width, height } = Dimensions.get('window');
+      const pixelRatio = PixelRatio.get();
+      
+      systemInfo.screenWidth = Math.floor(width);
+      systemInfo.screenHeight = Math.floor(height);
+      systemInfo.screenAvailWidth = Math.floor(width);
+      systemInfo.screenAvailHeight = Math.floor(height);
+      systemInfo.devicePixelRatio = pixelRatio;
+      systemInfo.screenColorDepth = 24;
+      systemInfo.screenPixelDepth = 24;
+      
+
+      try {
+        systemInfo.hardwareConcurrency = await DeviceInfo.getTotalMemory() / (1024 * 1024 * 1024); // Convert to GB
+      } catch (error) {
+        systemInfo.hardwareConcurrency = 4; // Fallback assumption
+      }
+      systemInfo.maxTouchPoints = 5; // Default for mobile devices
+      
+      // Add screen dimensions (native mobile naming)
+      systemInfo.screenInnerWidth = Math.floor(width);
+      systemInfo.screenInnerHeight = Math.floor(height);
+      systemInfo.screenOuterWidth = Math.floor(width);
+      systemInfo.screenOuterHeight = Math.floor(height);
+      
+      // Add clipboard UUID if available
+      const clipboardUUID = await getClipboardUUID();
+      if (clipboardUUID) {
+        systemInfo.clipboardID = clipboardUUID;
+        verboseLog(`Found valid clipboard UUID: ${clipboardUUID}`);
+      } else {
+        if (insertLinksClipboardEnabled) {
+          verboseLog('Clipboard UUID not available - it may require NSPasteboardGeneralUseDescription in Info.plist');
+        } else {
+          verboseLog('Clipboard access is disabled - it may require NSPasteboardGeneralUseDescription in Info.plist');
+        }
+      }
+      
+      // Add language information using system locale
+      try {
+        let locale = 'en-US';
+        let language = 'en';
+        let country = 'US';
+        
+        // Try to get locale from system
+        const localeIdentifier = NativeModules.SettingsManager?.settings?.AppleLocale || 
+                                NativeModules.SettingsManager?.settings?.AppleLanguages?.[0];
+        if (localeIdentifier) {
+          locale = localeIdentifier;
+        }
+        // Parse locale
+        const parts = locale.replace('_', '-').split('-');
+        language = parts[0] || 'en';
+        country = parts[1] || 'US';
+        
+        systemInfo.language = language;
+        systemInfo.country = country;
+        systemInfo.languages = [locale, language];
+      } catch (error) {
+        // Fallback to defaults
+        systemInfo.language = 'en';
+        systemInfo.country = 'US';
+        systemInfo.languages = ['en-US', 'en'];
+      }
+      
+      // Add timezone info (matching exact field names)
+      const timezoneOffset = new Date().getTimezoneOffset();
+      systemInfo.timezoneOffset = -timezoneOffset;
+      systemInfo.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      
+      // Add browser and platform info (matching exact field names)
+      systemInfo.browserVersion = systemInfo.systemVersion;
+      systemInfo.platform = systemInfo.systemName;
+      systemInfo.os = systemInfo.systemName;
+      systemInfo.osVersion = systemInfo.systemVersion;
+      
+      // Add network connection info
+      verboseLog('Getting network info');
+
+      const networkInfo = await getNetworkInfo();
+      const pathInfo = await getNetworkPathInfo();
+
+      verboseLog(`Network info: ${JSON.stringify(networkInfo)}`);
+      verboseLog(`Network path info: ${JSON.stringify(pathInfo)}`);
+      
+      systemInfo.networkInfo = networkInfo;
+      systemInfo.networkPath = pathInfo;
+      
+      // Update connection info with real data
+      const connection: {[key: string]: any} = {};
+      connection.type = networkInfo.connectionType || 'unknown';
+      connection.isExpensive = networkInfo.isExpensive || false;
+      connection.isConstrained = networkInfo.isConstrained || false;
+      connection.status = networkInfo.status || 'unknown';
+      connection.interfaces = networkInfo.availableInterfaces || [];
+      connection.supportsIPv4 = pathInfo.supportsIPv4 || true;
+      connection.supportsIPv6 = pathInfo.supportsIPv6 || false;
+      connection.supportsDNS = pathInfo.supportsDNS || true;
+      
+      // Keep legacy fields for compatibility
+      connection.downlink = networkInfo.connectionType === 'wifi' ? 100 : 10;
+      connection.effectiveType = networkInfo.connectionType === 'wifi' ? '4g' : '3g';
+      connection.rtt = networkInfo.connectionType === 'wifi' ? 20 : 100;
+      connection.saveData = networkInfo.isConstrained || false;
+      
+      systemInfo.connection = connection;
+
+      verboseLog(`Enhanced system info collected: ${JSON.stringify(systemInfo)}`);
+      
+      return systemInfo;
+    } catch (error) {
+      verboseLog(`Error collecting enhanced system info: ${error}`);
+      return systemInfo;
+    }
+  };
+
+  // Sends enhanced system info to the backend API for deep link event tracking
+  const sendSystemInfoToBackend = async (systemInfo: {[key: string]: any}): Promise<void> => {
+    if (verboseLogging) {
+      console.log('[Insert Affiliate] Sending system info to backend...');
+    }
+    
+    try {
+      const apiUrlString = 'https://insertaffiliate.link/V1/appDeepLinkEvents';
+      
+      verboseLog(`Sending request to: ${apiUrlString}`);
+
+      const response = await axios.post(apiUrlString, systemInfo, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      verboseLog(`System info response status: ${response.status}`);
+      if (response.data) {
+        verboseLog(`System info response: ${JSON.stringify(response.data)}`);
+      }
+
+      // Try to parse backend response and persist matched short code if present
+      if (response.data && typeof response.data === 'object') {
+        const matchFound = response.data.matchFound || false;
+        if (matchFound && response.data.matched_affiliate_shortCode && response.data.matched_affiliate_shortCode.length > 0) {
+          const matchedShortCode = response.data.matched_affiliate_shortCode;
+          verboseLog(`Storing Matched short code from backend: ${matchedShortCode}`); 
+          
+          await storeInsertAffiliateIdentifier({ link: matchedShortCode });
+        }
+      }
+      
+      // Check for a successful response
+      if (response.status >= 200 && response.status <= 299) {
+        verboseLog('System info sent successfully');
+      } else {
+        verboseLog(`Failed to send system info with status code: ${response.status}`);
+        if (response.data) {
+          verboseLog(`Error response: ${JSON.stringify(response.data)}`);
+        }
+      }
+    } catch (error) {
+      verboseLog(`Error sending system info: ${error}`);
+      verboseLog(`Network error sending system info: ${error}`);
     }
   };
 
