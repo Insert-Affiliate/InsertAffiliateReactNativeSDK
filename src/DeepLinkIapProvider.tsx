@@ -897,7 +897,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
     
     try {
-      const apiUrlString = 'https://insertaffiliate.link/V1/appDeepLinkEvents';
+      const apiUrlString = 'https://ba02ead46f25.ngrok-free.app/V1/appDeepLinkEvents';
       
       verboseLog(`Sending request to: ${apiUrlString}`);
 
