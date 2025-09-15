@@ -203,12 +203,16 @@ const DeepLinkIapProvider = ({ children, }) => {
         // Platform-specific deep link handler
         const handleDeepLink = (url) => __awaiter(void 0, void 0, void 0, function* () {
             try {
+                verboseLog(`Platform detection: Platform.OS = ${react_native_1.Platform.OS}`);
                 if (react_native_1.Platform.OS === 'ios') {
+                    verboseLog('Routing to iOS handler (handleInsertLinks)');
                     return yield handleInsertLinks(url);
                 }
                 else if (react_native_1.Platform.OS === 'android') {
+                    verboseLog('Routing to Android handler (handleInsertLinkAndroid)');
                     return yield handleInsertLinkAndroid(url);
                 }
+                verboseLog(`Unrecognized platform: ${react_native_1.Platform.OS}`);
                 return false;
             }
             catch (error) {
@@ -300,6 +304,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     // Handles Android deep links with insertAffiliate parameter
     const handleInsertLinkAndroid = (url) => __awaiter(void 0, void 0, void 0, function* () {
         try {
+            console.log(`[Insert Affiliate] Android handler - Attempting to handle URL: ${url}`);
             // Check if deep links are enabled
             if (!insertLinksEnabled) {
                 verboseLog('Deep links are disabled, not handling Android URL');

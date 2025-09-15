@@ -241,11 +241,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     // Platform-specific deep link handler
     const handleDeepLink = async (url: string): Promise<boolean> => {
       try {
+        verboseLog(`Platform detection: Platform.OS = ${Platform.OS}`);
         if (Platform.OS === 'ios') {
+          verboseLog('Routing to iOS handler (handleInsertLinks)');
           return await handleInsertLinks(url);
         } else if (Platform.OS === 'android') {
+          verboseLog('Routing to Android handler (handleInsertLinkAndroid)');
           return await handleInsertLinkAndroid(url);
         }
+        verboseLog(`Unrecognized platform: ${Platform.OS}`);
         return false;
       } catch (error) {
         verboseLog(`Error handling deep link: ${error}`);
@@ -347,6 +351,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // Handles Android deep links with insertAffiliate parameter
   const handleInsertLinkAndroid = async (url: string): Promise<boolean> => {
     try {
+      console.log(`[Insert Affiliate] Android handler - Attempting to handle URL: ${url}`);
+      
       // Check if deep links are enabled
       if (!insertLinksEnabled) {
         verboseLog('Deep links are disabled, not handling Android URL');

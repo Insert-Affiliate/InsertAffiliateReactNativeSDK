@@ -459,7 +459,7 @@ The React Native SDK handles deep links in ALL scenarios:
 - **App Backgrounded**: When user clicks a deep link while app is backgrounded, brings app to foreground and processes the URL
 - **Automatic Processing**: Parses Insert Link URLs and sets affiliate identifiers without additional code
 
-3. **iOS/Android Setup**
+3. **Platform Specific** Setup
 
 ##### iOS Additional Setup (required)
 
