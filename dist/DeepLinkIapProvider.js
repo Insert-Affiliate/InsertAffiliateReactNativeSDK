@@ -315,9 +315,22 @@ const DeepLinkIapProvider = ({ children, }) => {
                 verboseLog('Invalid URL provided to handleInsertLinkAndroid');
                 return false;
             }
-            // Parse the URL to extract query parameters
-            const urlObj = new URL(url);
-            const insertAffiliate = urlObj.searchParams.get('insertAffiliate');
+            // Parse the URL to extract query parameters (React Native compatible)
+            let insertAffiliate = null;
+            if (url.includes('insertAffiliate=')) {
+                const urlParts = url.split('?');
+                if (urlParts.length > 1) {
+                    const params = urlParts[1].split('&');
+                    for (const param of params) {
+                        if (param.startsWith('insertAffiliate=')) {
+                            insertAffiliate = param.substring('insertAffiliate='.length);
+                            // Decode URL encoded parameter value
+                            insertAffiliate = decodeURIComponent(insertAffiliate);
+                            break;
+                        }
+                    }
+                }
+            }
             if (insertAffiliate && insertAffiliate.length > 0) {
                 verboseLog(`Found insertAffiliate parameter: ${insertAffiliate}`);
                 yield storeInsertAffiliateIdentifier({ link: insertAffiliate });
