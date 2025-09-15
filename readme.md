@@ -23,10 +23,29 @@ To get started with the InsertAffiliateReactNative SDK:
 
 To integrate the InsertAffiliateReactNative SDK into your app:
 
-1. Install the NPM package.
+1. Install the NPM package and its required peer dependencies.
 ```bash
 npm install insert-affiliate-react-native-sdk
 ```
+
+2. Install the required peer dependencies:
+```bash
+npm install @react-native-async-storage/async-storage @react-native-clipboard/clipboard @react-native-community/netinfo react-native-device-info axios
+```
+
+### Required Dependencies
+
+The SDK requires the following peer dependencies to function properly:
+
+- **`@react-native-async-storage/async-storage`** (>= 1.0.0) - For persistent storage of affiliate identifiers and user data
+- **`@react-native-clipboard/clipboard`** (>= 1.16.0) - For clipboard-based affiliate link detection (Insert Links feature)
+- **`@react-native-community/netinfo`** (>= 11.4.0) - For network connectivity detection and system information collection
+- **`react-native-device-info`** (>= 10.0.0) - For device information and system data collection
+- **`axios`** (>= 1.0.0) - For API communication with Insert Affiliate services
+- **`react`** (>= 16.0.0) - React framework
+- **`react-native`** (>= 0.60.0) - React Native framework
+
+**Note**: These dependencies must be installed in your app for the SDK to work. If any are missing, you'll get runtime errors when the SDK tries to use them.
 
 ## Architecture Overview
 
