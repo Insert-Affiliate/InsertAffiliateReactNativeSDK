@@ -14,6 +14,9 @@
   ],
   "author": "Michael Butler",
   "license": "MIT",
+  "dependencies": {
+    "react-native-play-install-referrer": "^1.1.9"
+  },
   "peerDependencies": {
     "@react-native-async-storage/async-storage": ">=1.0.0",
     "@react-native-clipboard/clipboard": ">=1.16.0",
@@ -35,6 +38,7 @@
     "react-native": "^0.76.1",
     "react-native-branch": "^6.4.0",
     "react-native-device-info": "^10.14.0",
+    "react-native-play-install-referrer": "^1.1.9",
     "typescript": "^5.6.3"
   }
 }

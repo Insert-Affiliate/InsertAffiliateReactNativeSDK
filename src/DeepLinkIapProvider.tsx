@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Clipboard from '@react-native-clipboard/clipboard';
 import NetInfo from '@react-native-community/netinfo';
 import DeviceInfo from 'react-native-device-info';
+import { PlayInstallReferrer, PlayInstallReferrerInfo } from 'react-native-play-install-referrer';
 
 // TYPES USED IN THIS PROVIDER
 type T_DEEPLINK_IAP_PROVIDER = {
@@ -210,7 +211,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         const initialUrl = await Linking.getInitialURL();
         if (initialUrl) {
           verboseLog(`App launched with URL: ${initialUrl}`);
-          const handled = await handleInsertLinks(initialUrl);
+          const handled = await handleDeepLink(initialUrl);
           if (handled) {
             verboseLog('URL was handled by Insert Affiliate SDK');
           } else {
@@ -226,7 +227,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     const handleUrlChange = async (event: { url: string }) => {
       try {
         verboseLog(`URL opened while app running: ${event.url}`);
-        const handled = await handleInsertLinks(event.url);
+        const handled = await handleDeepLink(event.url);
         if (handled) {
           verboseLog('URL was handled by Insert Affiliate SDK');
         } else {
@@ -234,6 +235,21 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         }
       } catch (error) {
         console.error('[Insert Affiliate] Error handling URL change:', error);
+      }
+    };
+
+    // Platform-specific deep link handler
+    const handleDeepLink = async (url: string): Promise<boolean> => {
+      try {
+        if (Platform.OS === 'ios') {
+          return await handleInsertLinks(url);
+        } else if (Platform.OS === 'android') {
+          return await handleInsertLinkAndroid(url);
+        }
+        return false;
+      } catch (error) {
+        verboseLog(`Error handling deep link: ${error}`);
+        return false;
       }
     };
 
@@ -248,6 +264,14 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       urlListener?.remove();
     };
   }, [isInitialized]);
+
+  // EFFECT TO HANDLE INSTALL REFERRER ON ANDROID
+  useEffect(() => {
+    if (Platform.OS === 'android' && isInitialized && insertLinksEnabled) {
+      // Capture install referrer when SDK is initialized
+      captureInstallReferrer();
+    }
+  }, [isInitialized, insertLinksEnabled]);
 
   async function generateThenSetUserID() {
     verboseLog('Getting or generating user ID...');
@@ -317,6 +341,144 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         hostname: '',
         href: url
       };
+    }
+  };
+
+  // Handles Android deep links with insertAffiliate parameter
+  const handleInsertLinkAndroid = async (url: string): Promise<boolean> => {
+    try {
+      // Check if deep links are enabled
+      if (!insertLinksEnabled) {
+        verboseLog('Deep links are disabled, not handling Android URL');
+        return false;
+      }
+
+      verboseLog(`Processing Android deep link: ${url}`);
+
+      if (!url || typeof url !== 'string') {
+        verboseLog('Invalid URL provided to handleInsertLinkAndroid');
+        return false;
+      }
+
+      // Parse the URL to extract query parameters
+      const urlObj = new URL(url);
+      const insertAffiliate = urlObj.searchParams.get('insertAffiliate');
+      
+      if (insertAffiliate && insertAffiliate.length > 0) {
+        verboseLog(`Found insertAffiliate parameter: ${insertAffiliate}`);
+
+        await storeInsertAffiliateIdentifier({ link: insertAffiliate });
+
+        return true;
+      } else {
+        verboseLog('No insertAffiliate parameter found in Android deep link');
+        return false;
+      }
+    } catch (error) {
+      verboseLog(`Error handling Android deep link: ${error}`);
+      return false;
+    }
+  };
+
+  // MARK: Play Install Referrer
+  /**
+   * Captures install referrer data from Google Play Store
+   * This method automatically extracts referral parameters and processes them
+   */
+  const captureInstallReferrer = async (): Promise<boolean> => {
+    try {
+      // Check if deep links are enabled
+      if (!insertLinksEnabled) {
+        verboseLog('Deep links are disabled, not processing install referrer');
+        return false;
+      }
+
+      // Check if we're on Android
+      if (Platform.OS !== 'android') {
+        verboseLog('Install referrer is only available on Android');
+        return false;
+      }
+
+      verboseLog('Starting install referrer capture...');
+
+      // Convert callback-based API to Promise
+      const referrerData = await new Promise<PlayInstallReferrerInfo | null>((resolve, reject) => {
+        PlayInstallReferrer.getInstallReferrerInfo((info, error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(info);
+          }
+        });
+      });
+      
+      if (referrerData && referrerData.installReferrer) {
+        verboseLog(`Raw install referrer data: ${referrerData.installReferrer}`);
+
+        const success = await processInstallReferrerData(referrerData.installReferrer);
+        
+        if (success) {
+          verboseLog('Install referrer processed successfully');
+          return true;
+        } else {
+          verboseLog('No insertAffiliate parameter found in install referrer');
+          return false;
+        }
+      } else {
+        verboseLog('No install referrer data found');
+        return false;
+      }
+      
+    } catch (error) {
+      verboseLog(`Error capturing install referrer: ${error}`);
+      return false;
+    }
+  };
+
+  /**
+   * Processes the raw install referrer data and extracts insertAffiliate parameter
+   * @param rawReferrer The raw referrer string from Play Store
+   */
+  const processInstallReferrerData = async (rawReferrer: string): Promise<boolean> => {
+    try {
+      verboseLog('Processing install referrer data...');
+      
+      if (!rawReferrer || rawReferrer.length === 0) {
+        verboseLog('No referrer data provided');
+        return false;
+      }
+
+      verboseLog(`Raw referrer data: ${rawReferrer}`);
+      
+      // Parse the referrer string directly for insertAffiliate parameter
+      let insertAffiliate: string | null = null;
+      
+      if (rawReferrer.includes('insertAffiliate=')) {
+        const params = rawReferrer.split('&');
+        for (const param of params) {
+          if (param.startsWith('insertAffiliate=')) {
+            insertAffiliate = param.substring('insertAffiliate='.length);
+            break;
+          }
+        }
+      }
+      
+      verboseLog(`Extracted insertAffiliate parameter: ${insertAffiliate}`);
+      
+      // If we have insertAffiliate parameter, use it as the affiliate identifier
+      if (insertAffiliate && insertAffiliate.length > 0) {
+        verboseLog(`Found insertAffiliate parameter, setting as affiliate identifier: ${insertAffiliate}`);
+        await storeInsertAffiliateIdentifier({ link: insertAffiliate });
+
+        return true;
+      } else {
+        verboseLog('No insertAffiliate parameter found in referrer data');
+        return false;
+      }
+      
+    } catch (error) {
+      verboseLog(`Error processing install referrer data: ${error}`);
+      return false;
     }
   };
 
