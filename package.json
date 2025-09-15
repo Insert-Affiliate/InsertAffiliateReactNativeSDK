@@ -16,20 +16,12 @@
   "license": "MIT",
   "peerDependencies": {
     "@react-native-async-storage/async-storage": ">=1.0.0",
+    "@react-native-clipboard/clipboard": ">=1.16.0",
+    "@react-native-community/netinfo": ">=11.4.0",
     "axios": ">=1.0.0",
     "react": ">=16.0.0",
-    "react-native": ">=0.60.0"
-  },
-  "peerDependenciesMeta": {
-    "@react-native-clipboard/clipboard": {
-      "optional": true
-    },
-    "@react-native-community/netinfo": {
-      "optional": true
-    },
-    "react-native-device-info": {
-      "optional": true
-    }
+    "react-native": ">=0.60.0",
+    "react-native-device-info": ">=10.0.0"
   },
   "devDependencies": {
     "@jeremybarbet/apple-api-types": "^1.4.1",
