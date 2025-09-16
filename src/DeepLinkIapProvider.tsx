@@ -271,10 +271,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   // EFFECT TO HANDLE INSTALL REFERRER ON ANDROID
   useEffect(() => {
+    verboseLog(`Install referrer effect - Platform.OS = ${Platform.OS}`);
     if (Platform.OS === 'android' && isInitialized && insertLinksEnabled) {
+      verboseLog('Install referrer effect - Platform.OS is android, isInitialized is true, and insertLinksEnabled is true');
       // Ensure user ID is generated before processing install referrer
       const initializeAndCapture = async () => {
         await generateThenSetUserID();
+        verboseLog('Install referrer effect - Generating user ID and capturing install referrer');
         captureInstallReferrer();
       };
       initializeAndCapture();
@@ -697,8 +700,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const verboseLog = (message: string) => {
     if (verboseLogging) {
       console.log(`[Insert Affiliate] [VERBOSE] ${message}`);
-      // Also log to console for easier debugging
-      console.log(`🔍 INSTALL REFERRER DEBUG: ${message}`);
     }
   };
 

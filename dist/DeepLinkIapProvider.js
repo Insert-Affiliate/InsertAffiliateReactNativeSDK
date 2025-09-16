@@ -231,10 +231,13 @@ const DeepLinkIapProvider = ({ children, }) => {
     }, [isInitialized]);
     // EFFECT TO HANDLE INSTALL REFERRER ON ANDROID
     (0, react_1.useEffect)(() => {
+        verboseLog(`Install referrer effect - Platform.OS = ${react_native_1.Platform.OS}`);
         if (react_native_1.Platform.OS === 'android' && isInitialized && insertLinksEnabled) {
+            verboseLog('Install referrer effect - Platform.OS is android, isInitialized is true, and insertLinksEnabled is true');
             // Ensure user ID is generated before processing install referrer
             const initializeAndCapture = () => __awaiter(void 0, void 0, void 0, function* () {
                 yield generateThenSetUserID();
+                verboseLog('Install referrer effect - Generating user ID and capturing install referrer');
                 captureInstallReferrer();
             });
             initializeAndCapture();
@@ -602,8 +605,6 @@ const DeepLinkIapProvider = ({ children, }) => {
     const verboseLog = (message) => {
         if (verboseLogging) {
             console.log(`[Insert Affiliate] [VERBOSE] ${message}`);
-            // Also log to console for easier debugging
-            console.log(`🔍 INSTALL REFERRER DEBUG: ${message}`);
         }
     };
     // Helper function to log errors
