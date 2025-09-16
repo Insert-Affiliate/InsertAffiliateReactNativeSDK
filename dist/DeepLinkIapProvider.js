@@ -232,8 +232,12 @@ const DeepLinkIapProvider = ({ children, }) => {
     // EFFECT TO HANDLE INSTALL REFERRER ON ANDROID
     (0, react_1.useEffect)(() => {
         if (react_native_1.Platform.OS === 'android' && isInitialized && insertLinksEnabled) {
-            // Capture install referrer when SDK is initialized
-            captureInstallReferrer();
+            // Ensure user ID is generated before processing install referrer
+            const initializeAndCapture = () => __awaiter(void 0, void 0, void 0, function* () {
+                yield generateThenSetUserID();
+                captureInstallReferrer();
+            });
+            initializeAndCapture();
         }
     }, [isInitialized, insertLinksEnabled]);
     function generateThenSetUserID() {
@@ -598,6 +602,8 @@ const DeepLinkIapProvider = ({ children, }) => {
     const verboseLog = (message) => {
         if (verboseLogging) {
             console.log(`[Insert Affiliate] [VERBOSE] ${message}`);
+            // Also log to console for easier debugging
+            console.log(`🔍 INSTALL REFERRER DEBUG: ${message}`);
         }
     };
     // Helper function to log errors
@@ -1065,8 +1071,14 @@ const DeepLinkIapProvider = ({ children, }) => {
             verboseLog('React state empty, checking AsyncStorage...');
             // Fallback to async storage if React state is empty
             const storedLink = yield getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
-            const storedUserId = yield getValueFromAsync(ASYNC_KEYS.USER_ID);
+            let storedUserId = yield getValueFromAsync(ASYNC_KEYS.USER_ID);
             verboseLog(`AsyncStorage - storedLink: ${storedLink || 'empty'}, storedUserId: ${storedUserId || 'empty'}`);
+            // If we have a stored link but no user ID, generate one now
+            if (storedLink && !storedUserId) {
+                verboseLog('Found stored link but no user ID, generating user ID now...');
+                storedUserId = yield generateThenSetUserID();
+                verboseLog(`Generated user ID: ${storedUserId}`);
+            }
             if (storedLink && storedUserId) {
                 const identifier = `${storedLink}-${storedUserId}`;
                 verboseLog(`Found identifier in AsyncStorage: ${identifier}`);

@@ -272,8 +272,12 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // EFFECT TO HANDLE INSTALL REFERRER ON ANDROID
   useEffect(() => {
     if (Platform.OS === 'android' && isInitialized && insertLinksEnabled) {
-      // Capture install referrer when SDK is initialized
-      captureInstallReferrer();
+      // Ensure user ID is generated before processing install referrer
+      const initializeAndCapture = async () => {
+        await generateThenSetUserID();
+        captureInstallReferrer();
+      };
+      initializeAndCapture();
     }
   }, [isInitialized, insertLinksEnabled]);
 
@@ -693,6 +697,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const verboseLog = (message: string) => {
     if (verboseLogging) {
       console.log(`[Insert Affiliate] [VERBOSE] ${message}`);
+      // Also log to console for easier debugging
+      console.log(`🔍 INSTALL REFERRER DEBUG: ${message}`);
     }
   };
 
@@ -1222,9 +1228,16 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       
       // Fallback to async storage if React state is empty
       const storedLink = await getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
-      const storedUserId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
+      let storedUserId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
       
       verboseLog(`AsyncStorage - storedLink: ${storedLink || 'empty'}, storedUserId: ${storedUserId || 'empty'}`);
+      
+      // If we have a stored link but no user ID, generate one now
+      if (storedLink && !storedUserId) {
+        verboseLog('Found stored link but no user ID, generating user ID now...');
+        storedUserId = await generateThenSetUserID();
+        verboseLog(`Generated user ID: ${storedUserId}`);
+      }
       
       if (storedLink && storedUserId) {
         const identifier = `${storedLink}-${storedUserId}`;
