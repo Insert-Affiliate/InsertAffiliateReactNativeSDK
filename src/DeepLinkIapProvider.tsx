@@ -351,8 +351,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // Handles Android deep links with insertAffiliate parameter
   const handleInsertLinkAndroid = async (url: string): Promise<boolean> => {
     try {
-      console.log(`[Insert Affiliate] Android handler - Attempting to handle URL: ${url}`);
-      
       // Check if deep links are enabled
       if (!insertLinksEnabled) {
         verboseLog('Deep links are disabled, not handling Android URL');
@@ -366,23 +364,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return false;
       }
 
-      // Parse the URL to extract query parameters (React Native compatible)
-      let insertAffiliate: string | null = null;
-      
-      if (url.includes('insertAffiliate=')) {
-        const urlParts = url.split('?');
-        if (urlParts.length > 1) {
-          const params = urlParts[1].split('&');
-          for (const param of params) {
-            if (param.startsWith('insertAffiliate=')) {
-              insertAffiliate = param.substring('insertAffiliate='.length);
-              // Decode URL encoded parameter value
-              insertAffiliate = decodeURIComponent(insertAffiliate);
-              break;
-            }
-          }
-        }
-      }
+      // Parse the URL to extract query parameters
+      const urlObj = new URL(url);
+      const insertAffiliate = urlObj.searchParams.get('insertAffiliate');
       
       if (insertAffiliate && insertAffiliate.length > 0) {
         verboseLog(`Found insertAffiliate parameter: ${insertAffiliate}`);
@@ -405,7 +389,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
    * Captures install referrer data from Google Play Store
    * This method automatically extracts referral parameters and processes them
    */
-  const captureInstallReferrer = async (): Promise<boolean> => {
+  const captureInstallReferrer = async (retryCount: number = 0): Promise<boolean> => {
     try {
       // Check if deep links are enabled
       if (!insertLinksEnabled) {
@@ -419,11 +403,16 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return false;
       }
 
-      verboseLog('Starting install referrer capture...');
+      verboseLog(`Starting install referrer capture... (attempt ${retryCount + 1})`);
 
-      // Convert callback-based API to Promise
+      // Convert callback-based API to Promise with timeout
       const referrerData = await new Promise<PlayInstallReferrerInfo | null>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Install referrer request timed out'));
+        }, 10000); // 10 second timeout
+
         PlayInstallReferrer.getInstallReferrerInfo((info, error) => {
+          clearTimeout(timeout);
           if (error) {
             reject(error);
           } else {
@@ -450,8 +439,31 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
       
     } catch (error) {
-      verboseLog(`Error capturing install referrer: ${error}`);
-      return false;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      verboseLog(`Error capturing install referrer (attempt ${retryCount + 1}): ${errorMessage}`);
+      
+      // Check if this is a retryable error and we haven't exceeded max retries
+      const isRetryableError = errorMessage.includes('SERVICE_UNAVAILABLE') || 
+                              errorMessage.includes('DEVELOPER_ERROR') ||
+                              errorMessage.includes('timed out') ||
+                              errorMessage.includes('SERVICE_DISCONNECTED');
+      
+      const maxRetries = 3;
+      const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
+      
+      if (isRetryableError && retryCount < maxRetries) {
+        verboseLog(`Retrying install referrer capture in ${retryDelay}ms...`);
+        
+        // Schedule retry
+        setTimeout(() => {
+          captureInstallReferrer(retryCount + 1);
+        }, retryDelay);
+        
+        return false;
+      } else {
+        verboseLog(`Install referrer capture failed after ${retryCount + 1} attempts`);
+        return false;
+      }
     }
   };
 
