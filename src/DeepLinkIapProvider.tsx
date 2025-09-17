@@ -108,6 +108,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   // MARK: Initialize the SDK
   const initialize = async (companyCode: string | null, verboseLogging: boolean = false, insertLinksEnabled: boolean = false, insertLinksClipboardEnabled: boolean = false): Promise<void> => {
+    console.log(`🔍 INITIALIZE DEBUG: Called with insertLinksEnabled = ${insertLinksEnabled}`);
     setVerboseLogging(verboseLogging);
     setInsertLinksEnabled(insertLinksEnabled);
     setInsertLinksClipboardEnabled(insertLinksClipboardEnabled);
@@ -116,6 +117,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
       console.log('[Insert Affiliate] [VERBOSE] Company code provided:', companyCode ? 'Yes' : 'No');
       console.log('[Insert Affiliate] [VERBOSE] Verbose logging enabled');
+      console.log('[Insert Affiliate] [VERBOSE] Insert links enabled:', insertLinksEnabled);
     }
 
     if (isInitialized) {
@@ -271,8 +273,17 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   // EFFECT TO HANDLE INSTALL REFERRER ON ANDROID
   useEffect(() => {
+    console.log(`🔍 INSTALL REFERRER DEBUG: Effect triggered`);
+    console.log(`🔍 INSTALL REFERRER DEBUG: Platform.OS = ${Platform.OS}`);
+    console.log(`🔍 INSTALL REFERRER DEBUG: isInitialized = ${isInitialized}`);
+    console.log(`🔍 INSTALL REFERRER DEBUG: insertLinksEnabled = ${insertLinksEnabled}`);
+    
     verboseLog(`Install referrer effect - Platform.OS = ${Platform.OS}`);
+    verboseLog(`Install referrer effect - isInitialized = ${isInitialized}`);
+    verboseLog(`Install referrer effect - insertLinksEnabled = ${insertLinksEnabled}`);
+    
     if (Platform.OS === 'android' && isInitialized && insertLinksEnabled) {
+      console.log(`🔍 INSTALL REFERRER DEBUG: All conditions met, starting install referrer capture`);
       verboseLog('Install referrer effect - Platform.OS is android, isInitialized is true, and insertLinksEnabled is true');
       // Ensure user ID is generated before processing install referrer
       const initializeAndCapture = async () => {
@@ -281,6 +292,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         captureInstallReferrer();
       };
       initializeAndCapture();
+    } else {
+      console.log(`🔍 INSTALL REFERRER DEBUG: Conditions not met - Platform: ${Platform.OS === 'android'}, Initialized: ${isInitialized}, LinksEnabled: ${insertLinksEnabled}`);
     }
   }, [isInitialized, insertLinksEnabled]);
 

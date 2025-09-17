@@ -81,6 +81,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     const insertAffiliateIdentifierChangeCallbackRef = (0, react_1.useRef)(null);
     // MARK: Initialize the SDK
     const initialize = (companyCode_1, ...args_1) => __awaiter(void 0, [companyCode_1, ...args_1], void 0, function* (companyCode, verboseLogging = false, insertLinksEnabled = false, insertLinksClipboardEnabled = false) {
+        console.log(`🔍 INITIALIZE DEBUG: Called with insertLinksEnabled = ${insertLinksEnabled}`);
         setVerboseLogging(verboseLogging);
         setInsertLinksEnabled(insertLinksEnabled);
         setInsertLinksClipboardEnabled(insertLinksClipboardEnabled);
@@ -88,6 +89,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
             console.log('[Insert Affiliate] [VERBOSE] Company code provided:', companyCode ? 'Yes' : 'No');
             console.log('[Insert Affiliate] [VERBOSE] Verbose logging enabled');
+            console.log('[Insert Affiliate] [VERBOSE] Insert links enabled:', insertLinksEnabled);
         }
         if (isInitialized) {
             console.error('[Insert Affiliate] SDK is already initialized.');
@@ -231,8 +233,15 @@ const DeepLinkIapProvider = ({ children, }) => {
     }, [isInitialized]);
     // EFFECT TO HANDLE INSTALL REFERRER ON ANDROID
     (0, react_1.useEffect)(() => {
+        console.log(`🔍 INSTALL REFERRER DEBUG: Effect triggered`);
+        console.log(`🔍 INSTALL REFERRER DEBUG: Platform.OS = ${react_native_1.Platform.OS}`);
+        console.log(`🔍 INSTALL REFERRER DEBUG: isInitialized = ${isInitialized}`);
+        console.log(`🔍 INSTALL REFERRER DEBUG: insertLinksEnabled = ${insertLinksEnabled}`);
         verboseLog(`Install referrer effect - Platform.OS = ${react_native_1.Platform.OS}`);
+        verboseLog(`Install referrer effect - isInitialized = ${isInitialized}`);
+        verboseLog(`Install referrer effect - insertLinksEnabled = ${insertLinksEnabled}`);
         if (react_native_1.Platform.OS === 'android' && isInitialized && insertLinksEnabled) {
+            console.log(`🔍 INSTALL REFERRER DEBUG: All conditions met, starting install referrer capture`);
             verboseLog('Install referrer effect - Platform.OS is android, isInitialized is true, and insertLinksEnabled is true');
             // Ensure user ID is generated before processing install referrer
             const initializeAndCapture = () => __awaiter(void 0, void 0, void 0, function* () {
@@ -241,6 +250,9 @@ const DeepLinkIapProvider = ({ children, }) => {
                 captureInstallReferrer();
             });
             initializeAndCapture();
+        }
+        else {
+            console.log(`🔍 INSTALL REFERRER DEBUG: Conditions not met - Platform: ${react_native_1.Platform.OS === 'android'}, Initialized: ${isInitialized}, LinksEnabled: ${insertLinksEnabled}`);
         }
     }, [isInitialized, insertLinksEnabled]);
     function generateThenSetUserID() {
