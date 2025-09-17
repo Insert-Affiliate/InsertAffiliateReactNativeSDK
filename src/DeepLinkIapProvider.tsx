@@ -1,6 +1,5 @@
 import React, { createContext, useEffect, useState, useRef } from 'react';
-import { Platform, Linking, Dimensions, PixelRatio, Alert } from 'react-native';
-import { NativeModules } from 'react-native';
+import { Platform, Linking, Dimensions, PixelRatio } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -95,9 +94,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
 
 const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   children,
-}) => {
-  Alert.alert('Debug', 'DeepLinkIapProvider component mounted');
-  
+}) => {  
   const [referrerLink, setReferrerLink] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [companyCode, setCompanyCode] = useState<string | null>(null);
@@ -110,12 +107,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   // MARK: Initialize the SDK
   const initialize = async (companyCode: string | null, verboseLogging: boolean = false, insertLinksEnabled: boolean = false, insertLinksClipboardEnabled: boolean = false): Promise<void> => {
-    Alert.alert('Debug', `Initialize called with insertLinksEnabled = ${insertLinksEnabled}`);
-    Alert.alert('Debug', `Setting insertLinksEnabled to: ${insertLinksEnabled}`);
     setVerboseLogging(verboseLogging);
     setInsertLinksEnabled(insertLinksEnabled);
     setInsertLinksClipboardEnabled(insertLinksClipboardEnabled);
-    Alert.alert('Debug', `insertLinksEnabled state should now be: ${insertLinksEnabled}`);
     
     if (verboseLogging) {
       console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
@@ -131,7 +125,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     if (companyCode && companyCode.trim() !== '') {
       setCompanyCode(companyCode);
       await saveValueInAsync(ASYNC_KEYS.COMPANY_CODE, companyCode);
-      Alert.alert('Debug', 'Setting isInitialized to true');
       setIsInitialized(true);
       console.log(
         `[Insert Affiliate] SDK initialized with company code: ${companyCode}`
@@ -144,7 +137,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       console.warn(
         '[Insert Affiliate] SDK initialized without a company code.'
       );
-      Alert.alert('Debug', 'Setting isInitialized to true (no company code)');
       setIsInitialized(true);
       if (verboseLogging) {
         console.log('[Insert Affiliate] [VERBOSE] No company code provided, SDK initialized in limited mode');
@@ -278,16 +270,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   // EFFECT TO HANDLE INSTALL REFERRER ON ANDROID
   useEffect(() => {
-    Alert.alert('Debug', 'Install referrer effect triggered');
-    Alert.alert('Debug', `Platform.OS = ${Platform.OS}, isInitialized = ${isInitialized}, insertLinksEnabled = ${insertLinksEnabled}`);
     
-    verboseLog(`Install referrer effect - Platform.OS = ${Platform.OS}`);
-    verboseLog(`Install referrer effect - isInitialized = ${isInitialized}`);
-    verboseLog(`Install referrer effect - insertLinksEnabled = ${insertLinksEnabled}`);
-    
-    if (Platform.OS === 'android' && isInitialized && insertLinksEnabled) {
-      Alert.alert('Debug', 'All conditions met, starting install referrer capture');
-      verboseLog('Install referrer effect - Platform.OS is android, isInitialized is true, and insertLinksEnabled is true');
+    if (Platform.OS === 'android' && isInitialized && insertLinksEnabled) {      verboseLog('Install referrer effect - Platform.OS is android, isInitialized is true, and insertLinksEnabled is true');
       // Ensure user ID is generated before processing install referrer
       const initializeAndCapture = async () => {
         await generateThenSetUserID();
@@ -295,19 +279,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         captureInstallReferrer();
       };
       initializeAndCapture();
-    } else {
-      Alert.alert('Debug', `Conditions not met - Platform: ${Platform.OS === 'android'}, Initialized: ${isInitialized}, LinksEnabled: ${insertLinksEnabled}`);
     }
   }, [isInitialized, insertLinksEnabled]);
-
-  // DEBUG: Add a separate effect to track when these values change
-  useEffect(() => {
-    Alert.alert('Debug', `isInitialized changed to: ${isInitialized}`);
-  }, [isInitialized]);
-
-  useEffect(() => {
-    Alert.alert('Debug', `insertLinksEnabled changed to: ${insertLinksEnabled}`);
-  }, [insertLinksEnabled]);
 
   async function generateThenSetUserID() {
     verboseLog('Getting or generating user ID...');
