@@ -70,7 +70,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     isInitialized: false,
 });
 const DeepLinkIapProvider = ({ children, }) => {
-    console.log(`[iadebug] 🔍 COMPONENT DEBUG: DeepLinkIapProvider component mounted`);
+    react_native_1.Alert.alert('Debug', 'DeepLinkIapProvider component mounted');
     const [referrerLink, setReferrerLink] = (0, react_1.useState)('');
     const [userId, setUserId] = (0, react_1.useState)('');
     const [companyCode, setCompanyCode] = (0, react_1.useState)(null);
@@ -82,12 +82,12 @@ const DeepLinkIapProvider = ({ children, }) => {
     const insertAffiliateIdentifierChangeCallbackRef = (0, react_1.useRef)(null);
     // MARK: Initialize the SDK
     const initialize = (companyCode_1, ...args_1) => __awaiter(void 0, [companyCode_1, ...args_1], void 0, function* (companyCode, verboseLogging = false, insertLinksEnabled = false, insertLinksClipboardEnabled = false) {
-        console.log(`[iadebug] 🔍 INITIALIZE DEBUG: Called with insertLinksEnabled = ${insertLinksEnabled}`);
-        console.log(`[iadebug] 🔍 INITIALIZE DEBUG: Setting insertLinksEnabled to: ${insertLinksEnabled}`);
+        react_native_1.Alert.alert('Debug', `Initialize called with insertLinksEnabled = ${insertLinksEnabled}`);
+        react_native_1.Alert.alert('Debug', `Setting insertLinksEnabled to: ${insertLinksEnabled}`);
         setVerboseLogging(verboseLogging);
         setInsertLinksEnabled(insertLinksEnabled);
         setInsertLinksClipboardEnabled(insertLinksClipboardEnabled);
-        console.log(`[iadebug] 🔍 INITIALIZE DEBUG: insertLinksEnabled state should now be: ${insertLinksEnabled}`);
+        react_native_1.Alert.alert('Debug', `insertLinksEnabled state should now be: ${insertLinksEnabled}`);
         if (verboseLogging) {
             console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
             console.log('[Insert Affiliate] [VERBOSE] Company code provided:', companyCode ? 'Yes' : 'No');
@@ -100,7 +100,7 @@ const DeepLinkIapProvider = ({ children, }) => {
         if (companyCode && companyCode.trim() !== '') {
             setCompanyCode(companyCode);
             yield saveValueInAsync(ASYNC_KEYS.COMPANY_CODE, companyCode);
-            console.log(`[iadebug] 🔍 INITIALIZE DEBUG: Setting isInitialized to true`);
+            react_native_1.Alert.alert('Debug', 'Setting isInitialized to true');
             setIsInitialized(true);
             console.log(`[Insert Affiliate] SDK initialized with company code: ${companyCode}`);
             if (verboseLogging) {
@@ -110,7 +110,7 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
         else {
             console.warn('[Insert Affiliate] SDK initialized without a company code.');
-            console.log(`[iadebug] 🔍 INITIALIZE DEBUG: Setting isInitialized to true (no company code)`);
+            react_native_1.Alert.alert('Debug', 'Setting isInitialized to true (no company code)');
             setIsInitialized(true);
             if (verboseLogging) {
                 console.log('[Insert Affiliate] [VERBOSE] No company code provided, SDK initialized in limited mode');
@@ -237,15 +237,13 @@ const DeepLinkIapProvider = ({ children, }) => {
     }, [isInitialized]);
     // EFFECT TO HANDLE INSTALL REFERRER ON ANDROID
     (0, react_1.useEffect)(() => {
-        console.log(`[iadebug] 🔍 INSTALL REFERRER DEBUG: Effect triggered`);
-        console.log(`[iadebug] 🔍 INSTALL REFERRER DEBUG: Platform.OS = ${react_native_1.Platform.OS}`);
-        console.log(`[iadebug] 🔍 INSTALL REFERRER DEBUG: isInitialized = ${isInitialized}`);
-        console.log(`[iadebug] 🔍 INSTALL REFERRER DEBUG: insertLinksEnabled = ${insertLinksEnabled}`);
+        react_native_1.Alert.alert('Debug', 'Install referrer effect triggered');
+        react_native_1.Alert.alert('Debug', `Platform.OS = ${react_native_1.Platform.OS}, isInitialized = ${isInitialized}, insertLinksEnabled = ${insertLinksEnabled}`);
         verboseLog(`Install referrer effect - Platform.OS = ${react_native_1.Platform.OS}`);
         verboseLog(`Install referrer effect - isInitialized = ${isInitialized}`);
         verboseLog(`Install referrer effect - insertLinksEnabled = ${insertLinksEnabled}`);
         if (react_native_1.Platform.OS === 'android' && isInitialized && insertLinksEnabled) {
-            console.log(`[iadebug] 🔍 INSTALL REFERRER DEBUG: All conditions met, starting install referrer capture`);
+            react_native_1.Alert.alert('Debug', 'All conditions met, starting install referrer capture');
             verboseLog('Install referrer effect - Platform.OS is android, isInitialized is true, and insertLinksEnabled is true');
             // Ensure user ID is generated before processing install referrer
             const initializeAndCapture = () => __awaiter(void 0, void 0, void 0, function* () {
@@ -256,15 +254,15 @@ const DeepLinkIapProvider = ({ children, }) => {
             initializeAndCapture();
         }
         else {
-            console.log(`[iadebug] 🔍 INSTALL REFERRER DEBUG: Conditions not met - Platform: ${react_native_1.Platform.OS === 'android'}, Initialized: ${isInitialized}, LinksEnabled: ${insertLinksEnabled}`);
+            react_native_1.Alert.alert('Debug', `Conditions not met - Platform: ${react_native_1.Platform.OS === 'android'}, Initialized: ${isInitialized}, LinksEnabled: ${insertLinksEnabled}`);
         }
     }, [isInitialized, insertLinksEnabled]);
     // DEBUG: Add a separate effect to track when these values change
     (0, react_1.useEffect)(() => {
-        console.log(`[iadebug] 🔍 DEPENDENCY DEBUG: isInitialized changed to: ${isInitialized}`);
+        react_native_1.Alert.alert('Debug', `isInitialized changed to: ${isInitialized}`);
     }, [isInitialized]);
     (0, react_1.useEffect)(() => {
-        console.log(`[iadebug] 🔍 DEPENDENCY DEBUG: insertLinksEnabled changed to: ${insertLinksEnabled}`);
+        react_native_1.Alert.alert('Debug', `insertLinksEnabled changed to: ${insertLinksEnabled}`);
     }, [insertLinksEnabled]);
     function generateThenSetUserID() {
         return __awaiter(this, void 0, void 0, function* () {
