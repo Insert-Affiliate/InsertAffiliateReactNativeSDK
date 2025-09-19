@@ -968,7 +968,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             console.log('[Insert Affiliate] Sending system info to backend...');
         }
         try {
-            const apiUrlString = 'https://ba02ead46f25.ngrok-free.app/V1/appDeepLinkEvents';
+            const apiUrlString = 'https://insertaffiliate.link/V1/appDeepLinkEvents';
             verboseLog(`Sending request to: ${apiUrlString}`);
             const response = yield axios_1.default.post(apiUrlString, systemInfo, {
                 headers: {
