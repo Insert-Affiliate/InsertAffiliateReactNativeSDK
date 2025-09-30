@@ -440,7 +440,7 @@ Insert Affiliate requires a Deep Linking platform to create links for your affil
 
 ### Deep Linking with Insert Links
 
-Insert Links by Insert Affiliate supports direct deep linking into your app. This allows you to track affiliate attribution when end users are referred to your app by clicking on one of your affiliates Insert Links.
+Insert Links by Insert Affiliate supports deferred deep linking into your app. This allows you to track affiliate attribution when end users are referred to your app by clicking on one of your affiliates Insert Links.
 
 #### Initial Setup
 
