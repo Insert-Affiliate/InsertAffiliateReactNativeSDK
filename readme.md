@@ -448,7 +448,7 @@ Insert Links by Insert Affiliate supports deferred deep linking into your app. T
 
 2. **Initialization** of the Insert Affiliate SDK with Insert Links
 
-You must enable *insertLinksEnabled* when [initialising our SDK](https://github.com/Insert-Affiliate/InsertAffiliateSwiftSDK?tab=readme-ov-file#initialize-with-insert-links)
+You must enable *insertLinksEnabled* when [initialising our SDK](https://github.com/Insert-Affiliate/InsertAffiliateReactNativeSDK?tab=readme-ov-file#initialize-with-insert-links)
 
 **Handle Insert Links** in your React Native app
 
