@@ -23,10 +23,29 @@ To get started with the InsertAffiliateReactNative SDK:
 
 To integrate the InsertAffiliateReactNative SDK into your app:
 
-1. Install the NPM package.
+1. Install the NPM package and its required peer dependencies.
 ```bash
 npm install insert-affiliate-react-native-sdk
 ```
+
+2. Install the required peer dependencies:
+```bash
+npm install @react-native-async-storage/async-storage @react-native-clipboard/clipboard @react-native-community/netinfo react-native-device-info axios
+```
+
+### Required Dependencies
+
+The SDK requires the following peer dependencies to function properly:
+
+- **`@react-native-async-storage/async-storage`** (>= 1.0.0) - For persistent storage of affiliate identifiers and user data
+- **`@react-native-clipboard/clipboard`** (>= 1.16.0) - For clipboard-based affiliate link detection (Insert Links feature)
+- **`@react-native-community/netinfo`** (>= 11.4.0) - For network connectivity detection and system information collection
+- **`react-native-device-info`** (>= 10.0.0) - For device information and system data collection
+- **`axios`** (>= 1.0.0) - For API communication with Insert Affiliate services
+- **`react`** (>= 16.0.0) - React framework
+- **`react-native`** (>= 0.60.0) - React Native framework
+
+**Note**: These dependencies must be installed in your app for the SDK to work. If any are missing, you'll get runtime errors when the SDK tries to use them.
 
 ## Architecture Overview
 
@@ -83,7 +102,9 @@ const App = () => {
 
 ### Verbose Logging (Optional)
 
-For debugging and troubleshooting, you can enable verbose logging to get detailed insights into the SDK's operations:
+By default, the SDK operates silently to avoid interrupting the user experience. However, you can enable verbose logging to see visual confirmation when affiliate attribution is processed. This is particularly useful for debugging during development or TestFlight testing.
+
+#### Enable Verbose Logging
 
 ```javascript
 const Child = () => {
@@ -102,7 +123,7 @@ const Child = () => {
 
 - **Initialization Process**: SDK startup, company code validation, AsyncStorage operations
 - **Data Management**: User ID generation, referrer link storage, company code state management
-- **Deep Link Processing**: Input validation, short code detection, API conversion process
+- **Deep Link / Insert Link Processing**: Input validation, short code detection, API conversion process
 - **API Communication**: Request/response details for all server calls
 - **Event Tracking**: Event parameters, payload construction, success/failure status
 - **Purchase Operations**: Transaction storage, token validation, webhook processing
@@ -129,6 +150,42 @@ const Child = () => {
 - **Integration Troubleshooting**: Quickly identify configuration or setup issues
 
 ⚠️ **Important**: Disable verbose logging in production builds to avoid exposing sensitive debugging information and to optimize performance.
+
+### Insert Link and Clipboard Control (BETA)
+We are currently beta testing our in-house deep linking provider, Insert Links, which generates links for use with your affiliates.
+
+For larger projects where accuracy is critical, we recommend using established third-party deep linking platforms to generate the links you use within Insert Affiliate - such as Appsflyer or Branch.io, as described in the rest of this README.
+
+If you encounter any issues while using Insert Links, please raise an issue on this GitHub repository or contact us directly at michael@insertaffiliate.com
+
+#### Initialize with Insert Links
+
+When using Insert Affiliate's built-in deep link handling (Insert Links), you can enable these features during initialization:
+
+```javascript
+const Child = () => {
+  const { initialize, isInitialized } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    if (!isInitialized) {
+      initialize(
+        "{{ your-company-code }}", 
+        false, // Enable for debugging
+        true,  // Enables Insert Links
+        true   // Enable Insert Links Clipboard access to avoid permission prompt
+      );
+    }
+  }, [initialize, isInitialized]);
+}
+```
+
+**When to use `insertLinksEnabled`:**
+- Set to `true` (default: `false`) if you are using Insert Affiliate's built-in deep link and universal link handling (Insert Links)
+- Set to `false` if you are using an external provider for deep links
+
+**When to use `insertLinksClipboardEnabled`:**
+- Set to `true` (default: `false`) if you are using Insert Affiliate's built-in deep links (Insert Links) **and** would like to improve the effectiveness of our deep links through the clipboard
+- **Important caveat**: This will trigger a system prompt asking the user for permission to access the clipboard when the SDK initializes
 
 
 ## In-App Purchase Setup [Required]
@@ -378,6 +435,159 @@ Insert Affiliate requires a Deep Linking platform to create links for your affil
    await setInsertAffiliateIdentifier(referringLink)
    ```
 3. **Integrate with a Receipt Verification platform** by using the result from `setInsertAffiliateIdentifier` to log in or set your application’s username. Examples below include [**Iaptic**](https://github.com/Insert-Affiliate/InsertAffiliateReactNativeSDK?tab=readme-ov-file#example-with-iaptic) and [**RevenueCat**](https://github.com/Insert-Affiliate/InsertAffiliateReactNativeSDK?tab=readme-ov-file#example-with-revenuecat)
+
+
+
+### Deep Linking with Insert Links
+
+Insert Links by Insert Affiliate supports deferred deep linking into your app. This allows you to track affiliate attribution when end users are referred to your app by clicking on one of your affiliates Insert Links.
+
+#### Initial Setup
+
+1. Before you can use Insert Links, you must complete the setup steps in [our docs](https://docs.insertaffiliate.com/insert-links)
+
+2. **Initialization** of the Insert Affiliate SDK with Insert Links
+
+You must enable *insertLinksEnabled* when [initialising our SDK](https://github.com/Insert-Affiliate/InsertAffiliateReactNativeSDK?tab=readme-ov-file#initialize-with-insert-links)
+
+**Handle Insert Links** in your React Native app
+
+The React Native SDK handles deep links in ALL scenarios:
+
+- **App Not Running (Cold Start)**: When user clicks a deep link and app is not running, the app launches and processes the URL
+- **App Running (Warm Start)**: When user clicks a deep link while app is already running, processes the URL immediately  
+- **App Backgrounded**: When user clicks a deep link while app is backgrounded, brings app to foreground and processes the URL
+- **Automatic Processing**: Parses Insert Link URLs and sets affiliate identifiers without additional code
+
+3. **Platform Specific** Setup
+
+##### iOS Additional Setup (required)
+
+To enable deep linking and universal links on iOS, you need to configure your app's Info.plist and AppDelegate files.
+
+**AppDelegate Setup**
+
+Update your `ios/YourApp/AppDelegate.mm` (or `AppDelegate.m`) file:
+
+```objc
+#import <React/RCTLinkingManager.h>
+
+// Handle URL opening when app is already running (iOS 9+)
+- (BOOL)application:(UIApplication *)application
+            openURL:(NSURL *)url
+            options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options
+{
+  return [RCTLinkingManager application:application openURL:url options:options];
+}
+
+// Handle URL opening (iOS 8 and below - for backward compatibility)
+- (BOOL)application:(UIApplication *)application openURL:(NSURL *)url
+  sourceApplication:(NSString *)sourceApplication annotation:(id)annotation
+{
+  return [RCTLinkingManager application:application openURL:url
+                      sourceApplication:sourceApplication annotation:annotation];
+}
+
+// Handle universal links (iOS 9+)
+- (BOOL)application:(UIApplication *)application continueUserActivity:(NSUserActivity *)userActivity
+ restorationHandler:(void(^)(NSArray * __nullable restorableObjects))restorationHandler
+{
+  return [RCTLinkingManager application:application
+                   continueUserActivity:userActivity
+                     restorationHandler:restorationHandler];
+}
+```
+
+4. **Receipt Verification Integration Examples when Using Insert Links**
+
+The SDK provides a callback mechanism that triggers whenever the affiliate identifier changes. This is perfect for integrating with receipt verification platforms.
+
+##### With RevenueCat
+
+Set up the callback to automatically update RevenueCat when the affiliate identifier changes:
+
+```javascript
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import Purchases from 'react-native-purchases';
+
+const App = () => {
+  const { setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    // Set up callback to handle affiliate identifier changes
+    setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
+      if (identifier) {
+        // Update RevenueCat with the affiliate identifier
+        await Purchases.setAttributes({"insert_affiliate": identifier});
+      }
+    });
+
+    // Cleanup on unmount
+    return () => {
+      setInsertAffiliateIdentifierChangeCallback(null);
+    };
+  }, []);
+
+  return <YourAppContent />;
+};
+```
+
+##### With Apphud
+
+```javascript
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import Apphud from 'react-native-apphud';
+
+const App = () => {
+  const { setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
+      if (identifier) {
+        // Update Apphud with the affiliate identifier
+        await Apphud.setUserProperty("insert_affiliate", identifier, false);
+      }
+    });
+
+    return () => {
+      setInsertAffiliateIdentifierChangeCallback(null);
+    };
+  }, []);
+
+  return <YourAppContent />;
+};
+```
+
+##### With Iaptic
+
+```javascript
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import InAppPurchase from 'react-native-iaptic';
+
+const App = () => {
+  const { setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
+      if (identifier) {
+        // Initialize Iaptic with the affiliate identifier
+        await InAppPurchase.initialize({
+          iapProducts: iapProductsArray,
+          validatorUrlString: "https://validator.iaptic.com/v3/validate?appName={{ your_iaptic_app_name }}&apiKey={{ your_iaptic_app_key_goes_here }}",
+          applicationUsername: identifier
+        });
+      }
+    });
+
+    return () => {
+      setInsertAffiliateIdentifierChangeCallback(null);
+    };
+  }, []);
+
+  return <YourAppContent />;
+};
+```
+
 
 ### Deep Linking with Branch.io
 To set up deep linking with Branch.io, follow these steps:

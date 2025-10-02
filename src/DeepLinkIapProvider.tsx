@@ -1,12 +1,18 @@
-import React, { createContext, useEffect, useState } from 'react';
-import { Platform, Linking } from 'react-native';
+import React, { createContext, useEffect, useState, useRef } from 'react';
+import { Platform, Linking, Dimensions, PixelRatio } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Clipboard from '@react-native-clipboard/clipboard';
+import NetInfo from '@react-native-community/netinfo';
+import DeviceInfo from 'react-native-device-info';
+import { PlayInstallReferrer, PlayInstallReferrerInfo } from 'react-native-play-install-referrer';
 
 // TYPES USED IN THIS PROVIDER
 type T_DEEPLINK_IAP_PROVIDER = {
   children: React.ReactNode;
 };
+
+export type InsertAffiliateIdentifierChangeCallback = (identifier: string | null) => void;
 
 type CustomPurchase = {
   [key: string]: any; // Accept any fields to allow it to work wtih multiple IAP libraries
@@ -32,7 +38,9 @@ type T_DEEPLINK_IAP_CONTEXT = {
   setInsertAffiliateIdentifier: (
     referringLink: string
   ) => Promise<void | string>;
-  initialize: (code: string | null, verboseLogging?: boolean) => Promise<void>;
+  setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => void;
+  handleInsertLinks: (url: string) => Promise<boolean>;
+  initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean) => Promise<void>;
   isInitialized: boolean;
 };
 
@@ -78,23 +86,30 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   trackEvent: async (eventName: string) => {},
   setShortCode: async (shortCode: string) => {},
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
-  initialize: async (code: string | null, verboseLogging?: boolean) => {},
+  setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => {},
+  handleInsertLinks: async (url: string) => false,
+  initialize: async (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean) => {},
   isInitialized: false,
 });
 
 const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   children,
-}) => {
+}) => {  
   const [referrerLink, setReferrerLink] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [verboseLogging, setVerboseLogging] = useState<boolean>(false);
+  const [insertLinksEnabled, setInsertLinksEnabled] = useState<boolean>(false);
+  const [insertLinksClipboardEnabled, setInsertLinksClipboardEnabled] = useState<boolean>(false);
   const [OfferCode, setOfferCode] = useState<string | null>(null);
+  const insertAffiliateIdentifierChangeCallbackRef = useRef<InsertAffiliateIdentifierChangeCallback | null>(null);
 
   // MARK: Initialize the SDK
-  const initialize = async (companyCode: string | null, verboseLogging: boolean = false): Promise<void> => {
+  const initialize = async (companyCode: string | null, verboseLogging: boolean = false, insertLinksEnabled: boolean = false, insertLinksClipboardEnabled: boolean = false): Promise<void> => {
     setVerboseLogging(verboseLogging);
+    setInsertLinksEnabled(insertLinksEnabled);
+    setInsertLinksClipboardEnabled(insertLinksClipboardEnabled);
     
     if (verboseLogging) {
       console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
@@ -125,6 +140,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       setIsInitialized(true);
       if (verboseLogging) {
         console.log('[Insert Affiliate] [VERBOSE] No company code provided, SDK initialized in limited mode');
+      }
+    }
+
+    if (insertLinksEnabled && Platform.OS === 'ios') {
+      try {
+        const enhancedSystemInfo = await getEnhancedSystemInfo();
+        await sendSystemInfoToBackend(enhancedSystemInfo);
+      } catch (error) {
+        verboseLog(`Error sending system info for clipboard check: ${error}`);
       }
     }
   };
@@ -169,6 +193,95 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     fetchAsyncEssentials();
   }, []);
 
+  // Cleanup callback on unmount
+  useEffect(() => {
+    return () => {
+      insertAffiliateIdentifierChangeCallbackRef.current = null;
+    };
+  }, []);
+
+  // Deep link event listeners - equivalent to iOS AppDelegate methods
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    // Handle app launch with URL (equivalent to didFinishLaunchingWithOptions)
+    const handleInitialURL = async () => {
+      try {
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl) {
+          verboseLog(`App launched with URL: ${initialUrl}`);
+          const handled = await handleDeepLink(initialUrl);
+          if (handled) {
+            verboseLog('URL was handled by Insert Affiliate SDK');
+          } else {
+            verboseLog('URL was not handled by Insert Affiliate SDK');
+          }
+        }
+      } catch (error) {
+        console.error('[Insert Affiliate] Error getting initial URL:', error);
+      }
+    };
+
+    // Handle URL opening while app is running (equivalent to open url)
+    const handleUrlChange = async (event: { url: string }) => {
+      try {
+        verboseLog(`URL opened while app running: ${event.url}`);
+        const handled = await handleDeepLink(event.url);
+        if (handled) {
+          verboseLog('URL was handled by Insert Affiliate SDK');
+        } else {
+          verboseLog('URL was not handled by Insert Affiliate SDK');
+        }
+      } catch (error) {
+        console.error('[Insert Affiliate] Error handling URL change:', error);
+      }
+    };
+
+    // Platform-specific deep link handler
+    const handleDeepLink = async (url: string): Promise<boolean> => {
+      try {
+        verboseLog(`Platform detection: Platform.OS = ${Platform.OS}`);
+        if (Platform.OS === 'ios') {
+          verboseLog('Routing to iOS handler (handleInsertLinks)');
+          return await handleInsertLinks(url);
+        } else if (Platform.OS === 'android') {
+          verboseLog('Routing to Android handler (handleInsertLinkAndroid)');
+          return await handleInsertLinkAndroid(url);
+        }
+        verboseLog(`Unrecognized platform: ${Platform.OS}`);
+        return false;
+      } catch (error) {
+        verboseLog(`Error handling deep link: ${error}`);
+        return false;
+      }
+    };
+
+    // Set up listeners
+    const urlListener = Linking.addEventListener('url', handleUrlChange);
+    
+    // Handle initial URL
+    handleInitialURL();
+
+    // Cleanup
+    return () => {
+      urlListener?.remove();
+    };
+  }, [isInitialized]);
+
+  // EFFECT TO HANDLE INSTALL REFERRER ON ANDROID
+  useEffect(() => {
+    
+    if (Platform.OS === 'android' && isInitialized && insertLinksEnabled) {      verboseLog('Install referrer effect - Platform.OS is android, isInitialized is true, and insertLinksEnabled is true');
+      // Ensure user ID is generated before processing install referrer
+      const initializeAndCapture = async () => {
+        await generateThenSetUserID();
+        verboseLog('Install referrer effect - Generating user ID and capturing install referrer');
+        captureInstallReferrer();
+      };
+      initializeAndCapture();
+    }
+  }, [isInitialized, insertLinksEnabled]);
+
   async function generateThenSetUserID() {
     verboseLog('Getting or generating user ID...');
     let userId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
@@ -202,6 +315,349 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     setCompanyCode(null);
     setIsInitialized(false);
     console.log('[Insert Affiliate] SDK has been reset.');
+  };
+
+  // MARK: Callback Management
+  // Sets a callback that will be triggered whenever storeInsertAffiliateIdentifier is called
+  // The callback receives the current affiliate identifier (returnInsertAffiliateIdentifier result)
+  const setInsertAffiliateIdentifierChangeCallbackHandler = (callback: InsertAffiliateIdentifierChangeCallback | null): void => {
+    insertAffiliateIdentifierChangeCallbackRef.current = callback;
+  };
+
+  // MARK: Deep Link Handling
+  // Helper function to parse URLs in React Native compatible way
+  const parseURL = (url: string) => {
+    try {
+      // Extract protocol
+      const protocolMatch = url.match(/^([^:]+):/);
+      const protocol = protocolMatch ? protocolMatch[1] + ':' : '';
+      
+      // Extract hostname for https URLs
+      let hostname = '';
+      if (protocol === 'https:' || protocol === 'http:') {
+        const hostnameMatch = url.match(/^https?:\/\/([^\/]+)/);
+        hostname = hostnameMatch ? hostnameMatch[1] : '';
+      }
+      
+      return {
+        protocol,
+        hostname,
+        href: url
+      };
+    } catch (error) {
+      return {
+        protocol: '',
+        hostname: '',
+        href: url
+      };
+    }
+  };
+
+  // Handles Android deep links with insertAffiliate parameter
+  const handleInsertLinkAndroid = async (url: string): Promise<boolean> => {
+    try {
+      // Check if deep links are enabled
+      if (!insertLinksEnabled) {
+        verboseLog('Deep links are disabled, not handling Android URL');
+        return false;
+      }
+
+      verboseLog(`Processing Android deep link: ${url}`);
+
+      if (!url || typeof url !== 'string') {
+        verboseLog('Invalid URL provided to handleInsertLinkAndroid');
+        return false;
+      }
+
+      // Parse the URL to extract query parameters
+      const urlObj = new URL(url);
+      const insertAffiliate = urlObj.searchParams.get('insertAffiliate');
+      
+      if (insertAffiliate && insertAffiliate.length > 0) {
+        verboseLog(`Found insertAffiliate parameter: ${insertAffiliate}`);
+
+        await storeInsertAffiliateIdentifier({ link: insertAffiliate });
+
+        return true;
+      } else {
+        verboseLog('No insertAffiliate parameter found in Android deep link');
+        return false;
+      }
+    } catch (error) {
+      verboseLog(`Error handling Android deep link: ${error}`);
+      return false;
+    }
+  };
+
+  // MARK: Play Install Referrer
+  /**
+   * Captures install referrer data from Google Play Store
+   * This method automatically extracts referral parameters and processes them
+   */
+  const captureInstallReferrer = async (retryCount: number = 0): Promise<boolean> => {
+    try {
+      // Check if deep links are enabled
+      if (!insertLinksEnabled) {
+        verboseLog('Deep links are disabled, not processing install referrer');
+        return false;
+      }
+
+      // Check if we're on Android
+      if (Platform.OS !== 'android') {
+        verboseLog('Install referrer is only available on Android');
+        return false;
+      }
+
+      verboseLog(`Starting install referrer capture... (attempt ${retryCount + 1})`);
+
+      // Convert callback-based API to Promise with timeout
+      const referrerData = await new Promise<PlayInstallReferrerInfo | null>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Install referrer request timed out'));
+        }, 10000); // 10 second timeout
+
+        PlayInstallReferrer.getInstallReferrerInfo((info, error) => {
+          clearTimeout(timeout);
+          if (error) {
+            reject(error);
+          } else {
+            resolve(info);
+          }
+        });
+      });
+      
+      if (referrerData && referrerData.installReferrer) {
+        verboseLog(`Raw install referrer data: ${referrerData.installReferrer}`);
+
+        const success = await processInstallReferrerData(referrerData.installReferrer);
+        
+        if (success) {
+          verboseLog('Install referrer processed successfully');
+          return true;
+        } else {
+          verboseLog('No insertAffiliate parameter found in install referrer');
+          return false;
+        }
+      } else {
+        verboseLog('No install referrer data found');
+        return false;
+      }
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      verboseLog(`Error capturing install referrer (attempt ${retryCount + 1}): ${errorMessage}`);
+      
+      // Check if this is a retryable error and we haven't exceeded max retries
+      const isRetryableError = errorMessage.includes('SERVICE_UNAVAILABLE') || 
+                              errorMessage.includes('DEVELOPER_ERROR') ||
+                              errorMessage.includes('timed out') ||
+                              errorMessage.includes('SERVICE_DISCONNECTED');
+      
+      const maxRetries = 3;
+      const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
+      
+      if (isRetryableError && retryCount < maxRetries) {
+        verboseLog(`Retrying install referrer capture in ${retryDelay}ms...`);
+        
+        // Schedule retry
+        setTimeout(() => {
+          captureInstallReferrer(retryCount + 1);
+        }, retryDelay);
+        
+        return false;
+      } else {
+        verboseLog(`Install referrer capture failed after ${retryCount + 1} attempts`);
+        return false;
+      }
+    }
+  };
+
+  /**
+   * Processes the raw install referrer data and extracts insertAffiliate parameter
+   * @param rawReferrer The raw referrer string from Play Store
+   */
+  const processInstallReferrerData = async (rawReferrer: string): Promise<boolean> => {
+    try {
+      verboseLog('Processing install referrer data...');
+      
+      if (!rawReferrer || rawReferrer.length === 0) {
+        verboseLog('No referrer data provided');
+        return false;
+      }
+
+      verboseLog(`Raw referrer data: ${rawReferrer}`);
+      
+      // Parse the referrer string directly for insertAffiliate parameter
+      let insertAffiliate: string | null = null;
+      
+      if (rawReferrer.includes('insertAffiliate=')) {
+        const params = rawReferrer.split('&');
+        for (const param of params) {
+          if (param.startsWith('insertAffiliate=')) {
+            insertAffiliate = param.substring('insertAffiliate='.length);
+            break;
+          }
+        }
+      }
+      
+      verboseLog(`Extracted insertAffiliate parameter: ${insertAffiliate}`);
+      
+      // If we have insertAffiliate parameter, use it as the affiliate identifier
+      if (insertAffiliate && insertAffiliate.length > 0) {
+        verboseLog(`Found insertAffiliate parameter, setting as affiliate identifier: ${insertAffiliate}`);
+        await storeInsertAffiliateIdentifier({ link: insertAffiliate });
+
+        return true;
+      } else {
+        verboseLog('No insertAffiliate parameter found in referrer data');
+        return false;
+      }
+      
+    } catch (error) {
+      verboseLog(`Error processing install referrer data: ${error}`);
+      return false;
+    }
+  };
+
+  // Handles Insert Links deep linking - equivalent to iOS handleInsertLinks
+  const handleInsertLinks = async (url: string): Promise<boolean> => {
+    try {
+      console.log(`[Insert Affiliate] Attempting to handle URL: ${url}`);
+      
+      if (!url || typeof url !== 'string') {
+        console.log('[Insert Affiliate] Invalid URL provided to handleInsertLinks');
+        return false;
+      }
+
+      // Check if deep links are enabled synchronously
+      if (!insertLinksEnabled) {
+        console.log('[Insert Affiliate] Deep links are disabled, not handling URL');
+        return false;
+      }
+
+      const urlObj = parseURL(url);
+
+      // Handle custom URL schemes (ia-companycode://shortcode)
+      if (urlObj.protocol && urlObj.protocol.startsWith('ia-')) {
+        return await handleCustomURLScheme(url, urlObj.protocol);
+      }
+
+      // Handle universal links (https://insertaffiliate.link/V1/companycode/shortcode)
+      // if (urlObj.protocol === 'https:' && urlObj.hostname?.includes('insertaffiliate.link')) {
+      //   return await handleUniversalLink(urlObj);
+      // }
+
+      return false;
+    } catch (error) {
+      console.error('[Insert Affiliate] Error handling Insert Link:', error);
+      verboseLog(`Error in handleInsertLinks: ${error}`);
+      return false;
+    }
+  };
+
+  // Handle custom URL schemes like ia-companycode://shortcode
+  const handleCustomURLScheme = async (url: string, protocol: string): Promise<boolean> => {
+    try {
+      const scheme = protocol.replace(':', '');
+      
+      if (!scheme.startsWith('ia-')) {
+        return false;
+      }
+
+      // Extract company code from scheme (remove "ia-" prefix)
+      const companyCode = scheme.substring(3);
+      
+      const shortCode = parseShortCodeFromURLString(url);
+      if (!shortCode) {
+        console.log(`[Insert Affiliate] Failed to parse short code from deep link: ${url}`);
+        return false;
+      }
+
+      console.log(`[Insert Affiliate] Custom URL scheme detected - Company: ${companyCode}, Short code: ${shortCode}`);
+
+      // Validate company code matches initialized one
+      const activeCompanyCode = await getActiveCompanyCode();
+      if (activeCompanyCode && companyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
+        console.log(`[Insert Affiliate] Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
+      }
+
+      // If URL scheme is used, we can straight away store the short code as the referring link
+      await storeInsertAffiliateIdentifier({ link: shortCode });
+
+      // Collect and send enhanced system info to backend
+      try {
+        const enhancedSystemInfo = await getEnhancedSystemInfo();
+        await sendSystemInfoToBackend(enhancedSystemInfo);
+      } catch (error) {
+        verboseLog(`Error sending system info for deep link: ${error}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('[Insert Affiliate] Error handling custom URL scheme:', error);
+      return false;
+    }
+  };
+
+  // Handle universal links like https://insertaffiliate.link/V1/companycode/shortcode
+  // const handleUniversalLink = async (url: URL): Promise<boolean> => {
+  //   try {
+  //     const pathComponents = url.pathname.split('/').filter(segment => segment.length > 0);
+      
+  //     // Expected format: /V1/companycode/shortcode
+  //     if (pathComponents.length < 3 || pathComponents[0] !== 'V1') {
+  //       console.log(`[Insert Affiliate] Invalid universal link format: ${url.href}`);
+  //       return false;
+  //     }
+
+  //     const companyCode = pathComponents[1];
+  //     const shortCode = pathComponents[2];
+
+  //     console.log(`[Insert Affiliate] Universal link detected - Company: ${companyCode}, Short code: ${shortCode}`);
+
+  //     // Validate company code matches initialized one
+  //     const activeCompanyCode = await getActiveCompanyCode();
+  //     if (activeCompanyCode && companyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
+  //       console.log(`[Insert Affiliate] Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
+  //     }
+
+  //     // Process the affiliate attribution
+  //     await storeInsertAffiliateIdentifier({ link: shortCode });
+
+
+  //     return true;
+  //   } catch (error) {
+  //     console.error('[Insert Affiliate] Error handling universal link:', error);
+  //     return false;
+  //   }
+  // };
+
+  // Parse short code from URL
+  const parseShortCodeFromURL = (url: URL): string | null => {
+    try {
+      // For custom schemes like ia-companycode://shortcode, everything after :// is the short code
+      // Remove leading slash from pathname
+      return url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
+    } catch (error) {
+      verboseLog(`Error parsing short code from URL: ${error}`);
+      return null;
+    }
+  };
+
+  const parseShortCodeFromURLString = (url: string): string | null => {
+    try {
+      // For custom schemes like ia-companycode://shortcode, everything after :// is the short code
+      const match = url.match(/^[^:]+:\/\/(.+)$/);
+      if (match) {
+        const shortCode = match[1];
+        // Remove leading slash if present
+        return shortCode.startsWith('/') ? shortCode.substring(1) : shortCode;
+      }
+      return null;
+    } catch (error) {
+      verboseLog(`Error parsing short code from URL string: ${error}`);
+      return null;
+    }
   };
 
   // Helper funciton Storage / Retrieval
@@ -257,6 +713,445 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       default:
         console.log(`LOGGING ~ ${message}`);
         break;
+    }
+  };
+
+  // MARK: - Deep Linking Utilities
+  
+  // Retrieves and validates clipboard content for UUID format
+  const getClipboardUUID = async (): Promise<string | null> => {
+    // Check if clipboard access is enabled
+    if (!insertLinksClipboardEnabled) {
+      return null;
+    }
+    
+    verboseLog('Getting clipboard UUID');
+    
+    try {
+      const clipboardString = await Clipboard.getString();
+
+      if (!clipboardString) {
+        verboseLog('No clipboard string found or access denied');
+        return null;
+      }
+
+      const trimmedString = clipboardString.trim();
+      
+      if (isValidUUID(trimmedString)) {
+        verboseLog(`Valid clipboard UUID found: ${trimmedString}`);
+        return trimmedString;
+      }
+      
+      verboseLog(`Invalid clipboard UUID found: ${trimmedString}`);
+      return null;
+    } catch (error) {
+      verboseLog(`Clipboard access error: ${error}`);
+      return null;
+    }
+  };
+
+  // Validates if a string is a properly formatted UUID (36 characters)
+  const isValidUUID = (string: string): boolean => {
+    if (string.length !== 36) return false;
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(string);
+  };
+
+  // MARK: - System Info Collection
+  
+  // Gets network connection type and interface information
+  const getNetworkInfo = async (): Promise<{[key: string]: any}> => {
+    try {
+      const connectionInfo = {
+        connectionType: 'unknown',
+        interfaceTypes: [] as string[],
+        isExpensive: false,
+        isConstrained: false,
+        status: 'disconnected',
+        availableInterfaces: [] as string[]
+      };
+
+      try {
+        // Use NetInfo to get accurate network information
+        const netInfo = await NetInfo.fetch();
+        
+        connectionInfo.status = netInfo.isConnected ? 'connected' : 'disconnected';
+        connectionInfo.connectionType = netInfo.type || 'unknown';
+        connectionInfo.isExpensive = netInfo.isInternetReachable === false ? true : false;
+        connectionInfo.isConstrained = false; // NetInfo doesn't provide this directly
+        
+        // Map NetInfo types to our interface format
+        if (netInfo.type) {
+          connectionInfo.interfaceTypes = [netInfo.type];
+          connectionInfo.availableInterfaces = [netInfo.type];
+        }
+        
+        // Additional details if available
+        if (netInfo.details && 'isConnectionExpensive' in netInfo.details) {
+          connectionInfo.isExpensive = netInfo.details.isConnectionExpensive || false;
+        }
+        
+      } catch (error) {
+        verboseLog(`Network info fetch failed: ${error}`);
+        // Fallback to basic connectivity test
+        try {
+          const response = await fetch('https://www.google.com/favicon.ico', {
+            method: 'HEAD'
+          });
+          if (response.ok) {
+            connectionInfo.status = 'connected';
+          }
+        } catch (fetchError) {
+          verboseLog(`Fallback connectivity test failed: ${fetchError}`);
+        }
+      }
+
+      return connectionInfo;
+    } catch (error) {
+      verboseLog(`Error getting network info: ${error}`);
+      return {
+        connectionType: 'unknown',
+        interfaceTypes: [],
+        isExpensive: false,
+        isConstrained: false,
+        status: 'disconnected',
+        availableInterfaces: []
+      };
+    }
+  };
+  
+
+  const getNetworkPathInfo = async (): Promise<{[key: string]: any}> => {
+    try {
+      const netInfo = await NetInfo.fetch();
+      
+      // Default values - only set to true when proven
+      let supportsIPv4 = false;
+      let supportsIPv6 = false;
+      let supportsDNS = false;
+      let hasUnsatisfiedGateway = false;
+      let gatewayCount = 0;
+      let gateways: string[] = [];
+      let interfaceDetails: Array<{[key: string]: any}> = [];
+
+      if (netInfo.details && netInfo.isConnected) {
+        supportsIPv4 = true;
+        
+        // IPv6 support based on interface type (following Swift logic)
+        if (netInfo.type === 'wifi' || netInfo.type === 'cellular' || netInfo.type === 'ethernet') {
+          supportsIPv6 = true;
+        } else {
+          supportsIPv6 = false;
+        }
+        
+        supportsDNS = netInfo.isInternetReachable === true;
+        
+        // Get interface details from NetInfo
+        if (netInfo.details && 'isConnectionExpensive' in netInfo.details) {
+          // This is a cellular connection
+          interfaceDetails.push({
+            name: 'cellular',
+            index: 0,
+            type: 'cellular'
+          });
+        } else if (netInfo.type === 'wifi') {
+          interfaceDetails.push({
+            name: 'en0',
+            index: 0,
+            type: 'wifi'
+          });
+        } else if (netInfo.type === 'ethernet') {
+          interfaceDetails.push({
+            name: 'en0',
+            index: 0,
+            type: 'wiredEthernet'
+          });
+        }
+        
+        gatewayCount = interfaceDetails.length;
+        hasUnsatisfiedGateway = gatewayCount === 0;
+        
+        // For React Native, we can't easily get actual gateway IPs
+        // but we can indicate if we have network connectivity
+        if (netInfo.isConnected) {
+          gateways = ['default']; // Placeholder since we can't get actual gateway IPs
+        }
+      }
+      
+      // Fallback if NetInfo doesn't provide enough details
+      if (interfaceDetails.length === 0) {
+        interfaceDetails = [{
+          name: 'en0',
+          index: 0,
+          type: netInfo.type || 'unknown'
+        }];
+        gatewayCount = 1;
+        hasUnsatisfiedGateway = false;
+        gateways = ['default'];
+      }
+      
+      return {
+        supportsIPv4,
+        supportsIPv6,
+        supportsDNS,
+        hasUnsatisfiedGateway,
+        gatewayCount,
+        gateways,
+        interfaceDetails
+      };
+      
+    } catch (error) {
+      verboseLog(`Error getting network path info: ${error}`);
+      
+      // Fallback to basic defaults if NetInfo fails
+      return {
+        supportsIPv4: true,
+        supportsIPv6: false,
+        supportsDNS: true,
+        hasUnsatisfiedGateway: false,
+        gatewayCount: 1,
+        gateways: ['default'],
+        interfaceDetails: [{
+          name: 'en0',
+          index: 0,
+          type: 'unknown'
+        }]
+      };
+    }
+  };
+
+  // Collects basic system information for deep linking (non-identifying data only)
+  const getSystemInfo = async (): Promise<{[key: string]: any}> => {
+    const systemInfo: {[key: string]: any} = {};
+
+    try {
+      systemInfo.systemName = await DeviceInfo.getSystemName();
+      systemInfo.systemVersion = await DeviceInfo.getSystemVersion();
+      systemInfo.model = await DeviceInfo.getModel();
+      systemInfo.localizedModel = await DeviceInfo.getModel();
+      systemInfo.isPhysicalDevice = !(await DeviceInfo.isEmulator());
+      systemInfo.bundleId = await DeviceInfo.getBundleId();
+      
+      // Map device type to more readable format
+      const deviceType = await DeviceInfo.getDeviceType();
+      systemInfo.deviceType = deviceType === 'Handset' ? 'mobile' : deviceType;
+    } catch (error) {
+      verboseLog(`Error getting device info: ${error}`);
+      // Fallback to basic platform detection
+      systemInfo.systemName = 'iOS';
+      systemInfo.systemVersion = Platform.Version.toString();
+      systemInfo.model = 'iPhone';
+      systemInfo.localizedModel = systemInfo.model;
+      systemInfo.isPhysicalDevice = true; // Assume physical device if we can't detect
+      systemInfo.bundleId = 'null'; // Fallback if we can't get bundle ID
+      systemInfo.deviceType = 'unknown';
+    }
+
+    if (verboseLogging) {
+      console.log('[Insert Affiliate] system info:', systemInfo);
+    }
+
+    return systemInfo;
+  };
+
+  const getEnhancedSystemInfo = async (): Promise<{[key: string]: any}> => {
+    verboseLog('Collecting enhanced system information...');
+    
+    let systemInfo = await getSystemInfo();
+
+    verboseLog(`System info: ${JSON.stringify(systemInfo)}`);
+    
+    try {
+      // Add timestamp
+      const now = new Date();
+      systemInfo.requestTime = now.toISOString();
+      systemInfo.requestTimestamp = Math.floor(now.getTime());
+      
+      // Add user agent style information
+      const systemName = systemInfo.systemName;
+      const systemVersion = systemInfo.systemVersion;
+      const model = systemInfo.model;
+      
+      systemInfo.userAgent = `${model}; ${systemName} ${systemVersion}`;
+      
+      // Add screen dimensions and device pixel ratio (matching exact field names)
+      const { width, height } = Dimensions.get('window');
+      const pixelRatio = PixelRatio.get();
+      
+      systemInfo.screenWidth = Math.floor(width);
+      systemInfo.screenHeight = Math.floor(height);
+      systemInfo.screenAvailWidth = Math.floor(width);
+      systemInfo.screenAvailHeight = Math.floor(height);
+      systemInfo.devicePixelRatio = pixelRatio;
+      systemInfo.screenColorDepth = 24;
+      systemInfo.screenPixelDepth = 24;
+      
+
+      try {
+        systemInfo.hardwareConcurrency = await DeviceInfo.getTotalMemory() / (1024 * 1024 * 1024); // Convert to GB
+      } catch (error) {
+        systemInfo.hardwareConcurrency = 4; // Fallback assumption
+      }
+      systemInfo.maxTouchPoints = 5; // Default for mobile devices
+      
+      // Add screen dimensions (native mobile naming)
+      systemInfo.screenInnerWidth = Math.floor(width);
+      systemInfo.screenInnerHeight = Math.floor(height);
+      systemInfo.screenOuterWidth = Math.floor(width);
+      systemInfo.screenOuterHeight = Math.floor(height);
+      
+      // Add clipboard UUID if available
+      const clipboardUUID = await getClipboardUUID();
+      if (clipboardUUID) {
+        systemInfo.clipboardID = clipboardUUID;
+        verboseLog(`Found valid clipboard UUID: ${clipboardUUID}`);
+      } else {
+        if (insertLinksClipboardEnabled) {
+          verboseLog('Clipboard UUID not available - it may require NSPasteboardGeneralUseDescription in Info.plist');
+        } else {
+          verboseLog('Clipboard access is disabled - it may require NSPasteboardGeneralUseDescription in Info.plist');
+        }
+      }
+      
+      // Add language information using Intl API
+      try {
+        // Get locale with region information
+        const locale = Intl.DateTimeFormat().resolvedOptions().locale;
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
+        // Try to get more specific locale information
+        let bestLocale = locale;
+        
+        // If the locale doesn't have region info, try to infer from timezone
+        if (!locale.includes('-') && timeZone) {
+          try {
+            // Create a locale-specific date formatter to get region
+            const regionLocale = new Intl.DateTimeFormat(undefined, {
+              timeZone: timeZone
+            }).resolvedOptions().locale;
+            
+            if (regionLocale && regionLocale.includes('-')) {
+              bestLocale = regionLocale;
+            }
+          } catch (e) {
+            // Fallback to original locale
+          }
+        }
+        
+        // Try navigator.language as fallback for better region detection
+        if (!bestLocale.includes('-') && typeof navigator !== 'undefined' && navigator.language) {
+          bestLocale = navigator.language;
+        }
+        
+        const parts = bestLocale.split('-');
+        systemInfo.language = parts[0] || 'en';
+        systemInfo.country = parts[1] || null; // Set to null instead of defaulting to 'US'
+        systemInfo.languages = [bestLocale, parts[0] || 'en'];
+      } catch (error) {
+        verboseLog(`Error getting device locale: ${error}`);
+        // Fallback to defaults
+        systemInfo.language = 'en';
+        systemInfo.country = null; // Set to null instead of defaulting to 'US'
+        systemInfo.languages = ['en'];
+      }
+      
+      // Add timezone info (matching exact field names)
+      const timezoneOffset = new Date().getTimezoneOffset();
+      systemInfo.timezoneOffset = -timezoneOffset;
+      systemInfo.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      
+      // Add browser and platform info (matching exact field names)
+      systemInfo.browserVersion = systemInfo.systemVersion;
+      systemInfo.platform = systemInfo.systemName;
+      systemInfo.os = systemInfo.systemName;
+      systemInfo.osVersion = systemInfo.systemVersion;
+      
+      // Add network connection info
+      verboseLog('Getting network info');
+
+      const networkInfo = await getNetworkInfo();
+      const pathInfo = await getNetworkPathInfo();
+
+      verboseLog(`Network info: ${JSON.stringify(networkInfo)}`);
+      verboseLog(`Network path info: ${JSON.stringify(pathInfo)}`);
+      
+      systemInfo.networkInfo = networkInfo;
+      systemInfo.networkPath = pathInfo;
+      
+      // Update connection info with real data
+      const connection: {[key: string]: any} = {};
+      connection.type = networkInfo.connectionType || 'unknown';
+      connection.isExpensive = networkInfo.isExpensive || false;
+      connection.isConstrained = networkInfo.isConstrained || false;
+      connection.status = networkInfo.status || 'unknown';
+      connection.interfaces = networkInfo.availableInterfaces || [];
+      connection.supportsIPv4 = pathInfo.supportsIPv4 || true;
+      connection.supportsIPv6 = pathInfo.supportsIPv6 || false;
+      connection.supportsDNS = pathInfo.supportsDNS || true;
+      
+      // Keep legacy fields for compatibility
+      connection.downlink = networkInfo.connectionType === 'wifi' ? 100 : 10;
+      connection.effectiveType = networkInfo.connectionType === 'wifi' ? '4g' : '3g';
+      connection.rtt = networkInfo.connectionType === 'wifi' ? 20 : 100;
+      connection.saveData = networkInfo.isConstrained || false;
+      
+      systemInfo.connection = connection;
+
+      verboseLog(`Enhanced system info collected: ${JSON.stringify(systemInfo)}`);
+      
+      return systemInfo;
+    } catch (error) {
+      verboseLog(`Error collecting enhanced system info: ${error}`);
+      return systemInfo;
+    }
+  };
+
+  // Sends enhanced system info to the backend API for deep link event tracking
+  const sendSystemInfoToBackend = async (systemInfo: {[key: string]: any}): Promise<void> => {
+    if (verboseLogging) {
+      console.log('[Insert Affiliate] Sending system info to backend...');
+    }
+    
+    try {
+      const apiUrlString = 'https://insertaffiliate.link/V1/appDeepLinkEvents';
+      
+      verboseLog(`Sending request to: ${apiUrlString}`);
+
+      const response = await axios.post(apiUrlString, systemInfo, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      verboseLog(`System info response status: ${response.status}`);
+      if (response.data) {
+        verboseLog(`System info response: ${JSON.stringify(response.data)}`);
+      }
+
+      // Try to parse backend response and persist matched short code if present
+      if (response.data && typeof response.data === 'object') {
+        const matchFound = response.data.matchFound || false;
+        if (matchFound && response.data.matched_affiliate_shortCode && response.data.matched_affiliate_shortCode.length > 0) {
+          const matchedShortCode = response.data.matched_affiliate_shortCode;
+          verboseLog(`Storing Matched short code from backend: ${matchedShortCode}`); 
+          
+          await storeInsertAffiliateIdentifier({ link: matchedShortCode });
+        }
+      }
+      
+      // Check for a successful response
+      if (response.status >= 200 && response.status <= 299) {
+        verboseLog('System info sent successfully');
+      } else {
+        verboseLog(`Failed to send system info with status code: ${response.status}`);
+        if (response.data) {
+          verboseLog(`Error response: ${JSON.stringify(response.data)}`);
+        }
+      }
+    } catch (error) {
+      verboseLog(`Error sending system info: ${error}`);
+      verboseLog(`Network error sending system info: ${error}`);
     }
   };
 
@@ -332,9 +1227,16 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       
       // Fallback to async storage if React state is empty
       const storedLink = await getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
-      const storedUserId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
+      let storedUserId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
       
       verboseLog(`AsyncStorage - storedLink: ${storedLink || 'empty'}, storedUserId: ${storedUserId || 'empty'}`);
+      
+      // If we have a stored link but no user ID, generate one now
+      if (storedLink && !storedUserId) {
+        verboseLog('Found stored link but no user ID, generating user ID now...');
+        storedUserId = await generateThenSetUserID();
+        verboseLog(`Generated user ID: ${storedUserId}`);
+      }
       
       if (storedLink && storedUserId) {
         const identifier = `${storedLink}-${storedUserId}`;
@@ -456,6 +1358,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     // Automatically fetch and store offer code for any affiliate identifier
     verboseLog('Attempting to fetch offer code for stored affiliate identifier...');
     await retrieveAndStoreOfferCode(link);
+    
+    // Trigger callback with the current affiliate identifier
+    if (insertAffiliateIdentifierChangeCallbackRef.current) {
+      const currentIdentifier = await returnInsertAffiliateIdentifier();
+      verboseLog(`Triggering callback with identifier: ${currentIdentifier}`);
+      insertAffiliateIdentifierChangeCallbackRef.current(currentIdentifier);
+    }
   }
 
   const validatePurchaseWithIapticAPI = async (
@@ -754,6 +1663,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         validatePurchaseWithIapticAPI,
         trackEvent,
         setInsertAffiliateIdentifier,
+        setInsertAffiliateIdentifierChangeCallback: setInsertAffiliateIdentifierChangeCallbackHandler,
+        handleInsertLinks,
         initialize,
         isInitialized,
       }}

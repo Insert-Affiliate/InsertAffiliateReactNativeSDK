@@ -2,6 +2,7 @@ import React from 'react';
 type T_DEEPLINK_IAP_PROVIDER = {
     children: React.ReactNode;
 };
+export type InsertAffiliateIdentifierChangeCallback = (identifier: string | null) => void;
 type CustomPurchase = {
     [key: string]: any;
 };
@@ -16,7 +17,9 @@ type T_DEEPLINK_IAP_CONTEXT = {
     trackEvent: (eventName: string) => Promise<void>;
     setShortCode: (shortCode: string) => Promise<void>;
     setInsertAffiliateIdentifier: (referringLink: string) => Promise<void | string>;
-    initialize: (code: string | null, verboseLogging?: boolean) => Promise<void>;
+    setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => void;
+    handleInsertLinks: (url: string) => Promise<boolean>;
+    initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean) => Promise<void>;
     isInitialized: boolean;
 };
 export declare const DeepLinkIapContext: React.Context<T_DEEPLINK_IAP_CONTEXT>;
