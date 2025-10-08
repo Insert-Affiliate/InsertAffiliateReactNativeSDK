@@ -51,13 +51,16 @@ const ASYNC_KEYS = {
     COMPANY_CODE: '@app_company_code',
     USER_ACCOUNT_TOKEN: '@app_user_account_token',
     IOS_OFFER_CODE: '@app_ios_offer_code',
+    AFFILIATE_STORED_DATE: '@app_affiliate_stored_date',
 };
 // STARTING CONTEXT IMPLEMENTATION
 exports.DeepLinkIapContext = (0, react_1.createContext)({
     referrerLink: '',
     userId: '',
     OfferCode: null,
-    returnInsertAffiliateIdentifier: () => __awaiter(void 0, void 0, void 0, function* () { return ''; }),
+    returnInsertAffiliateIdentifier: (ignoreTimeout) => __awaiter(void 0, void 0, void 0, function* () { return ''; }),
+    isAffiliateAttributionValid: () => __awaiter(void 0, void 0, void 0, function* () { return false; }),
+    getAffiliateStoredDate: () => __awaiter(void 0, void 0, void 0, function* () { return null; }),
     validatePurchaseWithIapticAPI: (jsonIapPurchase, iapticAppId, iapticAppName, iapticPublicKey) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     returnUserAccountTokenAndStoreExpectedTransaction: () => __awaiter(void 0, void 0, void 0, function* () { return ''; }),
     storeExpectedStoreTransaction: (purchaseToken) => __awaiter(void 0, void 0, void 0, function* () { }),
@@ -66,7 +69,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     setInsertAffiliateIdentifier: (referringLink) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifierChangeCallback: (callback) => { },
     handleInsertLinks: (url) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
-    initialize: (code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled) => __awaiter(void 0, void 0, void 0, function* () { }),
+    initialize: (code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime) => __awaiter(void 0, void 0, void 0, function* () { }),
     isInitialized: false,
 });
 const DeepLinkIapProvider = ({ children, }) => {
@@ -78,12 +81,16 @@ const DeepLinkIapProvider = ({ children, }) => {
     const [insertLinksEnabled, setInsertLinksEnabled] = (0, react_1.useState)(false);
     const [insertLinksClipboardEnabled, setInsertLinksClipboardEnabled] = (0, react_1.useState)(false);
     const [OfferCode, setOfferCode] = (0, react_1.useState)(null);
+    const [affiliateAttributionActiveTime, setAffiliateAttributionActiveTime] = (0, react_1.useState)(null);
     const insertAffiliateIdentifierChangeCallbackRef = (0, react_1.useRef)(null);
     // MARK: Initialize the SDK
-    const initialize = (companyCode_1, ...args_1) => __awaiter(void 0, [companyCode_1, ...args_1], void 0, function* (companyCode, verboseLogging = false, insertLinksEnabled = false, insertLinksClipboardEnabled = false) {
+    const initialize = (companyCode_1, ...args_1) => __awaiter(void 0, [companyCode_1, ...args_1], void 0, function* (companyCode, verboseLogging = false, insertLinksEnabled = false, insertLinksClipboardEnabled = false, affiliateAttributionActiveTime) {
         setVerboseLogging(verboseLogging);
         setInsertLinksEnabled(insertLinksEnabled);
         setInsertLinksClipboardEnabled(insertLinksClipboardEnabled);
+        if (affiliateAttributionActiveTime !== undefined) {
+            setAffiliateAttributionActiveTime(affiliateAttributionActiveTime);
+        }
         if (verboseLogging) {
             console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
             console.log('[Insert Affiliate] [VERBOSE] Company code provided:', companyCode ? 'Yes' : 'No');
@@ -1057,10 +1064,18 @@ const DeepLinkIapProvider = ({ children, }) => {
         ;
     });
     // MARK: Return Insert Affiliate Identifier
-    // Instead of just reading React state
-    const returnInsertAffiliateIdentifier = () => __awaiter(void 0, void 0, void 0, function* () {
+    const returnInsertAffiliateIdentifier = (...args_1) => __awaiter(void 0, [...args_1], void 0, function* (ignoreTimeout = false) {
         try {
-            verboseLog('Getting insert affiliate identifier...');
+            verboseLog(`Getting insert affiliate identifier (ignoreTimeout: ${ignoreTimeout})...`);
+            // If timeout is enabled and we're not ignoring it, check validity first
+            if (!ignoreTimeout && affiliateAttributionActiveTime) {
+                const isValid = yield isAffiliateAttributionValid();
+                if (!isValid) {
+                    verboseLog('Attribution has expired, returning null');
+                    return null;
+                }
+            }
+            // Now get the actual identifier
             verboseLog(`React state - referrerLink: ${referrerLink || 'empty'}, userId: ${userId || 'empty'}`);
             // Try React state first
             if (referrerLink && userId) {
@@ -1089,6 +1104,48 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
         catch (error) {
             verboseLog(`Error getting affiliate identifier: ${error}`);
+            return null;
+        }
+    });
+    // MARK: Attribution Timeout Functions
+    // Check if the current affiliate attribution is still valid based on timeout
+    const isAffiliateAttributionValid = () => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            // If no timeout is set, attribution is always valid
+            if (!affiliateAttributionActiveTime) {
+                verboseLog('No attribution timeout set, attribution is valid');
+                return true;
+            }
+            const storedDate = yield getAffiliateStoredDate();
+            if (!storedDate) {
+                verboseLog('No stored date found, attribution is invalid');
+                return false;
+            }
+            const now = new Date();
+            const timeDifferenceSeconds = Math.floor((now.getTime() - storedDate.getTime()) / 1000);
+            const isValid = timeDifferenceSeconds <= affiliateAttributionActiveTime;
+            verboseLog(`Attribution timeout check: stored=${storedDate.toISOString()}, now=${now.toISOString()}, diff=${timeDifferenceSeconds}s, timeout=${affiliateAttributionActiveTime}s, valid=${isValid}`);
+            return isValid;
+        }
+        catch (error) {
+            verboseLog(`Error checking attribution validity: ${error}`);
+            return false;
+        }
+    });
+    // Get the date when the affiliate identifier was stored
+    const getAffiliateStoredDate = () => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const storedDateString = yield getValueFromAsync(ASYNC_KEYS.AFFILIATE_STORED_DATE);
+            if (!storedDateString) {
+                verboseLog('No affiliate stored date found');
+                return null;
+            }
+            const storedDate = new Date(storedDateString);
+            verboseLog(`Retrieved affiliate stored date: ${storedDate.toISOString()}`);
+            return storedDate;
+        }
+        catch (error) {
+            verboseLog(`Error getting affiliate stored date: ${error}`);
             return null;
         }
     });
@@ -1174,10 +1231,20 @@ const DeepLinkIapProvider = ({ children, }) => {
     function storeInsertAffiliateIdentifier(_a) {
         return __awaiter(this, arguments, void 0, function* ({ link }) {
             console.log(`[Insert Affiliate] Storing affiliate identifier: ${link}`);
+            // Check if we're trying to store the same link (prevent duplicate storage)
+            const existingLink = yield getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
+            if (existingLink === link) {
+                verboseLog(`Link ${link} is already stored, skipping duplicate storage`);
+                return;
+            }
             verboseLog(`Updating React state with referrer link: ${link}`);
             setReferrerLink(link);
             verboseLog(`Saving referrer link to AsyncStorage...`);
             yield saveValueInAsync(ASYNC_KEYS.REFERRER_LINK, link);
+            // Store the current date/time when the affiliate identifier is stored
+            const currentDate = new Date().toISOString();
+            verboseLog(`Saving affiliate stored date: ${currentDate}`);
+            yield saveValueInAsync(ASYNC_KEYS.AFFILIATE_STORED_DATE, currentDate);
             verboseLog(`Referrer link saved to AsyncStorage successfully`);
             // Automatically fetch and store offer code for any affiliate identifier
             verboseLog('Attempting to fetch offer code for stored affiliate identifier...');
@@ -1426,6 +1493,8 @@ const DeepLinkIapProvider = ({ children, }) => {
             OfferCode,
             setShortCode,
             returnInsertAffiliateIdentifier,
+            isAffiliateAttributionValid,
+            getAffiliateStoredDate,
             storeExpectedStoreTransaction,
             returnUserAccountTokenAndStoreExpectedTransaction,
             validatePurchaseWithIapticAPI,

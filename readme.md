@@ -151,6 +151,82 @@ const Child = () => {
 
 ⚠️ **Important**: Disable verbose logging in production builds to avoid exposing sensitive debugging information and to optimize performance.
 
+### Attribution Timeout
+
+You can configure how long an affiliate link attribution remains active after being clicked. This allows you to control the attribution window for commissions.
+
+#### Basic Usage
+
+When initializing the SDK, you can specify the attribution timeout in seconds:
+
+```javascript
+const Child = () => {
+  const { initialize, isInitialized } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    if (!isInitialized) {
+      // Set attribution timeout to 7 days (7 * 24 * 60 * 60 = 604800 seconds)
+      initialize(
+        "{{ your-company-code }}", 
+        false, // verbose logging
+        false, // insert links enabled
+        false, // insert links clipboard enabled  
+        604800 // attribution timeout in seconds
+      );
+    }
+  }, [initialize, isInitialized]);
+}
+```
+
+#### Common Timeout Values
+
+```javascript
+// 1 day
+initialize("your-company-code", false, false, false, 86400);
+
+// 7 days (default for many platforms)
+initialize("your-company-code", false, false, false, 604800);
+
+// 30 days
+initialize("your-company-code", false, false, false, 2592000);
+
+// No timeout (attribution never expires)
+initialize("your-company-code", false, false, false); // or pass null/undefined
+```
+
+#### Advanced Usage
+
+The SDK provides methods to work with attribution timeouts:
+
+```javascript
+const {
+  returnInsertAffiliateIdentifier,
+  isAffiliateAttributionValid,
+  getAffiliateStoredDate
+} = useDeepLinkIapProvider();
+
+// Get affiliate identifier (respects timeout)
+const identifier = await returnInsertAffiliateIdentifier();
+
+// Get affiliate identifier ignoring timeout
+const rawIdentifier = await returnInsertAffiliateIdentifier(true);
+
+// Check if attribution is still valid
+const isValid = await isAffiliateAttributionValid();
+
+// Get the date when affiliate was first stored
+const storedDate = await getAffiliateStoredDate();
+```
+
+#### How It Works
+
+1. **Attribution Storage**: When an affiliate link is clicked and processed, the SDK stores both the affiliate identifier and the current timestamp
+2. **Timeout Check**: When `returnInsertAffiliateIdentifier()` is called, the SDK checks if the stored attribution is still within the timeout window
+3. **Expired Attribution**: If the attribution has expired, the method returns `null` instead of the affiliate identifier
+4. **Bypass Option**: You can bypass the timeout check by passing `true` to `returnInsertAffiliateIdentifier(true)`
+
+This ensures that affiliates are only credited for purchases made within the specified attribution window, providing fair and accurate commission tracking.
+
 ### Insert Link and Clipboard Control (BETA)
 We are currently beta testing our in-house deep linking provider, Insert Links, which generates links for use with your affiliates.
 
@@ -172,7 +248,8 @@ const Child = () => {
         "{{ your-company-code }}", 
         false, // Enable for debugging
         true,  // Enables Insert Links
-        true   // Enable Insert Links Clipboard access to avoid permission prompt
+        true,  // Enable Insert Links Clipboard access to avoid permission prompt
+        604800 // Optional: Attribution timeout in seconds (7 days)
       );
     }
   }, [initialize, isInitialized]);
@@ -186,6 +263,11 @@ const Child = () => {
 **When to use `insertLinksClipboardEnabled`:**
 - Set to `true` (default: `false`) if you are using Insert Affiliate's built-in deep links (Insert Links) **and** would like to improve the effectiveness of our deep links through the clipboard
 - **Important caveat**: This will trigger a system prompt asking the user for permission to access the clipboard when the SDK initializes
+
+**When to use `affiliateAttributionActiveTime`:**
+- Set to a number in seconds to define how long affiliate attributions remain active
+- Set to `null` or omit to disable attribution timeout (attribution never expires)
+- Common values: 86400 (1 day), 604800 (7 days), 2592000 (30 days)
 
 
 ## In-App Purchase Setup [Required]
