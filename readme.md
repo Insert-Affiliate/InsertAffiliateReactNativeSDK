@@ -188,11 +188,6 @@ const Child = () => {
 - Set to `true` (default: `false`) if you are using Insert Affiliate's built-in deep links (Insert Links) **and** would like to improve the effectiveness of our deep links through the clipboard
 - **Important caveat**: This will trigger a system prompt asking the user for permission to access the clipboard when the SDK initializes
 
-**When to use `affiliateAttributionActiveTime`:**
-- Set to a number in seconds to define how long affiliate attributions remain active
-- Set to `null` or omit to disable attribution timeout (attribution never expires)
-- Common values: 86400 (1 day), 604800 (7 days), 2592000 (30 days)
-
 
 ## In-App Purchase Setup [Required]
 Insert Affiliate requires a Receipt Verification platform to validate in-app purchases. You must choose **one** of our supported partners:
@@ -1260,6 +1255,11 @@ const Child = () => {
   }, [initialize, isInitialized]);
 }
 ```
+
+**When to use `affiliateAttributionActiveTime`:**
+- Set to a number in seconds to define how long affiliate attributions remain active
+- Set to `null` or omit to disable attribution timeout (attribution never expires)
+- Common values: 86400 (1 day), 604800 (7 days), 2592000 (30 days)
 
 #### Common Timeout Values
 
