@@ -7,6 +7,9 @@ import NetInfo from '@react-native-community/netinfo';
 import DeviceInfo from 'react-native-device-info';
 import { PlayInstallReferrer, PlayInstallReferrerInfo } from 'react-native-play-install-referrer';
 
+// Development environment check for React Native
+const isDevelopmentEnvironment = typeof __DEV__ !== 'undefined' && __DEV__;
+
 // TYPES USED IN THIS PROVIDER
 type T_DEEPLINK_IAP_PROVIDER = {
   children: React.ReactNode;
@@ -1213,6 +1216,17 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return userAccountToken;
       }
     } catch (error) {
+      // Handle E_IAP_NOT_AVAILABLE error gracefully
+      if ((error as any)?.code === 'E_IAP_NOT_AVAILABLE' || 
+          (error instanceof Error && error.message.includes('E_IAP_NOT_AVAILABLE'))) {
+        
+        if (isDevelopmentEnvironment) {
+          console.warn('[Insert Affiliate] IAP not available in development environment. Cannot store expected transaction.');
+          verboseLog('E_IAP_NOT_AVAILABLE error in returnUserAccountTokenAndStoreExpectedTransaction - gracefully handling in development');
+        }
+        return null; // Return null but don't crash
+      }
+
       console.error('[Insert Affiliate] Error in returnUserAccountTokenAndStoreExpectedTransaction:', error);
       return null;
     };
@@ -1455,6 +1469,20 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     iapticPublicKey: string
   ): Promise<boolean> => {
     try {
+      // Check for E_IAP_NOT_AVAILABLE error in development environment
+      if ((jsonIapPurchase as any)?.error?.code === 'E_IAP_NOT_AVAILABLE' || 
+          (jsonIapPurchase as any)?.code === 'E_IAP_NOT_AVAILABLE' ||
+          (typeof jsonIapPurchase === 'string' && (jsonIapPurchase as string).includes('E_IAP_NOT_AVAILABLE'))) {
+        
+        if (isDevelopmentEnvironment) {
+          console.warn('[Insert Affiliate] IAP not available in development environment. This is expected behavior.');
+          verboseLog('E_IAP_NOT_AVAILABLE error detected in development - gracefully handling');
+        } else {
+          console.error('[Insert Affiliate] IAP not available in production environment. Please check your IAP configuration.');
+        }
+        return false; // Return false but don't crash
+      }
+
       const baseRequestBody: RequestBody = {
         id: iapticAppId,
         type: 'application',
@@ -1513,6 +1541,19 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return false;
       }
     } catch (error) {
+      // Handle E_IAP_NOT_AVAILABLE error gracefully
+      if ((error as any)?.code === 'E_IAP_NOT_AVAILABLE' || 
+          (error instanceof Error && error.message.includes('E_IAP_NOT_AVAILABLE'))) {
+        
+        if (isDevelopmentEnvironment) {
+          console.warn('[Insert Affiliate] IAP not available in development environment. SDK will continue without purchase validation.');
+          verboseLog('E_IAP_NOT_AVAILABLE error caught in validatePurchaseWithIapticAPI - gracefully handling in development');
+        } else {
+          console.error('[Insert Affiliate] IAP not available in production environment. Please check your IAP configuration.');
+        }
+        return false; // Return false but don't crash
+      }
+
       if (error instanceof Error) {
         console.error(`validatePurchaseWithIapticAPI Error: ${error.message}`);
       } else {

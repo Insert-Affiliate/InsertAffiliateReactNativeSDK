@@ -44,6 +44,8 @@ const clipboard_1 = __importDefault(require("@react-native-clipboard/clipboard")
 const netinfo_1 = __importDefault(require("@react-native-community/netinfo"));
 const react_native_device_info_1 = __importDefault(require("react-native-device-info"));
 const react_native_play_install_referrer_1 = require("react-native-play-install-referrer");
+// Development environment check for React Native
+const isDevelopmentEnvironment = typeof __DEV__ !== 'undefined' && __DEV__;
 const ASYNC_KEYS = {
     REFERRER_LINK: '@app_referrer_link',
     USER_PURCHASE: '@app_user_purchase',
@@ -1058,6 +1060,15 @@ const DeepLinkIapProvider = ({ children, }) => {
             }
         }
         catch (error) {
+            // Handle E_IAP_NOT_AVAILABLE error gracefully
+            if ((error === null || error === void 0 ? void 0 : error.code) === 'E_IAP_NOT_AVAILABLE' ||
+                (error instanceof Error && error.message.includes('E_IAP_NOT_AVAILABLE'))) {
+                if (isDevelopmentEnvironment) {
+                    console.warn('[Insert Affiliate] IAP not available in development environment. Cannot store expected transaction.');
+                    verboseLog('E_IAP_NOT_AVAILABLE error in returnUserAccountTokenAndStoreExpectedTransaction - gracefully handling in development');
+                }
+                return null; // Return null but don't crash
+            }
             console.error('[Insert Affiliate] Error in returnUserAccountTokenAndStoreExpectedTransaction:', error);
             return null;
         }
@@ -1258,7 +1269,21 @@ const DeepLinkIapProvider = ({ children, }) => {
         });
     }
     const validatePurchaseWithIapticAPI = (jsonIapPurchase, iapticAppId, iapticAppName, iapticPublicKey) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
         try {
+            // Check for E_IAP_NOT_AVAILABLE error in development environment
+            if (((_a = jsonIapPurchase === null || jsonIapPurchase === void 0 ? void 0 : jsonIapPurchase.error) === null || _a === void 0 ? void 0 : _a.code) === 'E_IAP_NOT_AVAILABLE' ||
+                (jsonIapPurchase === null || jsonIapPurchase === void 0 ? void 0 : jsonIapPurchase.code) === 'E_IAP_NOT_AVAILABLE' ||
+                (typeof jsonIapPurchase === 'string' && jsonIapPurchase.includes('E_IAP_NOT_AVAILABLE'))) {
+                if (isDevelopmentEnvironment) {
+                    console.warn('[Insert Affiliate] IAP not available in development environment. This is expected behavior.');
+                    verboseLog('E_IAP_NOT_AVAILABLE error detected in development - gracefully handling');
+                }
+                else {
+                    console.error('[Insert Affiliate] IAP not available in production environment. Please check your IAP configuration.');
+                }
+                return false; // Return false but don't crash
+            }
             const baseRequestBody = {
                 id: iapticAppId,
                 type: 'application',
@@ -1308,6 +1333,18 @@ const DeepLinkIapProvider = ({ children, }) => {
             }
         }
         catch (error) {
+            // Handle E_IAP_NOT_AVAILABLE error gracefully
+            if ((error === null || error === void 0 ? void 0 : error.code) === 'E_IAP_NOT_AVAILABLE' ||
+                (error instanceof Error && error.message.includes('E_IAP_NOT_AVAILABLE'))) {
+                if (isDevelopmentEnvironment) {
+                    console.warn('[Insert Affiliate] IAP not available in development environment. SDK will continue without purchase validation.');
+                    verboseLog('E_IAP_NOT_AVAILABLE error caught in validatePurchaseWithIapticAPI - gracefully handling in development');
+                }
+                else {
+                    console.error('[Insert Affiliate] IAP not available in production environment. Please check your IAP configuration.');
+                }
+                return false; // Return false but don't crash
+            }
             if (error instanceof Error) {
                 console.error(`validatePurchaseWithIapticAPI Error: ${error.message}`);
             }
