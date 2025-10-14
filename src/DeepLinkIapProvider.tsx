@@ -1599,7 +1599,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     verboseLog("Making API call to store expected transaction...");
 
     try {
-      const response = await fetch("https://api.insertaffiliate.com/v1/api/app-store-webhook/create-expected-transaction", {
+      const response = await fetch("https://382c0f0de47f.ngrok-free.app/v1/api/app-store-webhook/create-expected-transaction", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -1379,7 +1379,7 @@ const DeepLinkIapProvider = ({ children, }) => {
         console.log("[Insert Affiliate] Storing expected transaction: ", payload);
         verboseLog("Making API call to store expected transaction...");
         try {
-            const response = yield fetch("https://api.insertaffiliate.com/v1/api/app-store-webhook/create-expected-transaction", {
+            const response = yield fetch("https://382c0f0de47f.ngrok-free.app/v1/api/app-store-webhook/create-expected-transaction", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
