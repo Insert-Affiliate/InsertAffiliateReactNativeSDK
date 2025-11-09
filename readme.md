@@ -763,6 +763,7 @@ const DeepLinkHandler = () => {
     // Listen for both deep link types
     appsFlyer.onDeepLink(handleDeepLink);
     appsFlyer.onAppOpenAttribution(handleDeepLink);
+    appsFlyer.onInstallConversionData(handleDeepLink);
 
     initAppsFlyer();
   }, [setInsertAffiliateIdentifier, isInitialized]);
