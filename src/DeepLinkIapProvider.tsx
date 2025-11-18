@@ -17,6 +17,12 @@ type T_DEEPLINK_IAP_PROVIDER = {
 
 export type InsertAffiliateIdentifierChangeCallback = (identifier: string | null) => void;
 
+export type AffiliateDetails = {
+  affiliateName: string;
+  affiliateShortCode: string;
+  deeplinkurl: string;
+} | null;
+
 type CustomPurchase = {
   [key: string]: any; // Accept any fields to allow it to work wtih multiple IAP libraries
 };
@@ -39,7 +45,8 @@ type T_DEEPLINK_IAP_CONTEXT = {
     purchaseToken: string
   ) => Promise<void>;
   trackEvent: (eventName: string) => Promise<void>;
-  setShortCode: (shortCode: string) => Promise<void>;
+  setShortCode: (shortCode: string) => Promise<boolean>;
+  getAffiliateDetails: (affiliateCode: string) => Promise<AffiliateDetails>;
   setInsertAffiliateIdentifier: (
     referringLink: string
   ) => Promise<void | string>;
@@ -92,7 +99,8 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   returnUserAccountTokenAndStoreExpectedTransaction: async () => '',
   storeExpectedStoreTransaction: async (purchaseToken: string) => {},
   trackEvent: async (eventName: string) => {},
-  setShortCode: async (shortCode: string) => {},
+  setShortCode: async (shortCode: string) => false,
+  getAffiliateDetails: async (affiliateCode: string) => null,
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
   setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => {},
   handleInsertLinks: async (url: string) => false,
@@ -1174,7 +1182,94 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     return isValidCharacters && referringLink.length >= 3 && referringLink.length <= 25;
   };
 
-  async function setShortCode(shortCode: string): Promise<void> {
+  const checkAffiliateExists = async (affiliateCode: string): Promise<boolean> => {
+    try {
+      const activeCompanyCode = await getActiveCompanyCode();
+      if (!activeCompanyCode) {
+        verboseLog('Cannot check affiliate: no company code available');
+        return false;
+      }
+
+      const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
+      const payload = {
+        companyId: activeCompanyCode,
+        affiliateCode: affiliateCode
+      };
+
+      verboseLog(`Checking if affiliate exists: ${affiliateCode}`);
+
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      verboseLog(`Affiliate check response: ${JSON.stringify(response.data)}`);
+
+      if (response.status === 200 && response.data) {
+        const exists = response.data.exists === true;
+        if (exists) {
+          verboseLog(`Affiliate ${affiliateCode} exists and is valid`);
+        } else {
+          verboseLog(`Affiliate ${affiliateCode} does not exist`);
+        }
+        return exists;
+      } else {
+        verboseLog(`Unexpected response checking affiliate: status ${response.status}`);
+        return false;
+      }
+    } catch (error) {
+      verboseLog(`Error checking affiliate exists: ${error}`);
+      return false;
+    }
+  };
+
+  const getAffiliateDetails = async (affiliateCode: string): Promise<AffiliateDetails> => {
+    try {
+      const activeCompanyCode = await getActiveCompanyCode();
+      if (!activeCompanyCode) {
+        verboseLog('Cannot get affiliate details: no company code available');
+        return null;
+      }
+
+      const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
+      const payload = {
+        companyId: activeCompanyCode,
+        affiliateCode: affiliateCode
+      };
+
+      verboseLog(`Getting affiliate details for: ${affiliateCode}`);
+
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      verboseLog(`Affiliate details response: ${JSON.stringify(response.data)}`);
+
+      if (response.status === 200 && response.data && response.data.exists === true) {
+        const affiliate = response.data.affiliate;
+        if (affiliate) {
+          verboseLog(`Retrieved affiliate details: ${JSON.stringify(affiliate)}`);
+          return {
+            affiliateName: affiliate.affiliateName || '',
+            affiliateShortCode: affiliate.affiliateShortCode || '',
+            deeplinkurl: affiliate.deeplinkurl || ''
+          };
+        }
+      }
+
+      verboseLog(`Affiliate ${affiliateCode} not found or invalid response`);
+      return null;
+    } catch (error) {
+      verboseLog(`Error getting affiliate details: ${error}`);
+      console.error('[Insert Affiliate] Error getting affiliate details:', error);
+      return null;
+    }
+  };
+
+  async function setShortCode(shortCode: string): Promise<boolean> {
     console.log('[Insert Affiliate] Setting short code.');
     await generateThenSetUserID();
 
@@ -1182,8 +1277,18 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     const capitalisedShortCode = shortCode.toUpperCase();
     isShortCode(capitalisedShortCode);
 
-    // If all checks pass, set the Insert Affiliate Identifier
-    await storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
+    // Check if the affiliate exists before storing
+    const exists = await checkAffiliateExists(capitalisedShortCode);
+
+    if (exists) {
+      // If affiliate exists, set the Insert Affiliate Identifier
+      await storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
+      console.log(`[Insert Affiliate] Short code ${capitalisedShortCode} validated and stored successfully.`);
+      return true;
+    } else {
+      console.warn(`[Insert Affiliate] Short code ${capitalisedShortCode} does not exist. Not storing.`);
+      return false;
+    }
   }
 
   async function getOrCreateUserAccountToken(): Promise<string> {
@@ -1779,6 +1884,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         userId,
         OfferCode,
         setShortCode,
+        getAffiliateDetails,
         returnInsertAffiliateIdentifier,
         isAffiliateAttributionValid,
         getAffiliateStoredDate,

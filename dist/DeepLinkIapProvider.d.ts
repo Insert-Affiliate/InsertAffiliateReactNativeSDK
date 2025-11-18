@@ -3,6 +3,11 @@ type T_DEEPLINK_IAP_PROVIDER = {
     children: React.ReactNode;
 };
 export type InsertAffiliateIdentifierChangeCallback = (identifier: string | null) => void;
+export type AffiliateDetails = {
+    affiliateName: string;
+    affiliateShortCode: string;
+    deeplinkurl: string;
+} | null;
 type CustomPurchase = {
     [key: string]: any;
 };
@@ -17,7 +22,8 @@ type T_DEEPLINK_IAP_CONTEXT = {
     returnUserAccountTokenAndStoreExpectedTransaction: () => Promise<string | null>;
     storeExpectedStoreTransaction: (purchaseToken: string) => Promise<void>;
     trackEvent: (eventName: string) => Promise<void>;
-    setShortCode: (shortCode: string) => Promise<void>;
+    setShortCode: (shortCode: string) => Promise<boolean>;
+    getAffiliateDetails: (affiliateCode: string) => Promise<AffiliateDetails>;
     setInsertAffiliateIdentifier: (referringLink: string) => Promise<void | string>;
     setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => void;
     handleInsertLinks: (url: string) => Promise<boolean>;
