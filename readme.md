@@ -1216,6 +1216,12 @@ Short codes must meet the following criteria:
 - Contain only **letters, numbers, and underscores** (alphanumeric characters and underscores).
 - Replace {{ user_entered_short_code }} with the short code the user enters through your chosen input method, i.e. an input field / pop up element
 
+**Return Value**: `setShortCode` returns a `Promise<boolean>`:
+- Returns `true` if the short code exists and was successfully validated and stored
+- Returns `false` if the short code does not exist or validation failed
+
+This allows you to provide immediate feedback to users about whether their entered code is valid.
+
 ```javascript
   import {
     DeepLinkIapProvider,
@@ -1225,11 +1231,29 @@ Short codes must meet the following criteria:
     setShortCode,
   } = useDeepLinkIapProvider();
 
+  // Basic usage (without validation feedback)
   <Button
     title={'Set Short Code'}
     onPress={() => setShortCode('JOIN_123')}
   />
+
+  // Recommended usage with validation feedback
+  <Button
+    title={'Set Short Code'}
+    onPress={async () => {
+      const isValid = await setShortCode('JOIN_123');
+      if (isValid) {
+        // Show success message to user
+        Alert.alert('Success', 'Affiliate code applied successfully!');
+      } else {
+        // Show error message to user
+        Alert.alert('Error', 'Invalid affiliate code. Please check and try again.');
+      }
+    }}
+  />
 ```
+
+**Important**: The SDK will automatically validate the short code with the Insert Affiliate backend before storing it. Only valid short codes that exist in your company's affiliate list will be stored. Invalid codes will be rejected and not associated with the user.
 
 ### Attribution Timeout
 
@@ -1311,3 +1335,76 @@ const storedDate = await getAffiliateStoredDate();
 4. **Bypass Option**: You can bypass the timeout check by passing `true` to `returnInsertAffiliateIdentifier(true)`
 
 This ensures that affiliates are only credited for purchases made within the specified attribution window, providing fair and accurate commission tracking.
+
+### Getting Affiliate Details
+
+You can retrieve detailed information about an affiliate by their short code or deep link using the `getAffiliateDetails` method. This is useful for displaying affiliate information to users or showing personalized content based on the referrer.
+
+#### Method Signature
+
+```typescript
+getAffiliateDetails(affiliateCode: string): Promise<AffiliateDetails>
+
+type AffiliateDetails = {
+  affiliateName: string;
+  affiliateShortCode: string;
+  deeplinkurl: string;
+} | null;
+```
+
+#### Usage Example
+
+```javascript
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import type { AffiliateDetails } from 'insert-affiliate-react-native-sdk';
+
+const MyComponent = () => {
+  const { getAffiliateDetails } = useDeepLinkIapProvider();
+
+  const handleGetAffiliateInfo = async (code: string) => {
+    const details = await getAffiliateDetails(code);
+
+    if (details) {
+      console.log('Affiliate Name:', details.affiliateName);
+      console.log('Short Code:', details.affiliateShortCode);
+      console.log('Deep Link:', details.deeplinkurl);
+
+      // Example: Show affiliate name in UI
+      Alert.alert(
+        'Affiliate Found',
+        `This code belongs to ${details.affiliateName}`
+      );
+    } else {
+      console.log('Affiliate not found');
+      Alert.alert('Error', 'Invalid affiliate code');
+    }
+  };
+
+  return (
+    <View>
+      <Button
+        title="Get Affiliate Info"
+        onPress={() => handleGetAffiliateInfo('JOIN_123')}
+      />
+    </View>
+  );
+};
+```
+
+#### Return Value
+
+- Returns an object with affiliate details if the code exists:
+  - `affiliateName`: The name of the affiliate
+  - `affiliateShortCode`: The affiliate's short code
+  - `deeplinkurl`: The affiliate's deep link URL
+- Returns `null` if:
+  - The affiliate code doesn't exist
+  - The company code is not initialized
+  - There's a network error or API issue
+
+#### Important Notes
+
+- This method does **not** store or set the affiliate identifier - it only retrieves information
+- Use `setShortCode()` to actually associate an affiliate with a user
+- The method automatically strips UUIDs from codes (e.g., "ABC123-uuid" becomes "ABC123")
+- Works with both short codes and deep link URLs
