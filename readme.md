@@ -389,9 +389,13 @@ useEffect(() => {
 
 **Step 2: Set up the identifier change callback**
 
+Choose the example that matches your IAP verification platform:
+
+**With RevenueCat:**
+
 ```javascript
 import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
-import Purchases from 'react-native-purchases';  // If using RevenueCat
+import Purchases from 'react-native-purchases';
 
 const App = () => {
   const { setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
@@ -399,15 +403,85 @@ const App = () => {
   useEffect(() => {
     setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
       if (identifier) {
-        console.log('Affiliate identifier:', identifier);
-        // Update your IAP platform
         await Purchases.setAttributes({ "insert_affiliate": identifier });
       }
     });
 
-    return () => {
-      setInsertAffiliateIdentifierChangeCallback(null);
-    };
+    return () => setInsertAffiliateIdentifierChangeCallback(null);
+  }, []);
+
+  return <YourAppContent />;
+};
+```
+
+**With Apphud:**
+
+```javascript
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import Apphud from 'react-native-apphud';
+
+const App = () => {
+  const { setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
+      if (identifier) {
+        await Apphud.setUserProperty("insert_affiliate", identifier, false);
+      }
+    });
+
+    return () => setInsertAffiliateIdentifierChangeCallback(null);
+  }, []);
+
+  return <YourAppContent />;
+};
+```
+
+**With Iaptic:**
+
+```javascript
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import InAppPurchase from 'react-native-iaptic';
+
+const App = () => {
+  const { setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
+      if (identifier) {
+        InAppPurchase.stop();
+        InAppPurchase.initialize({
+          iapProducts: iapProductsArray,
+          validatorUrlString: "https://validator.iaptic.com/v3/validate?appName=YOUR_APP_NAME&apiKey=YOUR_API_KEY",
+          applicationUsername: identifier
+        });
+      }
+    });
+
+    return () => setInsertAffiliateIdentifierChangeCallback(null);
+  }, []);
+
+  return <YourAppContent />;
+};
+```
+
+**With App Store / Google Play Direct:**
+
+```javascript
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+
+const App = () => {
+  const { setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
+      if (identifier) {
+        console.log('Affiliate identifier stored:', identifier);
+        // Identifier is stored automatically for direct store integration
+      }
+    });
+
+    return () => setInsertAffiliateIdentifierChangeCallback(null);
   }, []);
 
   return <YourAppContent />;
