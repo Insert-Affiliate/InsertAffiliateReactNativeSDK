@@ -20,7 +20,7 @@ The official React Native SDK for [Insert Affiliate](https://insertaffiliate.com
 
 ---
 
-## Quick Start (5 Minutes)
+## 🚀 Quick Start (5 Minutes)
 
 Get up and running with minimal code to validate the SDK works before tackling IAP and deep linking setup.
 
@@ -116,7 +116,7 @@ When the SDK initializes successfully, you'll see:
 
 ---
 
-## Essential Setup
+## ⚙️ Essential Setup
 
 Complete these three required steps to start tracking affiliate-driven purchases.
 
@@ -500,7 +500,7 @@ Includes full examples for:
 
 ---
 
-## Verify Your Integration
+## ✅ Verify Your Integration
 
 Before going live, verify everything works correctly:
 
@@ -542,7 +542,7 @@ console.log('Current affiliate ID:', affiliateId);
 
 ---
 
-## Advanced Features
+## 🔧 Advanced Features
 
 <details>
 <summary><h3>Event Tracking (Beta)</h3></summary>
@@ -676,7 +676,7 @@ const rawIdentifier = await returnInsertAffiliateIdentifier(true);
 
 ---
 
-## Troubleshooting
+## 🔍 Troubleshooting
 
 ### Initialization Issues
 
@@ -729,7 +729,7 @@ initialize("YOUR_COMPANY_CODE", true);  // second parameter enables verbose logg
 
 ---
 
-## Support
+## 📚 Support
 
 - **Documentation**: [docs.insertaffiliate.com](https://docs.insertaffiliate.com)
 - **Dashboard Support**: [app.insertaffiliate.com/help](https://app.insertaffiliate.com/help)
