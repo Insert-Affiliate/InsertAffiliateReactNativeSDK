@@ -163,8 +163,8 @@ initialize(
 |--------|----------|------------|------------|
 | [**RevenueCat**](#option-1-revenuecat-recommended) | Most developers, managed infrastructure | ~10 min | Simple |
 | [**Iaptic**](#option-2-iaptic) | Custom requirements, direct control | ~15 min | Medium |
-| [**App Store Direct**](#option-3-app-store-direct-beta) | No 3rd party fees (iOS subscriptions only) | ~20 min | Medium |
-| [**Google Play Direct**](#option-4-google-play-direct-beta) | No 3rd party fees (Android) | ~20 min | Medium |
+| [**App Store Direct**](#option-3-app-store-direct) | No 3rd party fees (iOS) | ~20 min | Medium |
+| [**Google Play Direct**](#option-4-google-play-direct) | No 3rd party fees (Android) | ~20 min | Medium |
 
 <details open>
 <summary><h4>Option 1: RevenueCat (Recommended)</h4></summary>
@@ -280,9 +280,7 @@ Replace:
 </details>
 
 <details>
-<summary><h4>Option 3: App Store Direct (Beta)</h4></summary>
-
-**Note:** Currently supports subscriptions only. Consumables and one-off purchases are not yet supported.
+<summary><h4>Option 3: App Store Direct</h4></summary>
 
 **Step 1: Apple App Store Notification Setup**
 
@@ -320,7 +318,7 @@ const handleBuySubscription = async (product) => {
 </details>
 
 <details>
-<summary><h4>Option 4: Google Play Direct (Beta)</h4></summary>
+<summary><h4>Option 4: Google Play Direct</h4></summary>
 
 **Step 1: RTDN Setup**
 
