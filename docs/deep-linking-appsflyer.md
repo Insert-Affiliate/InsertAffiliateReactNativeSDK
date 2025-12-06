@@ -99,6 +99,80 @@ AppRegistry.registerComponent(appName, () => RootComponent);
 - `YOUR_IOS_APP_ID` with your iOS App ID (numbers only, e.g., "123456789")
 - `YOUR_ANDROID_PACKAGE_NAME` with your Android package name
 
+### Example with Adapty
+
+```javascript
+import React, { useEffect } from 'react';
+import { AppRegistry, Platform } from 'react-native';
+import appsFlyer from 'react-native-appsflyer';
+import { adapty } from 'react-native-adapty';
+import { useDeepLinkIapProvider, DeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import App from './App';
+import { name as appName } from './app.json';
+
+const DeepLinkHandler = () => {
+  const { setInsertAffiliateIdentifier, isInitialized } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const initAppsFlyer = async () => {
+      try {
+        const initOptions = {
+          devKey: 'YOUR_APPSFLYER_DEV_KEY',
+          isDebug: true,
+          appId: Platform.OS === 'ios' ? 'YOUR_IOS_APP_ID' : 'YOUR_ANDROID_PACKAGE_NAME',
+        };
+
+        await appsFlyer.initSdk(initOptions);
+      } catch (error) {
+        console.error('AppsFlyer initialization error:', error);
+      }
+    };
+
+    const handleDeepLink = async (deepLinkData) => {
+      if (deepLinkData && deepLinkData.data) {
+        const referringLink = deepLinkData.data.link || deepLinkData.data.deep_link_value;
+
+        if (referringLink) {
+          try {
+            const insertAffiliateIdentifier = await setInsertAffiliateIdentifier(referringLink);
+
+            if (insertAffiliateIdentifier) {
+              await adapty.updateProfile({
+                codableCustomAttributes: {
+                  insert_affiliate: insertAffiliateIdentifier,
+                },
+              });
+            }
+          } catch (err) {
+            console.error('Error setting affiliate identifier:', err);
+          }
+        }
+      }
+    };
+
+    appsFlyer.onDeepLink(handleDeepLink);
+    appsFlyer.onAppOpenAttribution(handleDeepLink);
+    appsFlyer.onInstallConversionData(handleDeepLink);
+
+    initAppsFlyer();
+  }, [setInsertAffiliateIdentifier, isInitialized]);
+
+  return <App />;
+};
+
+const RootComponent = () => {
+  return (
+    <DeepLinkIapProvider>
+      <DeepLinkHandler />
+    </DeepLinkIapProvider>
+  );
+};
+
+AppRegistry.registerComponent(appName, () => RootComponent);
+```
+
 ### Example with Apphud
 
 ```javascript
