@@ -54,6 +54,7 @@ const ASYNC_KEYS = {
     USER_ACCOUNT_TOKEN: '@app_user_account_token',
     IOS_OFFER_CODE: '@app_ios_offer_code',
     AFFILIATE_STORED_DATE: '@app_affiliate_stored_date',
+    SDK_INIT_REPORTED: '@app_sdk_init_reported',
 };
 // STARTING CONTEXT IMPLEMENTATION
 exports.DeepLinkIapContext = (0, react_1.createContext)({
@@ -112,6 +113,8 @@ const DeepLinkIapProvider = ({ children, }) => {
                 console.log('[Insert Affiliate] [VERBOSE] Company code saved to AsyncStorage');
                 console.log('[Insert Affiliate] [VERBOSE] SDK marked as initialized');
             }
+            // Report SDK initialization for onboarding verification (fire and forget)
+            reportSdkInitIfNeeded(companyCode, verboseLogging);
         }
         else {
             console.warn('[Insert Affiliate] SDK initialized without a company code.');
@@ -630,6 +633,42 @@ const DeepLinkIapProvider = ({ children, }) => {
                 break;
         }
     };
+    // Reports SDK initialization to the backend for onboarding verification.
+    // Only reports once per install to minimize server load.
+    const reportSdkInitIfNeeded = (companyCode, verboseLogging) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            // Only report once per install
+            const alreadyReported = yield async_storage_1.default.getItem(ASYNC_KEYS.SDK_INIT_REPORTED);
+            if (alreadyReported === 'true') {
+                return;
+            }
+            if (verboseLogging) {
+                console.log('[Insert Affiliate] Reporting SDK initialization for onboarding verification...');
+            }
+            const response = yield fetch('https://api.insertaffiliate.com/V1/onboarding/sdk-init', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ companyId: companyCode }),
+            });
+            if (response.ok) {
+                yield async_storage_1.default.setItem(ASYNC_KEYS.SDK_INIT_REPORTED, 'true');
+                if (verboseLogging) {
+                    console.log('[Insert Affiliate] SDK initialization reported successfully');
+                }
+            }
+            else if (verboseLogging) {
+                console.log(`[Insert Affiliate] SDK initialization report failed with status: ${response.status}`);
+            }
+        }
+        catch (error) {
+            // Silently fail - this is non-critical telemetry
+            if (verboseLogging) {
+                console.log(`[Insert Affiliate] SDK initialization report error: ${error}`);
+            }
+        }
+    });
     // MARK: - Deep Linking Utilities
     // Retrieves and validates clipboard content for UUID format
     const getClipboardUUID = () => __awaiter(void 0, void 0, void 0, function* () {

@@ -80,6 +80,7 @@ const ASYNC_KEYS = {
   USER_ACCOUNT_TOKEN: '@app_user_account_token',
   IOS_OFFER_CODE: '@app_ios_offer_code',
   AFFILIATE_STORED_DATE: '@app_affiliate_stored_date',
+  SDK_INIT_REPORTED: '@app_sdk_init_reported',
 };
 
 // STARTING CONTEXT IMPLEMENTATION
@@ -153,6 +154,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         console.log('[Insert Affiliate] [VERBOSE] Company code saved to AsyncStorage');
         console.log('[Insert Affiliate] [VERBOSE] SDK marked as initialized');
       }
+
+      // Report SDK initialization for onboarding verification (fire and forget)
+      reportSdkInitIfNeeded(companyCode, verboseLogging);
     } else {
       console.warn(
         '[Insert Affiliate] SDK initialized without a company code.'
@@ -733,6 +737,44 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       default:
         console.log(`LOGGING ~ ${message}`);
         break;
+    }
+  };
+
+  // Reports SDK initialization to the backend for onboarding verification.
+  // Only reports once per install to minimize server load.
+  const reportSdkInitIfNeeded = async (companyCode: string, verboseLogging: boolean): Promise<void> => {
+    try {
+      // Only report once per install
+      const alreadyReported = await AsyncStorage.getItem(ASYNC_KEYS.SDK_INIT_REPORTED);
+      if (alreadyReported === 'true') {
+        return;
+      }
+
+      if (verboseLogging) {
+        console.log('[Insert Affiliate] Reporting SDK initialization for onboarding verification...');
+      }
+
+      const response = await fetch('https://api.insertaffiliate.com/V1/onboarding/sdk-init', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ companyId: companyCode }),
+      });
+
+      if (response.ok) {
+        await AsyncStorage.setItem(ASYNC_KEYS.SDK_INIT_REPORTED, 'true');
+        if (verboseLogging) {
+          console.log('[Insert Affiliate] SDK initialization reported successfully');
+        }
+      } else if (verboseLogging) {
+        console.log(`[Insert Affiliate] SDK initialization report failed with status: ${response.status}`);
+      }
+    } catch (error) {
+      // Silently fail - this is non-critical telemetry
+      if (verboseLogging) {
+        console.log(`[Insert Affiliate] SDK initialization report error: ${error}`);
+      }
     }
   };
 
