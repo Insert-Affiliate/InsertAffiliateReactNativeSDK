@@ -403,10 +403,22 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return false;
       }
 
-      // Parse the URL to extract query parameters
-      const urlObj = new URL(url);
-      const insertAffiliate = urlObj.searchParams.get('insertAffiliate');
-      
+      // Parse the URL to extract query parameters (React Native compatible)
+      // URLSearchParams is not available in React Native, so parse manually
+      let insertAffiliate: string | null = null;
+      const queryIndex = url.indexOf('?');
+      if (queryIndex !== -1) {
+        const queryString = url.substring(queryIndex + 1);
+        const params = queryString.split('&');
+        for (const param of params) {
+          const [key, value] = param.split('=');
+          if (key === 'insertAffiliate' && value) {
+            insertAffiliate = decodeURIComponent(value);
+            break;
+          }
+        }
+      }
+
       if (insertAffiliate && insertAffiliate.length > 0) {
         verboseLog(`Found insertAffiliate parameter: ${insertAffiliate}`);
 
