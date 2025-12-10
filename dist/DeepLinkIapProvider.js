@@ -54,6 +54,8 @@ const ASYNC_KEYS = {
     USER_ACCOUNT_TOKEN: '@app_user_account_token',
     IOS_OFFER_CODE: '@app_ios_offer_code',
     AFFILIATE_STORED_DATE: '@app_affiliate_stored_date',
+    SDK_INIT_REPORTED: '@app_sdk_init_reported',
+    REPORTED_AFFILIATE_ASSOCIATIONS: '@app_reported_affiliate_associations',
 };
 // STARTING CONTEXT IMPLEMENTATION
 exports.DeepLinkIapContext = (0, react_1.createContext)({
@@ -112,6 +114,8 @@ const DeepLinkIapProvider = ({ children, }) => {
                 console.log('[Insert Affiliate] [VERBOSE] Company code saved to AsyncStorage');
                 console.log('[Insert Affiliate] [VERBOSE] SDK marked as initialized');
             }
+            // Report SDK initialization for onboarding verification (fire and forget)
+            reportSdkInitIfNeeded(companyCode, verboseLogging);
         }
         else {
             console.warn('[Insert Affiliate] SDK initialized without a company code.');
@@ -330,12 +334,24 @@ const DeepLinkIapProvider = ({ children, }) => {
                 verboseLog('Invalid URL provided to handleInsertLinkAndroid');
                 return false;
             }
-            // Parse the URL to extract query parameters
-            const urlObj = new URL(url);
-            const insertAffiliate = urlObj.searchParams.get('insertAffiliate');
+            // Parse the URL to extract query parameters (React Native compatible)
+            // URLSearchParams is not available in React Native, so parse manually
+            let insertAffiliate = null;
+            const queryIndex = url.indexOf('?');
+            if (queryIndex !== -1) {
+                const queryString = url.substring(queryIndex + 1);
+                const params = queryString.split('&');
+                for (const param of params) {
+                    const [key, value] = param.split('=');
+                    if (key === 'insertAffiliate' && value) {
+                        insertAffiliate = decodeURIComponent(value);
+                        break;
+                    }
+                }
+            }
             if (insertAffiliate && insertAffiliate.length > 0) {
                 verboseLog(`Found insertAffiliate parameter: ${insertAffiliate}`);
-                yield storeInsertAffiliateIdentifier({ link: insertAffiliate });
+                yield storeInsertAffiliateIdentifier({ link: insertAffiliate, source: 'deep_link_android' });
                 return true;
             }
             else {
@@ -449,7 +465,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             // If we have insertAffiliate parameter, use it as the affiliate identifier
             if (insertAffiliate && insertAffiliate.length > 0) {
                 verboseLog(`Found insertAffiliate parameter, setting as affiliate identifier: ${insertAffiliate}`);
-                yield storeInsertAffiliateIdentifier({ link: insertAffiliate });
+                yield storeInsertAffiliateIdentifier({ link: insertAffiliate, source: 'install_referrer' });
                 return true;
             }
             else {
@@ -513,7 +529,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 console.log(`[Insert Affiliate] Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
             }
             // If URL scheme is used, we can straight away store the short code as the referring link
-            yield storeInsertAffiliateIdentifier({ link: shortCode });
+            yield storeInsertAffiliateIdentifier({ link: shortCode, source: 'deep_link_ios' });
             // Collect and send enhanced system info to backend
             try {
                 const enhancedSystemInfo = yield getEnhancedSystemInfo();
@@ -630,6 +646,87 @@ const DeepLinkIapProvider = ({ children, }) => {
                 break;
         }
     };
+    // Reports a new affiliate association to the backend for tracking.
+    // Only reports each unique affiliateIdentifier once to prevent duplicates.
+    const reportAffiliateAssociationIfNeeded = (affiliateIdentifier, source) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const activeCompanyCode = yield getActiveCompanyCode();
+            if (!activeCompanyCode) {
+                verboseLog('Cannot report affiliate association: no company code available');
+                return;
+            }
+            // Get the set of already-reported affiliate identifiers
+            const reportedAssociationsJson = yield async_storage_1.default.getItem(ASYNC_KEYS.REPORTED_AFFILIATE_ASSOCIATIONS);
+            const reportedAssociations = reportedAssociationsJson ? JSON.parse(reportedAssociationsJson) : [];
+            // Check if this affiliate identifier has already been reported
+            if (reportedAssociations.includes(affiliateIdentifier)) {
+                verboseLog(`Affiliate association already reported for: ${affiliateIdentifier}, skipping`);
+                return;
+            }
+            verboseLog(`Reporting new affiliate association: ${affiliateIdentifier} (source: ${source})`);
+            const response = yield fetch('https://api.insertaffiliate.com/V1/onboarding/affiliate-associated', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    companyId: activeCompanyCode,
+                    affiliateIdentifier: affiliateIdentifier,
+                    source: source,
+                    timestamp: new Date().toISOString(),
+                }),
+            });
+            if (response.ok) {
+                // Add to reported set and persist
+                reportedAssociations.push(affiliateIdentifier);
+                yield async_storage_1.default.setItem(ASYNC_KEYS.REPORTED_AFFILIATE_ASSOCIATIONS, JSON.stringify(reportedAssociations));
+                verboseLog(`Affiliate association reported successfully for: ${affiliateIdentifier}`);
+            }
+            else {
+                verboseLog(`Affiliate association report failed with status: ${response.status}`);
+            }
+        }
+        catch (error) {
+            // Silently fail - this is non-critical telemetry
+            verboseLog(`Affiliate association report error: ${error}`);
+        }
+    });
+    // Reports SDK initialization to the backend for onboarding verification.
+    // Only reports once per install to minimize server load.
+    const reportSdkInitIfNeeded = (companyCode, verboseLogging) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            // Only report once per install
+            const alreadyReported = yield async_storage_1.default.getItem(ASYNC_KEYS.SDK_INIT_REPORTED);
+            if (alreadyReported === 'true') {
+                return;
+            }
+            if (verboseLogging) {
+                console.log('[Insert Affiliate] Reporting SDK initialization for onboarding verification...');
+            }
+            const response = yield fetch('https://api.insertaffiliate.com/V1/onboarding/sdk-init', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ companyId: companyCode }),
+            });
+            if (response.ok) {
+                yield async_storage_1.default.setItem(ASYNC_KEYS.SDK_INIT_REPORTED, 'true');
+                if (verboseLogging) {
+                    console.log('[Insert Affiliate] SDK initialization reported successfully');
+                }
+            }
+            else if (verboseLogging) {
+                console.log(`[Insert Affiliate] SDK initialization report failed with status: ${response.status}`);
+            }
+        }
+        catch (error) {
+            // Silently fail - this is non-critical telemetry
+            if (verboseLogging) {
+                console.log(`[Insert Affiliate] SDK initialization report error: ${error}`);
+            }
+        }
+    });
     // MARK: - Deep Linking Utilities
     // Retrieves and validates clipboard content for UUID format
     const getClipboardUUID = () => __awaiter(void 0, void 0, void 0, function* () {
@@ -995,7 +1092,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 if (matchFound && response.data.matched_affiliate_shortCode && response.data.matched_affiliate_shortCode.length > 0) {
                     const matchedShortCode = response.data.matched_affiliate_shortCode;
                     verboseLog(`Storing Matched short code from backend: ${matchedShortCode}`);
-                    yield storeInsertAffiliateIdentifier({ link: matchedShortCode });
+                    yield storeInsertAffiliateIdentifier({ link: matchedShortCode, source: 'clipboard_match' });
                 }
             }
             // Check for a successful response
@@ -1109,7 +1206,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             const exists = yield checkAffiliateExists(capitalisedShortCode);
             if (exists) {
                 // If affiliate exists, set the Insert Affiliate Identifier
-                yield storeInsertAffiliateIdentifier({ link: capitalisedShortCode });
+                yield storeInsertAffiliateIdentifier({ link: capitalisedShortCode, source: 'short_code_manual' });
                 console.log(`[Insert Affiliate] Short code ${capitalisedShortCode} validated and stored successfully.`);
                 return true;
             }
@@ -1262,7 +1359,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 if (!referringLink) {
                     console.warn('[Insert Affiliate] Referring link is invalid.');
                     verboseLog('Referring link is empty or invalid, storing as-is');
-                    yield storeInsertAffiliateIdentifier({ link: referringLink });
+                    yield storeInsertAffiliateIdentifier({ link: referringLink, source: 'referring_link' });
                     return `${referringLink}-${customerID}`;
                 }
                 // Get company code from state or storage
@@ -1279,7 +1376,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 if (isShortCode(referringLink)) {
                     console.log('[Insert Affiliate] Referring link is already a short code.');
                     verboseLog('Link is already a short code, storing directly');
-                    yield storeInsertAffiliateIdentifier({ link: referringLink });
+                    yield storeInsertAffiliateIdentifier({ link: referringLink, source: 'referring_link' });
                     return `${referringLink}-${customerID}`;
                 }
                 verboseLog('Link is not a short code, will convert via API');
@@ -1290,7 +1387,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 if (!encodedAffiliateLink) {
                     console.error('[Insert Affiliate] Failed to encode affiliate link.');
                     verboseLog('Failed to encode link, storing original');
-                    yield storeInsertAffiliateIdentifier({ link: referringLink });
+                    yield storeInsertAffiliateIdentifier({ link: referringLink, source: 'referring_link' });
                     return `${referringLink}-${customerID}`;
                 }
                 // Create the request URL
@@ -1309,7 +1406,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                     console.log('[Insert Affiliate] Short link received:', shortLink);
                     verboseLog(`Successfully converted to short link: ${shortLink}`);
                     verboseLog('Storing short link to AsyncStorage...');
-                    yield storeInsertAffiliateIdentifier({ link: shortLink });
+                    yield storeInsertAffiliateIdentifier({ link: shortLink, source: 'referring_link' });
                     verboseLog('Short link stored successfully');
                     return `${shortLink}-${customerID}`;
                 }
@@ -1317,7 +1414,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                     console.warn('[Insert Affiliate] Unexpected response format.');
                     verboseLog(`Unexpected API response. Status: ${response.status}, Data: ${JSON.stringify(response.data)}`);
                     verboseLog('Storing original link as fallback');
-                    yield storeInsertAffiliateIdentifier({ link: referringLink });
+                    yield storeInsertAffiliateIdentifier({ link: referringLink, source: 'referring_link' });
                     return `${referringLink}-${customerID}`;
                 }
             }
@@ -1329,8 +1426,8 @@ const DeepLinkIapProvider = ({ children, }) => {
     }
     ;
     function storeInsertAffiliateIdentifier(_a) {
-        return __awaiter(this, arguments, void 0, function* ({ link }) {
-            console.log(`[Insert Affiliate] Storing affiliate identifier: ${link}`);
+        return __awaiter(this, arguments, void 0, function* ({ link, source }) {
+            console.log(`[Insert Affiliate] Storing affiliate identifier: ${link} (source: ${source})`);
             // Check if we're trying to store the same link (prevent duplicate storage)
             const existingLink = yield getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
             if (existingLink === link) {
@@ -1354,6 +1451,11 @@ const DeepLinkIapProvider = ({ children, }) => {
                 const currentIdentifier = yield returnInsertAffiliateIdentifier();
                 verboseLog(`Triggering callback with identifier: ${currentIdentifier}`);
                 insertAffiliateIdentifierChangeCallbackRef.current(currentIdentifier);
+            }
+            // Report this new affiliate association to the backend (fire and forget)
+            const fullIdentifier = yield returnInsertAffiliateIdentifier();
+            if (fullIdentifier) {
+                reportAffiliateAssociationIfNeeded(fullIdentifier, source);
             }
         });
     }
