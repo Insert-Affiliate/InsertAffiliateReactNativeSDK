@@ -77,6 +77,66 @@ const RootComponent = () => {
 AppRegistry.registerComponent(appName, () => RootComponent);
 ```
 
+### Example with Adapty
+
+```javascript
+import React, { useEffect } from 'react';
+import { AppRegistry } from 'react-native';
+import branch from 'react-native-branch';
+import { adapty } from 'react-native-adapty';
+import { useDeepLinkIapProvider, DeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import App from './App';
+import { name as appName } from './app.json';
+
+const DeepLinkHandler = () => {
+  const { setInsertAffiliateIdentifier } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    const branchSubscription = branch.subscribe(async ({ error, params }) => {
+      if (error) {
+        console.error('Error from Branch:', error);
+        return;
+      }
+
+      if (params['+clicked_branch_link']) {
+        const referringLink = params['~referring_link'];
+        if (referringLink) {
+          try {
+            const insertAffiliateIdentifier = await setInsertAffiliateIdentifier(referringLink);
+
+            if (insertAffiliateIdentifier) {
+              await adapty.updateProfile({
+                codableCustomAttributes: {
+                  insert_affiliate: insertAffiliateIdentifier,
+                },
+              });
+            }
+          } catch (err) {
+            console.error('Error setting affiliate identifier:', err);
+          }
+        }
+      }
+    });
+
+    return () => {
+      branchSubscription();
+    };
+  }, [setInsertAffiliateIdentifier]);
+
+  return <App />;
+};
+
+const RootComponent = () => {
+  return (
+    <DeepLinkIapProvider>
+      <DeepLinkHandler />
+    </DeepLinkIapProvider>
+  );
+};
+
+AppRegistry.registerComponent(appName, () => RootComponent);
+```
+
 ### Example with Apphud
 
 ```javascript

@@ -162,9 +162,10 @@ initialize(
 | Method | Best For | Setup Time | Complexity |
 |--------|----------|------------|------------|
 | [**RevenueCat**](#option-1-revenuecat-recommended) | Most developers, managed infrastructure | ~10 min | Simple |
-| [**Iaptic**](#option-2-iaptic) | Custom requirements, direct control | ~15 min | Medium |
-| [**App Store Direct**](#option-3-app-store-direct) | No 3rd party fees (iOS) | ~20 min | Medium |
-| [**Google Play Direct**](#option-4-google-play-direct) | No 3rd party fees (Android) | ~20 min | Medium |
+| [**Adapty**](#option-2-adapty) | Paywall A/B testing, analytics | ~10 min | Simple |
+| [**Iaptic**](#option-3-iaptic) | Custom requirements, direct control | ~15 min | Medium |
+| [**App Store Direct**](#option-4-app-store-direct) | No 3rd party fees (iOS) | ~20 min | Medium |
+| [**Google Play Direct**](#option-5-google-play-direct) | No 3rd party fees (Android) | ~20 min | Medium |
 
 <details open>
 <summary><h4>Option 1: RevenueCat (Recommended)</h4></summary>
@@ -179,7 +180,7 @@ import Purchases from 'react-native-purchases';
 import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
 const App = () => {
-  const { initialize, isInitialized, returnInsertAffiliateIdentifier } = useDeepLinkIapProvider();
+  const { initialize, isInitialized, setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
 
   useEffect(() => {
     if (!isInitialized) {
@@ -187,17 +188,16 @@ const App = () => {
     }
   }, [initialize, isInitialized]);
 
+  // Set RevenueCat attribute when affiliate identifier changes
   useEffect(() => {
-    const handleAffiliateLogin = async () => {
-      if (isInitialized) {
-        const affiliateIdentifier = await returnInsertAffiliateIdentifier();
-        if (affiliateIdentifier) {
-          await Purchases.setAttributes({ "insert_affiliate": affiliateIdentifier });
-        }
+    setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
+      if (identifier) {
+        await Purchases.setAttributes({ "insert_affiliate": identifier });
       }
-    };
-    handleAffiliateLogin();
-  }, [isInitialized, returnInsertAffiliateIdentifier]);
+    });
+
+    return () => setInsertAffiliateIdentifierChangeCallback(null);
+  }, [setInsertAffiliateIdentifierChangeCallback]);
 
   return <YourAppContent />;
 };
@@ -220,7 +220,94 @@ const App = () => {
 </details>
 
 <details>
-<summary><h4>Option 2: Iaptic</h4></summary>
+<summary><h4>Option 2: Adapty</h4></summary>
+
+**Step 1: Install Adapty SDK**
+
+```bash
+npm install react-native-adapty
+cd ios && pod install && cd ..
+```
+
+Complete the [Adapty SDK installation](https://adapty.io/docs/sdk-installation-reactnative) for any additional platform-specific setup.
+
+**Step 2: Code Setup**
+
+```javascript
+import React, { useEffect } from 'react';
+import { adapty } from 'react-native-adapty';
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+
+const ADAPTY_PUBLIC_SDK_KEY = 'YOUR_ADAPTY_PUBLIC_SDK_KEY'; // From https://app.adapty.io/
+
+const App = () => {
+  const { initialize, isInitialized, setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
+
+  // Initialize both SDKs
+  useEffect(() => {
+    const initSDKs = async () => {
+      // Initialize Adapty
+      await adapty.activate(ADAPTY_PUBLIC_SDK_KEY);
+
+      // Initialize Insert Affiliate
+      if (!isInitialized) {
+        initialize("YOUR_COMPANY_CODE");
+      }
+    };
+    initSDKs();
+  }, [initialize, isInitialized]);
+
+  // Set Adapty attribute when affiliate identifier changes
+  useEffect(() => {
+    setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
+      if (identifier) {
+        await adapty.updateProfile({
+          codableCustomAttributes: {
+            insert_affiliate: identifier,
+          },
+        });
+      }
+    });
+
+    return () => setInsertAffiliateIdentifierChangeCallback(null);
+  }, [setInsertAffiliateIdentifierChangeCallback]);
+
+  return <YourAppContent />;
+};
+```
+
+**Step 3: Webhook Setup**
+
+1. In your [Insert Affiliate dashboard](https://app.insertaffiliate.com/settings):
+   - Set **In-App Purchase Verification** to `Adapty`
+   - Copy the **Adapty Webhook URL**
+   - Copy the **Adapty Webhook Authorization Header** value
+
+2. In the [Adapty Dashboard](https://app.adapty.io/integrations):
+   - Navigate to **Integrations** → **Webhooks**
+   - Set **Production URL** to the webhook URL from Insert Affiliate
+   - Set **Sandbox URL** to the same webhook URL
+   - Paste the authorization header value into **Authorization header value**
+   - Enable these options:
+     - **Exclude historical events**
+     - **Send attribution**
+     - **Send trial price**
+     - **Send user attributes**
+   - Save the configuration
+
+**Step 4: Verify Integration**
+
+To confirm the affiliate identifier is set correctly:
+1. Go to [app.adapty.io/profiles/users](https://app.adapty.io/profiles/users)
+2. Find the test user who made a purchase
+3. Look for `insert_affiliate` in **Custom attributes** with format: `{SHORT_CODE}-{UUID}`
+
+**Adapty setup complete!** Now skip to [Step 3: Set Up Deep Linking](#3-set-up-deep-linking)
+
+</details>
+
+<details>
+<summary><h4>Option 3: Iaptic</h4></summary>
 
 **Step 1: Code Setup**
 
@@ -280,7 +367,7 @@ Replace:
 </details>
 
 <details>
-<summary><h4>Option 3: App Store Direct</h4></summary>
+<summary><h4>Option 4: App Store Direct</h4></summary>
 
 **Step 1: Apple App Store Notification Setup**
 
@@ -318,7 +405,7 @@ const handleBuySubscription = async (product) => {
 </details>
 
 <details>
-<summary><h4>Option 4: Google Play Direct</h4></summary>
+<summary><h4>Option 5: Google Play Direct</h4></summary>
 
 **Step 1: RTDN Setup**
 
@@ -402,6 +489,33 @@ const App = () => {
     setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
       if (identifier) {
         await Purchases.setAttributes({ "insert_affiliate": identifier });
+      }
+    });
+
+    return () => setInsertAffiliateIdentifierChangeCallback(null);
+  }, []);
+
+  return <YourAppContent />;
+};
+```
+
+**With Adapty:**
+
+```javascript
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import { adapty } from 'react-native-adapty';
+
+const App = () => {
+  const { setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
+
+  useEffect(() => {
+    setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
+      if (identifier) {
+        await adapty.updateProfile({
+          codableCustomAttributes: {
+            insert_affiliate: identifier,
+          },
+        });
       }
     });
 
@@ -538,6 +652,7 @@ Branch.io provides robust attribution and deferred deep linking capabilities.
 
 Includes full examples for:
 - RevenueCat integration
+- Adapty integration
 - Apphud integration
 - Iaptic integration
 - App Store / Google Play Direct integration
@@ -561,6 +676,7 @@ AppsFlyer provides enterprise-grade analytics and comprehensive attribution.
 
 Includes full examples for:
 - RevenueCat integration
+- Adapty integration
 - Apphud integration
 - Iaptic integration
 - Store Direct integration
