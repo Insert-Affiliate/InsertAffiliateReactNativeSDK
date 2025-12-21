@@ -102,7 +102,7 @@ AppRegistry.registerComponent(appName, () => RootComponent);
 ### Example with Adapty
 
 ```javascript
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AppRegistry, Platform } from 'react-native';
 import appsFlyer from 'react-native-appsflyer';
 import { adapty } from 'react-native-adapty';
@@ -112,6 +112,25 @@ import { name as appName } from './app.json';
 
 const DeepLinkHandler = () => {
   const { setInsertAffiliateIdentifier, isInitialized } = useDeepLinkIapProvider();
+  const adaptyActivationPromiseRef = useRef(null);
+
+  // Initialize Adapty SDK
+  useEffect(() => {
+    const initAdapty = async () => {
+      try {
+        adaptyActivationPromiseRef.current = adapty.activate('YOUR_ADAPTY_PUBLIC_SDK_KEY', {
+          __ignoreActivationOnFastRefresh: __DEV__,
+        });
+        await adaptyActivationPromiseRef.current;
+      } catch (error) {
+        console.error('Failed to activate Adapty SDK:', error);
+      }
+    };
+
+    if (!adaptyActivationPromiseRef.current) {
+      initAdapty();
+    }
+  }, []);
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -138,7 +157,9 @@ const DeepLinkHandler = () => {
           try {
             const insertAffiliateIdentifier = await setInsertAffiliateIdentifier(referringLink);
 
-            if (insertAffiliateIdentifier) {
+            if (insertAffiliateIdentifier && adaptyActivationPromiseRef.current) {
+              // Wait for Adapty activation before updating profile
+              await adaptyActivationPromiseRef.current;
               await adapty.updateProfile({
                 codableCustomAttributes: {
                   insert_affiliate: insertAffiliateIdentifier,

@@ -234,7 +234,7 @@ Complete the [Adapty SDK installation](https://adapty.io/docs/sdk-installation-r
 **Step 2: Code Setup**
 
 ```javascript
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { adapty } from 'react-native-adapty';
 import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
@@ -242,30 +242,53 @@ const ADAPTY_PUBLIC_SDK_KEY = 'YOUR_ADAPTY_PUBLIC_SDK_KEY'; // From https://app.
 
 const App = () => {
   const { initialize, isInitialized, setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
+  const adaptyActivationPromiseRef = useRef(null);
 
-  // Initialize both SDKs
+  // Initialize Adapty SDK
   useEffect(() => {
-    const initSDKs = async () => {
-      // Initialize Adapty
-      await adapty.activate(ADAPTY_PUBLIC_SDK_KEY);
-
-      // Initialize Insert Affiliate
-      if (!isInitialized) {
-        initialize("YOUR_COMPANY_CODE");
+    const initAdapty = async () => {
+      try {
+        adaptyActivationPromiseRef.current = adapty.activate(ADAPTY_PUBLIC_SDK_KEY, {
+          __ignoreActivationOnFastRefresh: __DEV__,
+        });
+        await adaptyActivationPromiseRef.current;
+      } catch (error) {
+        console.error('Failed to activate Adapty SDK:', error);
       }
     };
-    initSDKs();
+
+    if (!adaptyActivationPromiseRef.current) {
+      initAdapty();
+    }
+  }, []);
+
+  // Initialize Insert Affiliate SDK
+  useEffect(() => {
+    if (!isInitialized) {
+      initialize("YOUR_COMPANY_CODE");
+    }
   }, [initialize, isInitialized]);
 
   // Set Adapty attribute when affiliate identifier changes
   useEffect(() => {
     setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
       if (identifier) {
-        await adapty.updateProfile({
-          codableCustomAttributes: {
-            insert_affiliate: identifier,
-          },
-        });
+        if (adaptyActivationPromiseRef.current) {
+          try {
+            // Wait for Adapty activation before updating profile
+            await adaptyActivationPromiseRef.current;
+
+            await adapty.updateProfile({
+              codableCustomAttributes: {
+                insert_affiliate: identifier,
+              },
+            });
+          } catch (error) {
+            console.error('Failed to update Adapty profile with affiliate identifier:', error);
+          }
+        } else {
+          console.error('Adapty SDK is not initialized');
+        }
       }
     });
 
@@ -502,25 +525,50 @@ const App = () => {
 **With Adapty:**
 
 ```javascript
+import React, { useEffect, useRef } from 'react';
 import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 import { adapty } from 'react-native-adapty';
 
 const App = () => {
   const { setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
+  const adaptyActivationPromiseRef = useRef(null);
+
+  // Initialize Adapty SDK (see Option 2: Adapty for full setup)
+  useEffect(() => {
+    const initAdapty = async () => {
+      try {
+        adaptyActivationPromiseRef.current = adapty.activate('YOUR_ADAPTY_PUBLIC_SDK_KEY', {
+          __ignoreActivationOnFastRefresh: __DEV__,
+        });
+        await adaptyActivationPromiseRef.current;
+      } catch (error) {
+        console.error('Failed to activate Adapty SDK:', error);
+      }
+    };
+
+    if (!adaptyActivationPromiseRef.current) {
+      initAdapty();
+    }
+  }, []);
 
   useEffect(() => {
     setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
-      if (identifier) {
-        await adapty.updateProfile({
-          codableCustomAttributes: {
-            insert_affiliate: identifier,
-          },
-        });
+      if (identifier && adaptyActivationPromiseRef.current) {
+        try {
+          await adaptyActivationPromiseRef.current;
+          await adapty.updateProfile({
+            codableCustomAttributes: {
+              insert_affiliate: identifier,
+            },
+          });
+        } catch (error) {
+          console.error('Failed to update Adapty profile:', error);
+        }
       }
     });
 
     return () => setInsertAffiliateIdentifierChangeCallback(null);
-  }, []);
+  }, [setInsertAffiliateIdentifierChangeCallback]);
 
   return <YourAppContent />;
 };
