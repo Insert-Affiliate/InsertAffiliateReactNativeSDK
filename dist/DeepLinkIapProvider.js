@@ -585,28 +585,21 @@ const DeepLinkIapProvider = ({ children, }) => {
     // Parse shortcode from query parameter (new format: scheme://insert-affiliate?code=SHORTCODE)
     const parseShortCodeFromQuery = (url) => {
         try {
-            console.log(`[Insert Affiliate] [VERBOSE] parseShortCodeFromQuery called with: ${url}`);
             const queryIndex = url.indexOf('?');
-            console.log(`[Insert Affiliate] [VERBOSE] Query index: ${queryIndex}`);
             if (queryIndex !== -1) {
                 const queryString = url.substring(queryIndex + 1);
-                console.log(`[Insert Affiliate] [VERBOSE] Query string: ${queryString}`);
                 const params = queryString.split('&');
                 for (const param of params) {
                     const [key, value] = param.split('=');
-                    console.log(`[Insert Affiliate] [VERBOSE] Checking param - key: '${key}', value: '${value}'`);
                     if (key === 'code' && value) {
-                        const decoded = decodeURIComponent(value);
-                        console.log(`[Insert Affiliate] [VERBOSE] Found code param, returning: ${decoded}`);
-                        return decoded;
+                        return decodeURIComponent(value);
                     }
                 }
             }
-            console.log(`[Insert Affiliate] [VERBOSE] No code param found in query`);
             return null;
         }
         catch (error) {
-            console.log(`[Insert Affiliate] [VERBOSE] Error parsing short code from query: ${error}`);
+            verboseLog(`Error parsing short code from query: ${error}`);
             return null;
         }
     };
