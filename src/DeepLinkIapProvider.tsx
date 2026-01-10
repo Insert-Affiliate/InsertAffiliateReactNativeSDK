@@ -690,14 +690,48 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
+  // Parse shortcode from query parameter (new format: scheme://insert-affiliate?code=SHORTCODE)
+  const parseShortCodeFromQuery = (url: string): string | null => {
+    try {
+      const queryIndex = url.indexOf('?');
+      if (queryIndex !== -1) {
+        const queryString = url.substring(queryIndex + 1);
+        const params = queryString.split('&');
+        for (const param of params) {
+          const [key, value] = param.split('=');
+          if (key === 'code' && value) {
+            return decodeURIComponent(value);
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      verboseLog(`Error parsing short code from query: ${error}`);
+      return null;
+    }
+  };
+
   const parseShortCodeFromURLString = (url: string): string | null => {
     try {
-      // For custom schemes like ia-companycode://shortcode, everything after :// is the short code
+      // First try to extract from query parameter (new format: scheme://insert-affiliate?code=SHORTCODE)
+      const queryCode = parseShortCodeFromQuery(url);
+      if (queryCode) {
+        console.log(`[Insert Affiliate] Found short code in query parameter: ${queryCode}`);
+        return queryCode;
+      }
+
+      // Fall back to path format (legacy: scheme://SHORTCODE)
       const match = url.match(/^[^:]+:\/\/(.+)$/);
       if (match) {
-        const shortCode = match[1];
+        let shortCode = match[1];
         // Remove leading slash if present
-        return shortCode.startsWith('/') ? shortCode.substring(1) : shortCode;
+        shortCode = shortCode.startsWith('/') ? shortCode.substring(1) : shortCode;
+        // If the path is 'insert-affiliate' (from new format without code param), return null
+        if (shortCode === 'insert-affiliate' || shortCode.startsWith('insert-affiliate?')) {
+          return null;
+        }
+        console.log(`[Insert Affiliate] Found short code in URL path (legacy format): ${shortCode}`);
+        return shortCode;
       }
       return null;
     } catch (error) {
