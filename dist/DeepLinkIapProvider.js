@@ -509,7 +509,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             verboseLog(`Error in handleInsertLinks: ${error}`);
             return false;
         }
-    }), []);
+    }), [insertLinksEnabled]);
     // Handle custom URL schemes like ia-companycode://shortcode
     const handleCustomURLScheme = (url, protocol) => __awaiter(void 0, void 0, void 0, function* () {
         try {
@@ -1336,7 +1336,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             verboseLog(`Error getting affiliate identifier: ${error}`);
             return null;
         }
-    }), []);
+    }), [referrerLink, userId, affiliateAttributionActiveTime]);
     // MARK: Attribution Timeout Functions
     // Check if the current affiliate attribution is still valid based on timeout
     const isAffiliateAttributionValid = (0, react_1.useCallback)(() => __awaiter(void 0, void 0, void 0, function* () {
@@ -1361,7 +1361,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             verboseLog(`Error checking attribution validity: ${error}`);
             return false;
         }
-    }), []);
+    }), [affiliateAttributionActiveTime]);
     // Get the date when the affiliate identifier was stored
     const getAffiliateStoredDate = (0, react_1.useCallback)(() => __awaiter(void 0, void 0, void 0, function* () {
         try {
@@ -1666,7 +1666,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             verboseLog(`Network error tracking event: ${error}`);
             return Promise.reject(error);
         }
-    }), []);
+    }), [referrerLink, userId]);
     const fetchOfferCode = (affiliateLink) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             const activeCompanyCode = yield getActiveCompanyCode();

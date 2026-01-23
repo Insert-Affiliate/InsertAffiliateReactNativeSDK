@@ -601,7 +601,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog(`Error in handleInsertLinks: ${error}`);
       return false;
     }
-  }, []);
+  }, [insertLinksEnabled]);
 
   // Handle custom URL schemes like ia-companycode://shortcode
   const handleCustomURLScheme = async (url: string, protocol: string): Promise<boolean> => {
@@ -1540,7 +1540,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog(`Error getting affiliate identifier: ${error}`);
       return null;
     }
-  }, []);
+  }, [referrerLink, userId, affiliateAttributionActiveTime]);
 
   // MARK: Attribution Timeout Functions
 
@@ -1570,8 +1570,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog(`Error checking attribution validity: ${error}`);
       return false;
     }
-  }, []);
-  
+  }, [affiliateAttributionActiveTime]);
+
   // Get the date when the affiliate identifier was stored
   const getAffiliateStoredDate = useCallback(async (): Promise<Date | null> => {
     try {
@@ -1945,7 +1945,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog(`Network error tracking event: ${error}`);
       return Promise.reject(error);
     }
-  }, []);
+  }, [referrerLink, userId]);
 
   const fetchOfferCode = async (affiliateLink: string): Promise<string | null> => {
     try {
