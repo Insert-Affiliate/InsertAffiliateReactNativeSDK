@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useEffect, useState, useRef, useCallback } from 'react';
 import { Platform, Linking, Dimensions, PixelRatio } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -132,25 +132,27 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const [OfferCode, setOfferCode] = useState<string | null>(null);
   const [affiliateAttributionActiveTime, setAffiliateAttributionActiveTime] = useState<number | null>(null);
   const insertAffiliateIdentifierChangeCallbackRef = useRef<InsertAffiliateIdentifierChangeCallback | null>(null);
+  const isInitializingRef = useRef<boolean>(false);
 
   // MARK: Initialize the SDK
-  const initialize = async (companyCode: string | null, verboseLogging: boolean = false, insertLinksEnabled: boolean = false, insertLinksClipboardEnabled: boolean = false, affiliateAttributionActiveTime?: number): Promise<void> => {
+  const initialize = useCallback(async (companyCode: string | null, verboseLogging: boolean = false, insertLinksEnabled: boolean = false, insertLinksClipboardEnabled: boolean = false, affiliateAttributionActiveTime?: number): Promise<void> => {
+    // Prevent multiple concurrent initialization attempts
+    if (isInitialized || isInitializingRef.current) {
+      return;
+    }
+    isInitializingRef.current = true;
+
     setVerboseLogging(verboseLogging);
     setInsertLinksEnabled(insertLinksEnabled);
     setInsertLinksClipboardEnabled(insertLinksClipboardEnabled);
     if (affiliateAttributionActiveTime !== undefined) {
       setAffiliateAttributionActiveTime(affiliateAttributionActiveTime);
     }
-    
+
     if (verboseLogging) {
       console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
       console.log('[Insert Affiliate] [VERBOSE] Company code provided:', companyCode ? 'Yes' : 'No');
       console.log('[Insert Affiliate] [VERBOSE] Verbose logging enabled');
-    }
-
-    if (isInitialized) {
-      console.error('[Insert Affiliate] SDK is already initialized.');
-      return;
     }
 
     if (companyCode && companyCode.trim() !== '') {
@@ -185,7 +187,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         verboseLog(`Error sending system info for clipboard check: ${error}`);
       }
     }
-  };
+  }, [isInitialized]);
 
   // EFFECT TO FETCH USER ID AND REF LINK
   // IF ALREADY EXISTS IN ASYNC STORAGE
@@ -354,9 +356,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // MARK: Callback Management
   // Sets a callback that will be triggered whenever storeInsertAffiliateIdentifier is called
   // The callback receives the current affiliate identifier (returnInsertAffiliateIdentifier result)
-  const setInsertAffiliateIdentifierChangeCallbackHandler = (callback: InsertAffiliateIdentifierChangeCallback | null): void => {
+  const setInsertAffiliateIdentifierChangeCallbackHandler = useCallback((callback: InsertAffiliateIdentifierChangeCallback | null): void => {
     insertAffiliateIdentifierChangeCallbackRef.current = callback;
-  };
+  }, []);
 
   // MARK: Deep Link Handling
   // Helper function to parse URLs in React Native compatible way
@@ -566,10 +568,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   };
 
   // Handles Insert Links deep linking - equivalent to iOS handleInsertLinks
-  const handleInsertLinks = async (url: string): Promise<boolean> => {
+  const handleInsertLinks = useCallback(async (url: string): Promise<boolean> => {
     try {
       console.log(`[Insert Affiliate] Attempting to handle URL: ${url}`);
-      
+
       if (!url || typeof url !== 'string') {
         console.log('[Insert Affiliate] Invalid URL provided to handleInsertLinks');
         return false;
@@ -599,7 +601,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog(`Error in handleInsertLinks: ${error}`);
       return false;
     }
-  };
+  }, []);
 
   // Handle custom URL schemes like ia-companycode://shortcode
   const handleCustomURLScheme = async (url: string, protocol: string): Promise<boolean> => {
@@ -1374,7 +1376,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
-  const getAffiliateDetails = async (affiliateCode: string): Promise<AffiliateDetails> => {
+  const getAffiliateDetails = useCallback(async (affiliateCode: string): Promise<AffiliateDetails> => {
     try {
       const activeCompanyCode = await getActiveCompanyCode();
       if (!activeCompanyCode) {
@@ -1417,9 +1419,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       console.error('[Insert Affiliate] Error getting affiliate details:', error);
       return null;
     }
-  };
+  }, []);
 
-  async function setShortCode(shortCode: string): Promise<boolean> {
+  const setShortCode = useCallback(async (shortCode: string): Promise<boolean> => {
     console.log('[Insert Affiliate] Setting short code.');
     await generateThenSetUserID();
 
@@ -1439,7 +1441,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       console.warn(`[Insert Affiliate] Short code ${capitalisedShortCode} does not exist. Not storing.`);
       return false;
     }
-  }
+  }, []);
 
   async function getOrCreateUserAccountToken(): Promise<string> {
     let userAccountToken = await getValueFromAsync(ASYNC_KEYS.USER_ACCOUNT_TOKEN);
@@ -1452,7 +1454,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     return userAccountToken;
   };
 
-  const returnUserAccountTokenAndStoreExpectedTransaction = async (): Promise<string | null> => {
+  const returnUserAccountTokenAndStoreExpectedTransaction = useCallback(async (): Promise<string | null> => {
     try {
       const shortCode = await returnInsertAffiliateIdentifier();
       if (!shortCode) {
@@ -1472,9 +1474,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
     } catch (error) {
       // Handle E_IAP_NOT_AVAILABLE error gracefully
-      if ((error as any)?.code === 'E_IAP_NOT_AVAILABLE' || 
+      if ((error as any)?.code === 'E_IAP_NOT_AVAILABLE' ||
           (error instanceof Error && error.message.includes('E_IAP_NOT_AVAILABLE'))) {
-        
+
         if (isDevelopmentEnvironment) {
           console.warn('[Insert Affiliate] IAP not available in development environment. Cannot store expected transaction.');
           verboseLog('E_IAP_NOT_AVAILABLE error in returnUserAccountTokenAndStoreExpectedTransaction - gracefully handling in development');
@@ -1485,13 +1487,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       console.error('[Insert Affiliate] Error in returnUserAccountTokenAndStoreExpectedTransaction:', error);
       return null;
     };
-  };
+  }, []);
 
   // MARK: Return Insert Affiliate Identifier
-  const returnInsertAffiliateIdentifier = async (ignoreTimeout: boolean = false): Promise<string | null> => {
+  const returnInsertAffiliateIdentifier = useCallback(async (ignoreTimeout: boolean = false): Promise<string | null> => {
     try {
       verboseLog(`Getting insert affiliate identifier (ignoreTimeout: ${ignoreTimeout})...`);
-      
+
       // If timeout is enabled and we're not ignoring it, check validity first
       if (!ignoreTimeout && affiliateAttributionActiveTime) {
         const isValid = await isAffiliateAttributionValid();
@@ -1500,85 +1502,85 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           return null;
         }
       }
-      
+
       // Now get the actual identifier
       verboseLog(`React state - referrerLink: ${referrerLink || 'empty'}, userId: ${userId || 'empty'}`);
-      
+
       // Try React state first
       if (referrerLink && userId) {
         const identifier = `${referrerLink}-${userId}`;
         verboseLog(`Found identifier in React state: ${identifier}`);
         return identifier;
       }
-      
+
       verboseLog('React state empty, checking AsyncStorage...');
-      
+
       // Fallback to async storage if React state is empty
       const storedLink = await getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
       let storedUserId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
-      
+
       verboseLog(`AsyncStorage - storedLink: ${storedLink || 'empty'}, storedUserId: ${storedUserId || 'empty'}`);
-      
+
       // If we have a stored link but no user ID, generate one now
       if (storedLink && !storedUserId) {
         verboseLog('Found stored link but no user ID, generating user ID now...');
         storedUserId = await generateThenSetUserID();
         verboseLog(`Generated user ID: ${storedUserId}`);
       }
-      
+
       if (storedLink && storedUserId) {
         const identifier = `${storedLink}-${storedUserId}`;
         verboseLog(`Found identifier in AsyncStorage: ${identifier}`);
         return identifier;
       }
-      
+
       verboseLog('No affiliate identifier found in state or storage');
       return null;
     } catch (error) {
       verboseLog(`Error getting affiliate identifier: ${error}`);
       return null;
     }
-  };
+  }, []);
 
   // MARK: Attribution Timeout Functions
-  
+
   // Check if the current affiliate attribution is still valid based on timeout
-  const isAffiliateAttributionValid = async (): Promise<boolean> => {
+  const isAffiliateAttributionValid = useCallback(async (): Promise<boolean> => {
     try {
       // If no timeout is set, attribution is always valid
       if (!affiliateAttributionActiveTime) {
         verboseLog('No attribution timeout set, attribution is valid');
         return true;
       }
-      
+
       const storedDate = await getAffiliateStoredDate();
       if (!storedDate) {
         verboseLog('No stored date found, attribution is invalid');
         return false;
       }
-      
+
       const now = new Date();
       const timeDifferenceSeconds = Math.floor((now.getTime() - storedDate.getTime()) / 1000);
       const isValid = timeDifferenceSeconds <= affiliateAttributionActiveTime;
-      
+
       verboseLog(`Attribution timeout check: stored=${storedDate.toISOString()}, now=${now.toISOString()}, diff=${timeDifferenceSeconds}s, timeout=${affiliateAttributionActiveTime}s, valid=${isValid}`);
-      
+
       return isValid;
     } catch (error) {
       verboseLog(`Error checking attribution validity: ${error}`);
       return false;
     }
-  };
+  }, []);
   
   // Get the date when the affiliate identifier was stored
-  const getAffiliateStoredDate = async (): Promise<Date | null> => {
+  const getAffiliateStoredDate = useCallback(async (): Promise<Date | null> => {
     try {
       const storedDateString = await getValueFromAsync(ASYNC_KEYS.AFFILIATE_STORED_DATE);
       if (!storedDateString) {
         verboseLog('No affiliate stored date found');
         return null;
       }
-      
+
       const storedDate = new Date(storedDateString);
       verboseLog(`Retrieved affiliate stored date: ${storedDate.toISOString()}`);
       return storedDate;
@@ -1586,13 +1588,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog(`Error getting affiliate stored date: ${error}`);
       return null;
     }
-  };
+  }, []);
 
   // MARK: Insert Affiliate Identifier
 
-  async function setInsertAffiliateIdentifier(
+  const setInsertAffiliateIdentifier = useCallback(async (
     referringLink: string
-  ): Promise<void | string> {
+  ): Promise<void | string> => {
     console.log('[Insert Affiliate] Setting affiliate identifier.');
     verboseLog(`Input referringLink: ${referringLink}`);
 
@@ -1681,8 +1683,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       console.error('[Insert Affiliate] Error:', error);
       verboseLog(`Error in setInsertAffiliateIdentifier: ${error}`);
     }
-  };
-  
+  }, []);
+
   async function storeInsertAffiliateIdentifier({ link, source }: { link: string; source: AffiliateAssociationSource }) {
     console.log(`[Insert Affiliate] Storing affiliate identifier: ${link} (source: ${source})`);
 
@@ -1723,7 +1725,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   }
 
-  const validatePurchaseWithIapticAPI = async (
+  const validatePurchaseWithIapticAPI = useCallback(async (
     jsonIapPurchase: CustomPurchase,
     iapticAppId: string,
     iapticAppName: string,
@@ -1827,9 +1829,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       return false;
     }
-  };
+  }, []);
 
-  const storeExpectedStoreTransaction = async (purchaseToken: string): Promise<void> => {
+  const storeExpectedStoreTransaction = useCallback(async (purchaseToken: string): Promise<void> => {
     verboseLog(`Storing expected store transaction with token: ${purchaseToken}`);
     
     const activeCompanyCode = await getActiveCompanyCode();
@@ -1882,10 +1884,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       console.error(`[Insert Affiliate] Error storing expected transaction: ${error}`);
       verboseLog(`Network error storing transaction: ${error}`);
     }
-  };
+  }, []);
 
   // MARK: Track Event
-  const trackEvent = async (eventName: string): Promise<void> => {
+  const trackEvent = useCallback(async (eventName: string): Promise<void> => {
     try {
       verboseLog(`Tracking event: ${eventName}`);
       
@@ -1943,7 +1945,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog(`Network error tracking event: ${error}`);
       return Promise.reject(error);
     }
-  };
+  }, []);
 
   const fetchOfferCode = async (affiliateLink: string): Promise<string | null> => {
     try {
