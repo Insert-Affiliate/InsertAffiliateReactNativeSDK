@@ -1167,11 +1167,8 @@ const DeepLinkIapProvider = ({ children, }) => {
         return isValidCharacters && referringLink.length >= 3 && referringLink.length <= 25;
     };
     const checkAffiliateExists = (affiliateCode) => __awaiter(void 0, void 0, void 0, function* () {
-        console.log('[Insert Affiliate] DEBUG: checkAffiliateExists called with:', affiliateCode);
         try {
-            console.log('[Insert Affiliate] DEBUG: About to call getActiveCompanyCode');
             const activeCompanyCode = yield getActiveCompanyCode();
-            console.log('[Insert Affiliate] DEBUG: getActiveCompanyCode returned:', activeCompanyCode);
             if (!activeCompanyCode) {
                 verboseLog('Cannot check affiliate: no company code available');
                 return false;

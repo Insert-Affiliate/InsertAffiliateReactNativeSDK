@@ -1350,11 +1350,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   };
 
   const checkAffiliateExists = async (affiliateCode: string): Promise<boolean> => {
-    console.log('[Insert Affiliate] DEBUG: checkAffiliateExists called with:', affiliateCode);
     try {
-      console.log('[Insert Affiliate] DEBUG: About to call getActiveCompanyCode');
       const activeCompanyCode = await getActiveCompanyCode();
-      console.log('[Insert Affiliate] DEBUG: getActiveCompanyCode returned:', activeCompanyCode);
       if (!activeCompanyCode) {
         verboseLog('Cannot check affiliate: no company code available');
         return false;
