@@ -821,7 +821,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       verboseLog(`Reporting new affiliate association: ${affiliateIdentifier} (source: ${source})`);
 
-      const response = await fetch('https://api.insertaffiliate.com/V1/onboarding/affiliate-associated', {
+      const response = await fetch('https://edef339eb7d5.ngrok-free.app/V1/onboarding/affiliate-associated', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -862,7 +862,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         console.log('[Insert Affiliate] Reporting SDK initialization for onboarding verification...');
       }
 
-      const response = await fetch('https://api.insertaffiliate.com/V1/onboarding/sdk-init', {
+      const response = await fetch('https://edef339eb7d5.ngrok-free.app/V1/onboarding/sdk-init', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1340,7 +1340,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return false;
       }
 
-      const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
+      const url = 'https://edef339eb7d5.ngrok-free.app/V1/checkAffiliateExists';
       const payload = {
         companyId: activeCompanyCode,
         affiliateCode: affiliateCode
@@ -1382,7 +1382,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return null;
       }
 
-      const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
+      const url = 'https://edef339eb7d5.ngrok-free.app/V1/checkAffiliateExists';
       const payload = {
         companyId: activeCompanyCode,
         affiliateCode: affiliateCode
@@ -1649,7 +1649,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
 
       // Create the request URL
-      const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${activeCompanyCode}&deepLinkUrl=${encodedAffiliateLink}`;
+      const urlString = `https://edef339eb7d5.ngrok-free.app/V1/convert-deep-link-to-short-link?companyId=${activeCompanyCode}&deepLinkUrl=${encodedAffiliateLink}`;
       console.log('[Insert Affiliate] urlString .', urlString);
       verboseLog('Making API request to convert deep link to short code...');
       
@@ -1860,7 +1860,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     verboseLog("Making API call to store expected transaction...");
 
     try {
-      const response = await fetch("https://api.insertaffiliate.com/v1/api/app-store-webhook/create-expected-transaction", {
+      const response = await fetch("https://edef339eb7d5.ngrok-free.app/v1/api/app-store-webhook/create-expected-transaction", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1920,7 +1920,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog("Making API call to track event...");
       
       const response = await axios.post(
-        'https://api.insertaffiliate.com/v1/trackEvent',
+        'https://edef339eb7d5.ngrok-free.app/v1/trackEvent',
         payload,
         {
           headers: { 'Content-Type': 'application/json' },
@@ -1963,7 +1963,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
 
       const encodedAffiliateLink = encodeURIComponent(affiliateLink);
-      const url = `https://api.insertaffiliate.com/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}?platformType=${platformType}`;
+      const url = `https://edef339eb7d5.ngrok-free.app/v1/affiliateReturnOfferCode/${activeCompanyCode}/${encodedAffiliateLink}?platformType=${platformType}`;
       
       verboseLog(`Starting to fetch offer code from: ${url}`);
       
