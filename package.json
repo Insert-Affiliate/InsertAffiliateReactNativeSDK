@@ -1,6 +1,6 @@
 {
   "name": "insert-affiliate-react-native-sdk",
-  "version": "1.11.0",
+  "version": "1.11.1",
   "description": "A package for connecting with the Insert Affiliate Platform to add app based affiliate marketing.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
