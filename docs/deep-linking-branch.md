@@ -50,6 +50,7 @@ const DeepLinkHandler = () => {
 
             if (insertAffiliateIdentifier) {
               await Purchases.setAttributes({ "insert_affiliate": insertAffiliateIdentifier });
+              await Purchases.syncAttributesAndOfferingsIfNeeded();
             }
           } catch (err) {
             console.error('Error setting affiliate identifier:', err);

@@ -193,6 +193,7 @@ const App = () => {
     setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
       if (identifier) {
         await Purchases.setAttributes({ "insert_affiliate": identifier });
+        await Purchases.syncAttributesAndOfferingsIfNeeded();
       }
     });
 
@@ -512,6 +513,7 @@ const App = () => {
     setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
       if (identifier) {
         await Purchases.setAttributes({ "insert_affiliate": identifier });
+        await Purchases.syncAttributesAndOfferingsIfNeeded();
       }
     });
 
