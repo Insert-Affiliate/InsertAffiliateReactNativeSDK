@@ -673,6 +673,33 @@ Update your `ios/YourApp/AppDelegate.mm`:
 }
 ```
 
+**Step 4: Expo Router Setup (If Using Expo Router)**
+
+If you're using Expo Router, deep links will cause a "This screen does not exist" error because both the Insert Affiliate SDK and Expo Router try to handle the incoming URL. The SDK correctly processes the affiliate attribution, but Expo Router simultaneously attempts to navigate to the URL path (e.g., `/insert-affiliate`), which doesn't exist as a route.
+
+To fix this, create `app/+native-intent.tsx` to intercept Insert Affiliate URLs before Expo Router processes them:
+
+```tsx
+// app/+native-intent.tsx
+// Tell Expo Router to skip navigation for Insert Affiliate URLs
+// The SDK handles these via native Linking - we just prevent router errors
+
+export function redirectSystemPath({ path }: { path: string }): string | null {
+  // Skip navigation for Insert Affiliate deep links
+  if (path.includes('insert-affiliate') || path.includes('insertAffiliate')) {
+    return null; // SDK handles it via Linking API
+  }
+  return path; // Let Expo Router handle all other URLs normally
+}
+```
+
+This ensures:
+- The Insert Affiliate SDK still receives and processes the URL via the native Linking API
+- Expo Router ignores the URL and doesn't attempt navigation
+- No "screen not found" errors
+
+See the [Expo Router +native-intent docs](https://docs.expo.dev/router/reference/native-intent/) for more details.
+
 **Testing Deep Links:**
 
 ```bash
@@ -929,6 +956,10 @@ const rawIdentifier = await returnInsertAffiliateIdentifier(true);
 - **Solution:**
   - iOS: Add URL scheme to Info.plist and configure associated domains
   - Android: Add intent filters to AndroidManifest.xml
+
+**Problem:** "This screen does not exist" error with Expo Router
+- **Cause:** Both Insert Affiliate SDK and Expo Router are trying to handle the same URL
+- **Solution:** Create `app/+native-intent.tsx` to intercept Insert Affiliate URLs before Expo Router processes them. See [Expo Router Setup](#option-1-insert-links-simplest) in the Insert Links section.
 
 **Problem:** "No affiliate identifier found"
 - **Cause:** User hasn't clicked an affiliate link yet
