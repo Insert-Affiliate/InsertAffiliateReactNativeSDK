@@ -2127,6 +2127,18 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   const setInsertAffiliateIdentifierChangeCallbackHandler = useCallback((callback: InsertAffiliateIdentifierChangeCallback | null): void => {
     insertAffiliateIdentifierChangeCallbackRef.current = callback;
+
+    // If callback is being set, immediately call it with the current identifier value
+    // This ensures callbacks registered after initialization still receive the current state (including null if expired/not set)
+    if (callback) {
+      returnInsertAffiliateIdentifierImpl().then(identifier => {
+        // Verify callback is still the same (wasn't replaced during async operation)
+        if (insertAffiliateIdentifierChangeCallbackRef.current === callback) {
+          verboseLog(`Calling callback immediately with current identifier: ${identifier}`);
+          callback(identifier);
+        }
+      });
+    }
   }, []);
 
   const handleInsertLinks = useCallback(async (url: string): Promise<boolean> => {
