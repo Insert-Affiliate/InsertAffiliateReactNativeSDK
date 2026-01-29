@@ -46,9 +46,12 @@ npm install @react-native-async-storage/async-storage @react-native-clipboard/cl
 
 **Step 3:** Install iOS pods (iOS only)
 
+For **bare React Native** projects:
 ```bash
 cd ios && pod install && cd ..
 ```
+
+For **Expo managed workflow**: Skip this step - pods are installed automatically when you run `npx expo prebuild` or `npx expo run:ios`.
 
 ### Your First Integration
 
@@ -227,8 +230,11 @@ const App = () => {
 
 ```bash
 npm install react-native-adapty
-cd ios && pod install && cd ..
 ```
+
+For **bare React Native**: Run `cd ios && pod install && cd ..`
+
+For **Expo managed workflow**: Pods install automatically with `npx expo prebuild` or `npx expo run:ios`.
 
 Complete the [Adapty SDK installation](https://adapty.io/docs/sdk-installation-reactnative) for any additional platform-specific setup.
 
