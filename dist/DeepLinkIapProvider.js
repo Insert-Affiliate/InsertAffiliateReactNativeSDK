@@ -1489,12 +1489,12 @@ const DeepLinkIapProvider = ({ children, }) => {
             verboseLog(`Referrer link saved to AsyncStorage successfully`);
             // Automatically fetch and store offer code for any affiliate identifier
             verboseLog('Attempting to fetch offer code for stored affiliate identifier...');
-            yield retrieveAndStoreOfferCode(link);
-            // Trigger callback with the current affiliate identifier
+            const offerCode = yield retrieveAndStoreOfferCode(link);
+            // Trigger callback with the current affiliate identifier and offer code
             if (insertAffiliateIdentifierChangeCallbackRef.current) {
                 const currentIdentifier = yield returnInsertAffiliateIdentifierImpl();
-                verboseLog(`Triggering callback with identifier: ${currentIdentifier}`);
-                insertAffiliateIdentifierChangeCallbackRef.current(currentIdentifier);
+                verboseLog(`Triggering callback with identifier: ${currentIdentifier}, offerCode: ${offerCode}`);
+                insertAffiliateIdentifierChangeCallbackRef.current(currentIdentifier, offerCode);
             }
             // Report this new affiliate association to the backend (fire and forget)
             const fullIdentifier = yield returnInsertAffiliateIdentifierImpl();
@@ -1738,17 +1738,20 @@ const DeepLinkIapProvider = ({ children, }) => {
                 setOfferCode(offerCode);
                 verboseLog(`Successfully stored offer code: ${offerCode}`);
                 console.log('[Insert Affiliate] Offer code retrieved and stored successfully');
+                return offerCode;
             }
             else {
                 verboseLog('No valid offer code found to store');
                 // Clear stored offer code if none found
                 yield saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, '');
                 setOfferCode(null);
+                return null;
             }
         }
         catch (error) {
             console.error('[Insert Affiliate] Error retrieving and storing offer code:', error);
             verboseLog(`Error in retrieveAndStoreOfferCode: ${error}`);
+            return null;
         }
     });
     const removeSpecialCharacters = (offerCode) => {
@@ -1813,14 +1816,18 @@ const DeepLinkIapProvider = ({ children, }) => {
     }), []);
     const setInsertAffiliateIdentifierChangeCallbackHandler = (0, react_1.useCallback)((callback) => {
         insertAffiliateIdentifierChangeCallbackRef.current = callback;
-        // If callback is being set, immediately call it with the current identifier value
+        // If callback is being set, immediately call it with the current identifier and offer code values
         // This ensures callbacks registered after initialization still receive the current state (including null if expired/not set)
         if (callback) {
-            returnInsertAffiliateIdentifierImpl().then(identifier => {
+            Promise.all([
+                returnInsertAffiliateIdentifierImpl(),
+                getValueFromAsync(ASYNC_KEYS.IOS_OFFER_CODE)
+            ]).then(([identifier, storedOfferCode]) => {
                 // Verify callback is still the same (wasn't replaced during async operation)
                 if (insertAffiliateIdentifierChangeCallbackRef.current === callback) {
-                    verboseLog(`Calling callback immediately with current identifier: ${identifier}`);
-                    callback(identifier);
+                    const offerCode = storedOfferCode && storedOfferCode.length > 0 ? storedOfferCode : null;
+                    verboseLog(`Calling callback immediately with current identifier: ${identifier}, offerCode: ${offerCode}`);
+                    callback(identifier, offerCode);
                 }
             });
         }

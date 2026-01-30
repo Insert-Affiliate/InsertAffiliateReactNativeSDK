@@ -15,7 +15,7 @@ type T_DEEPLINK_IAP_PROVIDER = {
   children: React.ReactNode;
 };
 
-export type InsertAffiliateIdentifierChangeCallback = (identifier: string | null) => void;
+export type InsertAffiliateIdentifierChangeCallback = (identifier: string | null, offerCode: string | null) => void;
 
 export type AffiliateDetails = {
   affiliateName: string;
@@ -1724,13 +1724,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
     // Automatically fetch and store offer code for any affiliate identifier
     verboseLog('Attempting to fetch offer code for stored affiliate identifier...');
-    await retrieveAndStoreOfferCode(link);
+    const offerCode = await retrieveAndStoreOfferCode(link);
 
-    // Trigger callback with the current affiliate identifier
+    // Trigger callback with the current affiliate identifier and offer code
     if (insertAffiliateIdentifierChangeCallbackRef.current) {
       const currentIdentifier = await returnInsertAffiliateIdentifierImpl();
-      verboseLog(`Triggering callback with identifier: ${currentIdentifier}`);
-      insertAffiliateIdentifierChangeCallbackRef.current(currentIdentifier);
+      verboseLog(`Triggering callback with identifier: ${currentIdentifier}, offerCode: ${offerCode}`);
+      insertAffiliateIdentifierChangeCallbackRef.current(currentIdentifier, offerCode);
     }
 
     // Report this new affiliate association to the backend (fire and forget)
@@ -2016,27 +2016,30 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
-  const retrieveAndStoreOfferCode = async (affiliateLink: string): Promise<void> => {
+  const retrieveAndStoreOfferCode = async (affiliateLink: string): Promise<string | null> => {
     try {
       verboseLog(`Attempting to retrieve and store offer code for: ${affiliateLink}`);
-      
+
       const offerCode = await fetchOfferCode(affiliateLink);
-      
+
       if (offerCode && offerCode.length > 0) {
         // Store in both AsyncStorage and state
         await saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, offerCode);
         setOfferCode(offerCode);
         verboseLog(`Successfully stored offer code: ${offerCode}`);
         console.log('[Insert Affiliate] Offer code retrieved and stored successfully');
+        return offerCode;
       } else {
         verboseLog('No valid offer code found to store');
         // Clear stored offer code if none found
         await saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, '');
         setOfferCode(null);
+        return null;
       }
     } catch (error) {
       console.error('[Insert Affiliate] Error retrieving and storing offer code:', error);
       verboseLog(`Error in retrieveAndStoreOfferCode: ${error}`);
+      return null;
     }
   };
 
@@ -2128,14 +2131,18 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const setInsertAffiliateIdentifierChangeCallbackHandler = useCallback((callback: InsertAffiliateIdentifierChangeCallback | null): void => {
     insertAffiliateIdentifierChangeCallbackRef.current = callback;
 
-    // If callback is being set, immediately call it with the current identifier value
+    // If callback is being set, immediately call it with the current identifier and offer code values
     // This ensures callbacks registered after initialization still receive the current state (including null if expired/not set)
     if (callback) {
-      returnInsertAffiliateIdentifierImpl().then(identifier => {
+      Promise.all([
+        returnInsertAffiliateIdentifierImpl(),
+        getValueFromAsync(ASYNC_KEYS.IOS_OFFER_CODE)
+      ]).then(([identifier, storedOfferCode]) => {
         // Verify callback is still the same (wasn't replaced during async operation)
         if (insertAffiliateIdentifierChangeCallbackRef.current === callback) {
-          verboseLog(`Calling callback immediately with current identifier: ${identifier}`);
-          callback(identifier);
+          const offerCode = storedOfferCode && storedOfferCode.length > 0 ? storedOfferCode : null;
+          verboseLog(`Calling callback immediately with current identifier: ${identifier}, offerCode: ${offerCode}`);
+          callback(identifier, offerCode);
         }
       });
     }

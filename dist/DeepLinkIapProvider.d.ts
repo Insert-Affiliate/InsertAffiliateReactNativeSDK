@@ -2,7 +2,7 @@ import React from 'react';
 type T_DEEPLINK_IAP_PROVIDER = {
     children: React.ReactNode;
 };
-export type InsertAffiliateIdentifierChangeCallback = (identifier: string | null) => void;
+export type InsertAffiliateIdentifierChangeCallback = (identifier: string | null, offerCode: string | null) => void;
 export type AffiliateDetails = {
     affiliateName: string;
     affiliateShortCode: string;
