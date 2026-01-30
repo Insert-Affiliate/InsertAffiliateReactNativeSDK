@@ -52,7 +52,7 @@ const ASYNC_KEYS = {
     USER_ID: '@app_user_id',
     COMPANY_CODE: '@app_company_code',
     USER_ACCOUNT_TOKEN: '@app_user_account_token',
-    IOS_OFFER_CODE: '@app_ios_offer_code',
+    OFFER_CODE: '@app_offer_code',
     AFFILIATE_STORED_DATE: '@app_affiliate_stored_date',
     SDK_INIT_REPORTED: '@app_sdk_init_reported',
     REPORTED_AFFILIATE_ASSOCIATIONS: '@app_reported_affiliate_associations',
@@ -163,11 +163,21 @@ const DeepLinkIapProvider = ({ children, }) => {
                 const uId = yield getValueFromAsync(ASYNC_KEYS.USER_ID);
                 const refLink = yield getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
                 const companyCodeFromStorage = yield getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
-                const storedOfferCode = yield getValueFromAsync(ASYNC_KEYS.IOS_OFFER_CODE);
+                // Migration: check new key first, fall back to legacy iOS key
+                let storedOfferCode = yield getValueFromAsync(ASYNC_KEYS.OFFER_CODE);
+                if (!storedOfferCode) {
+                    const legacyOfferCode = yield getValueFromAsync('@app_ios_offer_code');
+                    if (legacyOfferCode) {
+                        storedOfferCode = legacyOfferCode;
+                        // Migrate to new key
+                        yield saveValueInAsync(ASYNC_KEYS.OFFER_CODE, legacyOfferCode);
+                        verboseLog('Migrated offer code from legacy iOS key to new key');
+                    }
+                }
                 verboseLog(`User ID found: ${uId ? 'Yes' : 'No'}`);
                 verboseLog(`Referrer link found: ${refLink ? 'Yes' : 'No'}`);
                 verboseLog(`Company code found: ${companyCodeFromStorage ? 'Yes' : 'No'}`);
-                verboseLog(`iOS Offer Code found: ${storedOfferCode ? 'Yes' : 'No'}`);
+                verboseLog(`Offer Code found: ${storedOfferCode ? 'Yes' : 'No'}`);
                 if (uId && refLink) {
                     setUserId(uId);
                     setReferrerLink(refLink);
@@ -180,7 +190,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 }
                 if (storedOfferCode) {
                     setOfferCode(storedOfferCode);
-                    verboseLog('iOS Offer Code restored from storage');
+                    verboseLog('Offer Code restored from storage');
                 }
             }
             catch (error) {
@@ -1734,7 +1744,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             const offerCode = yield fetchOfferCode(affiliateLink);
             if (offerCode && offerCode.length > 0) {
                 // Store in both AsyncStorage and state
-                yield saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, offerCode);
+                yield saveValueInAsync(ASYNC_KEYS.OFFER_CODE, offerCode);
                 setOfferCode(offerCode);
                 verboseLog(`Successfully stored offer code: ${offerCode}`);
                 console.log('[Insert Affiliate] Offer code retrieved and stored successfully');
@@ -1743,7 +1753,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             else {
                 verboseLog('No valid offer code found to store');
                 // Clear stored offer code if none found
-                yield saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, '');
+                yield saveValueInAsync(ASYNC_KEYS.OFFER_CODE, '');
                 setOfferCode(null);
                 return null;
             }
@@ -1821,7 +1831,7 @@ const DeepLinkIapProvider = ({ children, }) => {
         if (callback) {
             Promise.all([
                 returnInsertAffiliateIdentifierImpl(),
-                getValueFromAsync(ASYNC_KEYS.IOS_OFFER_CODE)
+                getValueFromAsync(ASYNC_KEYS.OFFER_CODE)
             ]).then(([identifier, storedOfferCode]) => {
                 // Verify callback is still the same (wasn't replaced during async operation)
                 if (insertAffiliateIdentifierChangeCallbackRef.current === callback) {

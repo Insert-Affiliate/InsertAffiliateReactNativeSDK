@@ -78,7 +78,7 @@ const ASYNC_KEYS = {
   USER_ID: '@app_user_id',
   COMPANY_CODE: '@app_company_code',
   USER_ACCOUNT_TOKEN: '@app_user_account_token',
-  IOS_OFFER_CODE: '@app_ios_offer_code',
+  OFFER_CODE: '@app_offer_code',
   AFFILIATE_STORED_DATE: '@app_affiliate_stored_date',
   SDK_INIT_REPORTED: '@app_sdk_init_reported',
   REPORTED_AFFILIATE_ASSOCIATIONS: '@app_reported_affiliate_associations',
@@ -218,12 +218,23 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         const uId = await getValueFromAsync(ASYNC_KEYS.USER_ID);
         const refLink = await getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
         const companyCodeFromStorage = await getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
-        const storedOfferCode = await getValueFromAsync(ASYNC_KEYS.IOS_OFFER_CODE);
+
+        // Migration: check new key first, fall back to legacy iOS key
+        let storedOfferCode = await getValueFromAsync(ASYNC_KEYS.OFFER_CODE);
+        if (!storedOfferCode) {
+          const legacyOfferCode = await getValueFromAsync('@app_ios_offer_code');
+          if (legacyOfferCode) {
+            storedOfferCode = legacyOfferCode;
+            // Migrate to new key
+            await saveValueInAsync(ASYNC_KEYS.OFFER_CODE, legacyOfferCode);
+            verboseLog('Migrated offer code from legacy iOS key to new key');
+          }
+        }
 
         verboseLog(`User ID found: ${uId ? 'Yes' : 'No'}`);
         verboseLog(`Referrer link found: ${refLink ? 'Yes' : 'No'}`);
         verboseLog(`Company code found: ${companyCodeFromStorage ? 'Yes' : 'No'}`);
-        verboseLog(`iOS Offer Code found: ${storedOfferCode ? 'Yes' : 'No'}`);
+        verboseLog(`Offer Code found: ${storedOfferCode ? 'Yes' : 'No'}`);
 
         if (uId && refLink) {
           setUserId(uId);
@@ -239,7 +250,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
         if (storedOfferCode) {
           setOfferCode(storedOfferCode);
-          verboseLog('iOS Offer Code restored from storage');
+          verboseLog('Offer Code restored from storage');
         }
       } catch (error) {
         errorLog(`ERROR ~ fetchAsyncEssentials: ${error}`);
@@ -2024,7 +2035,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       if (offerCode && offerCode.length > 0) {
         // Store in both AsyncStorage and state
-        await saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, offerCode);
+        await saveValueInAsync(ASYNC_KEYS.OFFER_CODE, offerCode);
         setOfferCode(offerCode);
         verboseLog(`Successfully stored offer code: ${offerCode}`);
         console.log('[Insert Affiliate] Offer code retrieved and stored successfully');
@@ -2032,7 +2043,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       } else {
         verboseLog('No valid offer code found to store');
         // Clear stored offer code if none found
-        await saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, '');
+        await saveValueInAsync(ASYNC_KEYS.OFFER_CODE, '');
         setOfferCode(null);
         return null;
       }
@@ -2136,7 +2147,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     if (callback) {
       Promise.all([
         returnInsertAffiliateIdentifierImpl(),
-        getValueFromAsync(ASYNC_KEYS.IOS_OFFER_CODE)
+        getValueFromAsync(ASYNC_KEYS.OFFER_CODE)
       ]).then(([identifier, storedOfferCode]) => {
         // Verify callback is still the same (wasn't replaced during async operation)
         if (insertAffiliateIdentifierChangeCallbackRef.current === callback) {
