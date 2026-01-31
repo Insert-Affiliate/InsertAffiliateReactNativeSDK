@@ -75,7 +75,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     setInsertAffiliateIdentifier: (referringLink) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifierChangeCallback: (callback) => { },
     handleInsertLinks: (url) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
-    initialize: (code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime) => __awaiter(void 0, void 0, void 0, function* () { }),
+    initialize: (code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer) => __awaiter(void 0, void 0, void 0, function* () { }),
     isInitialized: false,
 });
 const DeepLinkIapProvider = ({ children, }) => {
@@ -1827,8 +1827,8 @@ const DeepLinkIapProvider = ({ children, }) => {
     // STABLE WRAPPERS: useCallback with [] deps that delegate to refs
     // These provide stable function references that always call current implementations
     // ============================================================================
-    const initialize = (0, react_1.useCallback)((code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime) => __awaiter(void 0, void 0, void 0, function* () {
-        return initializeImplRef.current(code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime);
+    const initialize = (0, react_1.useCallback)((code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer) => __awaiter(void 0, void 0, void 0, function* () {
+        return initializeImplRef.current(code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer);
     }), []);
     const setShortCode = (0, react_1.useCallback)((shortCode) => __awaiter(void 0, void 0, void 0, function* () {
         return setShortCodeImplRef.current(shortCode);
