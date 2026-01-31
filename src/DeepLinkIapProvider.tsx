@@ -1754,6 +1754,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
 
     // Prevent transfer of affiliate if enabled - keep original affiliate
+    verboseLog(`preventAffiliateTransfer check: enabled=${preventAffiliateTransferRef.current}, existingLink=${existingLink}, newLink=${link}`);
     if (preventAffiliateTransferRef.current && existingLink && existingLink !== link) {
       verboseLog(`Transfer blocked: existing affiliate "${existingLink}" protected from being replaced by "${link}"`);
       return;
