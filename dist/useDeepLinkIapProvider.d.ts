@@ -9,6 +9,7 @@ declare const useDeepLinkIapProvider: () => {
     returnInsertAffiliateIdentifier: (ignoreTimeout?: boolean) => Promise<string | null>;
     isAffiliateAttributionValid: () => Promise<boolean>;
     getAffiliateStoredDate: () => Promise<Date | null>;
+    getAffiliateExpiryTimestamp: () => Promise<number | null>;
     trackEvent: (eventName: string) => Promise<void>;
     setShortCode: (shortCode: string) => Promise<boolean>;
     getAffiliateDetails: (affiliateCode: string) => Promise<import("./DeepLinkIapProvider").AffiliateDetails>;

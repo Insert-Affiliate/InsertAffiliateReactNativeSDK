@@ -34,6 +34,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   returnInsertAffiliateIdentifier: (ignoreTimeout?: boolean) => Promise<string | null>;
   isAffiliateAttributionValid: () => Promise<boolean>;
   getAffiliateStoredDate: () => Promise<Date | null>;
+  getAffiliateExpiryTimestamp: () => Promise<number | null>;
   validatePurchaseWithIapticAPI: (
     jsonIapPurchase: CustomPurchase,
     iapticAppId: string,
@@ -101,6 +102,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   returnInsertAffiliateIdentifier: async (ignoreTimeout?: boolean) => '',
   isAffiliateAttributionValid: async () => false,
   getAffiliateStoredDate: async () => null,
+  getAffiliateExpiryTimestamp: async () => null,
   validatePurchaseWithIapticAPI: async (
     jsonIapPurchase: CustomPurchase,
     iapticAppId: string,
@@ -145,6 +147,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const returnInsertAffiliateIdentifierImplRef = useRef<(ignoreTimeout?: boolean) => Promise<string | null>>(null as any);
   const isAffiliateAttributionValidImplRef = useRef<() => Promise<boolean>>(null as any);
   const getAffiliateStoredDateImplRef = useRef<() => Promise<Date | null>>(null as any);
+  const getAffiliateExpiryTimestampImplRef = useRef<() => Promise<number | null>>(null as any);
   const storeExpectedStoreTransactionImplRef = useRef<(purchaseToken: string) => Promise<void>>(null as any);
   const returnUserAccountTokenAndStoreExpectedTransactionImplRef = useRef<() => Promise<string | null>>(null as any);
   const validatePurchaseWithIapticAPIImplRef = useRef<(jsonIapPurchase: CustomPurchase, iapticAppId: string, iapticAppName: string, iapticPublicKey: string) => Promise<boolean>>(null as any);
@@ -1616,6 +1619,31 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
+  // Get the timestamp when attribution expires (stored date + timeout duration in ms)
+  // Returns null if no timeout is configured or no stored date exists
+  const getAffiliateExpiryTimestampImpl = async (): Promise<number | null> => {
+    try {
+      if (!affiliateAttributionActiveTime) {
+        verboseLog('No attribution timeout configured, no expiry timestamp');
+        return null;
+      }
+
+      const storedDate = await getAffiliateStoredDateImpl();
+      if (!storedDate) {
+        verboseLog('No stored date found, cannot calculate expiry timestamp');
+        return null;
+      }
+
+      // Convert timeout from seconds to milliseconds and add to stored date
+      const expiryTimestamp = storedDate.getTime() + (affiliateAttributionActiveTime * 1000);
+      verboseLog(`Attribution expiry timestamp: ${expiryTimestamp} (${new Date(expiryTimestamp).toISOString()})`);
+      return expiryTimestamp;
+    } catch (error) {
+      verboseLog(`Error getting affiliate expiry timestamp: ${error}`);
+      return null;
+    }
+  };
+
   // MARK: Insert Affiliate Identifier
 
   const setInsertAffiliateIdentifierImpl = async (
@@ -2073,6 +2101,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   returnInsertAffiliateIdentifierImplRef.current = returnInsertAffiliateIdentifierImpl;
   isAffiliateAttributionValidImplRef.current = isAffiliateAttributionValidImpl;
   getAffiliateStoredDateImplRef.current = getAffiliateStoredDateImpl;
+  getAffiliateExpiryTimestampImplRef.current = getAffiliateExpiryTimestampImpl;
   storeExpectedStoreTransactionImplRef.current = storeExpectedStoreTransactionImpl;
   returnUserAccountTokenAndStoreExpectedTransactionImplRef.current = returnUserAccountTokenAndStoreExpectedTransactionImpl;
   validatePurchaseWithIapticAPIImplRef.current = validatePurchaseWithIapticAPIImpl;
@@ -2112,6 +2141,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   const getAffiliateStoredDate = useCallback(async (): Promise<Date | null> => {
     return getAffiliateStoredDateImplRef.current();
+  }, []);
+
+  const getAffiliateExpiryTimestamp = useCallback(async (): Promise<number | null> => {
+    return getAffiliateExpiryTimestampImplRef.current();
   }, []);
 
   const storeExpectedStoreTransaction = useCallback(async (purchaseToken: string): Promise<void> => {
@@ -2174,6 +2207,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         returnInsertAffiliateIdentifier,
         isAffiliateAttributionValid,
         getAffiliateStoredDate,
+        getAffiliateExpiryTimestamp,
         storeExpectedStoreTransaction,
         returnUserAccountTokenAndStoreExpectedTransaction,
         validatePurchaseWithIapticAPI,

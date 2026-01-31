@@ -18,6 +18,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
     returnInsertAffiliateIdentifier: (ignoreTimeout?: boolean) => Promise<string | null>;
     isAffiliateAttributionValid: () => Promise<boolean>;
     getAffiliateStoredDate: () => Promise<Date | null>;
+    getAffiliateExpiryTimestamp: () => Promise<number | null>;
     validatePurchaseWithIapticAPI: (jsonIapPurchase: CustomPurchase, iapticAppId: string, iapticAppName: string, iapticPublicKey: string) => Promise<boolean>;
     returnUserAccountTokenAndStoreExpectedTransaction: () => Promise<string | null>;
     storeExpectedStoreTransaction: (purchaseToken: string) => Promise<void>;

@@ -188,7 +188,8 @@ const App = () => {
     initialize,
     isInitialized,
     setInsertAffiliateIdentifierChangeCallback,
-    isAffiliateAttributionValid
+    isAffiliateAttributionValid,
+    getAffiliateExpiryTimestamp
   } = useDeepLinkIapProvider();
 
   useEffect(() => {
@@ -201,28 +202,40 @@ const App = () => {
   useEffect(() => {
     setInsertAffiliateIdentifierChangeCallback(async (identifier, offerCode) => {
       if (identifier) {
+        // Only set attributes if attribution is still valid (not expired)
+        const isValid = await isAffiliateAttributionValid();
+        if (!isValid) return;
+
         await Purchases.setAttributes({
           "insert_affiliate": identifier,
-          "affiliateOfferCode": offerCode || ""  // For RevenueCat Targeting
+          "affiliateOfferCode": offerCode || "",  // For RevenueCat Targeting
+          "insert_timedout": ""  // Clear timeout flag on new attribution
         });
         await Purchases.syncAttributesAndOfferingsIfNeeded();
       }
     });
 
     return () => setInsertAffiliateIdentifierChangeCallback(null);
-  }, [setInsertAffiliateIdentifierChangeCallback]);
+  }, [setInsertAffiliateIdentifierChangeCallback, isAffiliateAttributionValid]);
 
-  // Clear expired affiliate attribution from RevenueCat
-  // This ensures RevenueCat Targeting rules respect your attribution timeout
+  // Handle expired attribution - clear offer code and set timeout timestamp
+  // NOTE: insert_affiliate is preserved for renewal webhook attribution
+  // insert_timedout stores the TIMESTAMP when attribution expired (storedDate + timeout)
+  // Webhook compares this against purchase dates to determine if purchases should be attributed:
+  // - Purchases made BEFORE timeout → attributed (initial + all renewals)
+  // - Purchases made AFTER timeout → not attributed (initial + all renewals)
   useEffect(() => {
     if (!isInitialized) return;
 
     const clearExpiredAffiliation = async () => {
       const isValid = await isAffiliateAttributionValid();
       if (!isValid) {
+        const expiryTimestamp = await getAffiliateExpiryTimestamp();
+        if (!expiryTimestamp) return; // No timeout configured
+
         await Purchases.setAttributes({
-          "insert_affiliate": "",
-          "affiliateOfferCode": ""
+          "affiliateOfferCode": "",
+          "insert_timedout": expiryTimestamp.toString()
         });
         await Purchases.syncAttributesAndOfferingsIfNeeded();
       }
@@ -239,7 +252,7 @@ const App = () => {
     });
 
     return () => subscription?.remove();
-  }, [isInitialized, isAffiliateAttributionValid]);
+  }, [isInitialized, isAffiliateAttributionValid, getAffiliateExpiryTimestamp]);
 
   return <YourAppContent />;
 };
