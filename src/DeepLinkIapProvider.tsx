@@ -117,7 +117,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
   setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => {},
   handleInsertLinks: async (url: string) => false,
-  initialize: async (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number) => {},
+  initialize: async (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => {},
   isInitialized: false,
 });
 
@@ -2129,9 +2129,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     verboseLogging?: boolean,
     insertLinksEnabled?: boolean,
     insertLinksClipboardEnabled?: boolean,
-    affiliateAttributionActiveTime?: number
+    affiliateAttributionActiveTime?: number,
+    preventAffiliateTransfer?: boolean
   ): Promise<void> => {
-    return initializeImplRef.current(code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime);
+    return initializeImplRef.current(code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer);
   }, []);
 
   const setShortCode = useCallback(async (shortCode: string): Promise<boolean> => {
