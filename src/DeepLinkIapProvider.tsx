@@ -53,7 +53,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   ) => Promise<void | string>;
   setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => void;
   handleInsertLinks: (url: string) => Promise<boolean>;
-  initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number) => Promise<void>;
+  initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => Promise<void>;
   isInitialized: boolean;
 };
 
@@ -133,15 +133,17 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const [insertLinksClipboardEnabled, setInsertLinksClipboardEnabled] = useState<boolean>(false);
   const [OfferCode, setOfferCode] = useState<string | null>(null);
   const [affiliateAttributionActiveTime, setAffiliateAttributionActiveTime] = useState<number | null>(null);
+  const [preventAffiliateTransfer, setPreventAffiliateTransfer] = useState<boolean>(false);
   const insertAffiliateIdentifierChangeCallbackRef = useRef<InsertAffiliateIdentifierChangeCallback | null>(null);
   const isInitializingRef = useRef<boolean>(false);
 
   // Refs for values that need to be current inside callbacks (to avoid stale closures)
   const companyCodeRef = useRef<string | null>(null);
   const verboseLoggingRef = useRef<boolean>(false);
+  const preventAffiliateTransferRef = useRef<boolean>(false);
 
   // Refs for implementation functions (ref callback pattern for stable + fresh)
-  const initializeImplRef = useRef<(code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number) => Promise<void>>(null as any);
+  const initializeImplRef = useRef<(code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => Promise<void>>(null as any);
   const setShortCodeImplRef = useRef<(shortCode: string) => Promise<boolean>>(null as any);
   const getAffiliateDetailsImplRef = useRef<(affiliateCode: string) => Promise<AffiliateDetails>>(null as any);
   const returnInsertAffiliateIdentifierImplRef = useRef<(ignoreTimeout?: boolean) => Promise<string | null>>(null as any);
@@ -156,7 +158,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const handleInsertLinksImplRef = useRef<(url: string) => Promise<boolean>>(null as any);
 
   // MARK: Initialize the SDK
-  const initializeImpl = async (companyCodeParam: string | null, verboseLoggingParam: boolean = false, insertLinksEnabledParam: boolean = false, insertLinksClipboardEnabledParam: boolean = false, affiliateAttributionActiveTimeParam?: number): Promise<void> => {
+  const initializeImpl = async (companyCodeParam: string | null, verboseLoggingParam: boolean = false, insertLinksEnabledParam: boolean = false, insertLinksClipboardEnabledParam: boolean = false, affiliateAttributionActiveTimeParam?: number, preventAffiliateTransferParam: boolean = false): Promise<void> => {
     // Prevent multiple concurrent initialization attempts
     if (isInitialized || isInitializingRef.current) {
       return;
@@ -170,6 +172,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     if (affiliateAttributionActiveTimeParam !== undefined) {
       setAffiliateAttributionActiveTime(affiliateAttributionActiveTimeParam);
     }
+    setPreventAffiliateTransfer(preventAffiliateTransferParam);
+    preventAffiliateTransferRef.current = preventAffiliateTransferParam;
 
     if (verboseLoggingParam) {
       console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
@@ -1740,12 +1744,18 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   };
 
   async function storeInsertAffiliateIdentifier({ link, source }: { link: string; source: AffiliateAssociationSource }) {
-    console.log(`[Insert Affiliate] Storing affiliate identifier: ${link} (source: ${source})`);
+    verboseLog(`Storing affiliate identifier: ${link} (source: ${source})`);
 
     // Check if we're trying to store the same link (prevent duplicate storage)
     const existingLink = await getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
     if (existingLink === link) {
       verboseLog(`Link ${link} is already stored, skipping duplicate storage`);
+      return;
+    }
+
+    // Prevent transfer of affiliate if enabled - keep original affiliate
+    if (preventAffiliateTransferRef.current && existingLink && existingLink !== link) {
+      verboseLog(`Transfer blocked: existing affiliate "${existingLink}" protected from being replaced by "${link}"`);
       return;
     }
 
