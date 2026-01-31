@@ -52,7 +52,7 @@ const ASYNC_KEYS = {
     USER_ID: '@app_user_id',
     COMPANY_CODE: '@app_company_code',
     USER_ACCOUNT_TOKEN: '@app_user_account_token',
-    IOS_OFFER_CODE: '@app_ios_offer_code',
+    OFFER_CODE: '@app_offer_code',
     AFFILIATE_STORED_DATE: '@app_affiliate_stored_date',
     SDK_INIT_REPORTED: '@app_sdk_init_reported',
     REPORTED_AFFILIATE_ASSOCIATIONS: '@app_reported_affiliate_associations',
@@ -65,6 +65,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     returnInsertAffiliateIdentifier: (ignoreTimeout) => __awaiter(void 0, void 0, void 0, function* () { return ''; }),
     isAffiliateAttributionValid: () => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     getAffiliateStoredDate: () => __awaiter(void 0, void 0, void 0, function* () { return null; }),
+    getAffiliateExpiryTimestamp: () => __awaiter(void 0, void 0, void 0, function* () { return null; }),
     validatePurchaseWithIapticAPI: (jsonIapPurchase, iapticAppId, iapticAppName, iapticPublicKey) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     returnUserAccountTokenAndStoreExpectedTransaction: () => __awaiter(void 0, void 0, void 0, function* () { return ''; }),
     storeExpectedStoreTransaction: (purchaseToken) => __awaiter(void 0, void 0, void 0, function* () { }),
@@ -74,7 +75,7 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     setInsertAffiliateIdentifier: (referringLink) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifierChangeCallback: (callback) => { },
     handleInsertLinks: (url) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
-    initialize: (code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime) => __awaiter(void 0, void 0, void 0, function* () { }),
+    initialize: (code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer) => __awaiter(void 0, void 0, void 0, function* () { }),
     isInitialized: false,
 });
 const DeepLinkIapProvider = ({ children, }) => {
@@ -87,11 +88,13 @@ const DeepLinkIapProvider = ({ children, }) => {
     const [insertLinksClipboardEnabled, setInsertLinksClipboardEnabled] = (0, react_1.useState)(false);
     const [OfferCode, setOfferCode] = (0, react_1.useState)(null);
     const [affiliateAttributionActiveTime, setAffiliateAttributionActiveTime] = (0, react_1.useState)(null);
+    const [preventAffiliateTransfer, setPreventAffiliateTransfer] = (0, react_1.useState)(false);
     const insertAffiliateIdentifierChangeCallbackRef = (0, react_1.useRef)(null);
     const isInitializingRef = (0, react_1.useRef)(false);
     // Refs for values that need to be current inside callbacks (to avoid stale closures)
     const companyCodeRef = (0, react_1.useRef)(null);
     const verboseLoggingRef = (0, react_1.useRef)(false);
+    const preventAffiliateTransferRef = (0, react_1.useRef)(false);
     // Refs for implementation functions (ref callback pattern for stable + fresh)
     const initializeImplRef = (0, react_1.useRef)(null);
     const setShortCodeImplRef = (0, react_1.useRef)(null);
@@ -99,6 +102,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     const returnInsertAffiliateIdentifierImplRef = (0, react_1.useRef)(null);
     const isAffiliateAttributionValidImplRef = (0, react_1.useRef)(null);
     const getAffiliateStoredDateImplRef = (0, react_1.useRef)(null);
+    const getAffiliateExpiryTimestampImplRef = (0, react_1.useRef)(null);
     const storeExpectedStoreTransactionImplRef = (0, react_1.useRef)(null);
     const returnUserAccountTokenAndStoreExpectedTransactionImplRef = (0, react_1.useRef)(null);
     const validatePurchaseWithIapticAPIImplRef = (0, react_1.useRef)(null);
@@ -106,7 +110,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     const setInsertAffiliateIdentifierImplRef = (0, react_1.useRef)(null);
     const handleInsertLinksImplRef = (0, react_1.useRef)(null);
     // MARK: Initialize the SDK
-    const initializeImpl = (companyCodeParam_1, ...args_1) => __awaiter(void 0, [companyCodeParam_1, ...args_1], void 0, function* (companyCodeParam, verboseLoggingParam = false, insertLinksEnabledParam = false, insertLinksClipboardEnabledParam = false, affiliateAttributionActiveTimeParam) {
+    const initializeImpl = (companyCodeParam_1, ...args_1) => __awaiter(void 0, [companyCodeParam_1, ...args_1], void 0, function* (companyCodeParam, verboseLoggingParam = false, insertLinksEnabledParam = false, insertLinksClipboardEnabledParam = false, affiliateAttributionActiveTimeParam, preventAffiliateTransferParam = false) {
         // Prevent multiple concurrent initialization attempts
         if (isInitialized || isInitializingRef.current) {
             return;
@@ -119,6 +123,8 @@ const DeepLinkIapProvider = ({ children, }) => {
         if (affiliateAttributionActiveTimeParam !== undefined) {
             setAffiliateAttributionActiveTime(affiliateAttributionActiveTimeParam);
         }
+        setPreventAffiliateTransfer(preventAffiliateTransferParam);
+        preventAffiliateTransferRef.current = preventAffiliateTransferParam;
         if (verboseLoggingParam) {
             console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
             console.log('[Insert Affiliate] [VERBOSE] Company code provided:', companyCodeParam ? 'Yes' : 'No');
@@ -163,11 +169,21 @@ const DeepLinkIapProvider = ({ children, }) => {
                 const uId = yield getValueFromAsync(ASYNC_KEYS.USER_ID);
                 const refLink = yield getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
                 const companyCodeFromStorage = yield getValueFromAsync(ASYNC_KEYS.COMPANY_CODE);
-                const storedOfferCode = yield getValueFromAsync(ASYNC_KEYS.IOS_OFFER_CODE);
+                // Migration: check new key first, fall back to legacy iOS key
+                let storedOfferCode = yield getValueFromAsync(ASYNC_KEYS.OFFER_CODE);
+                if (!storedOfferCode) {
+                    const legacyOfferCode = yield getValueFromAsync('@app_ios_offer_code');
+                    if (legacyOfferCode) {
+                        storedOfferCode = legacyOfferCode;
+                        // Migrate to new key
+                        yield saveValueInAsync(ASYNC_KEYS.OFFER_CODE, legacyOfferCode);
+                        verboseLog('Migrated offer code from legacy iOS key to new key');
+                    }
+                }
                 verboseLog(`User ID found: ${uId ? 'Yes' : 'No'}`);
                 verboseLog(`Referrer link found: ${refLink ? 'Yes' : 'No'}`);
                 verboseLog(`Company code found: ${companyCodeFromStorage ? 'Yes' : 'No'}`);
-                verboseLog(`iOS Offer Code found: ${storedOfferCode ? 'Yes' : 'No'}`);
+                verboseLog(`Offer Code found: ${storedOfferCode ? 'Yes' : 'No'}`);
                 if (uId && refLink) {
                     setUserId(uId);
                     setReferrerLink(refLink);
@@ -180,7 +196,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 }
                 if (storedOfferCode) {
                     setOfferCode(storedOfferCode);
-                    verboseLog('iOS Offer Code restored from storage');
+                    verboseLog('Offer Code restored from storage');
                 }
             }
             catch (error) {
@@ -1393,6 +1409,29 @@ const DeepLinkIapProvider = ({ children, }) => {
             return null;
         }
     });
+    // Get the timestamp when attribution expires (stored date + timeout duration in ms)
+    // Returns null if no timeout is configured or no stored date exists
+    const getAffiliateExpiryTimestampImpl = () => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            if (!affiliateAttributionActiveTime) {
+                verboseLog('No attribution timeout configured, no expiry timestamp');
+                return null;
+            }
+            const storedDate = yield getAffiliateStoredDateImpl();
+            if (!storedDate) {
+                verboseLog('No stored date found, cannot calculate expiry timestamp');
+                return null;
+            }
+            // Convert timeout from seconds to milliseconds and add to stored date
+            const expiryTimestamp = storedDate.getTime() + (affiliateAttributionActiveTime * 1000);
+            verboseLog(`Attribution expiry timestamp: ${expiryTimestamp} (${new Date(expiryTimestamp).toISOString()})`);
+            return expiryTimestamp;
+        }
+        catch (error) {
+            verboseLog(`Error getting affiliate expiry timestamp: ${error}`);
+            return null;
+        }
+    });
     // MARK: Insert Affiliate Identifier
     const setInsertAffiliateIdentifierImpl = (referringLink) => __awaiter(void 0, void 0, void 0, function* () {
         console.log('[Insert Affiliate] Setting affiliate identifier.');
@@ -1471,11 +1510,17 @@ const DeepLinkIapProvider = ({ children, }) => {
     });
     function storeInsertAffiliateIdentifier(_a) {
         return __awaiter(this, arguments, void 0, function* ({ link, source }) {
-            console.log(`[Insert Affiliate] Storing affiliate identifier: ${link} (source: ${source})`);
+            verboseLog(`Storing affiliate identifier: ${link} (source: ${source})`);
             // Check if we're trying to store the same link (prevent duplicate storage)
             const existingLink = yield getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
             if (existingLink === link) {
                 verboseLog(`Link ${link} is already stored, skipping duplicate storage`);
+                return;
+            }
+            // Prevent transfer of affiliate if enabled - keep original affiliate
+            verboseLog(`preventAffiliateTransfer check: enabled=${preventAffiliateTransferRef.current}, existingLink=${existingLink}, newLink=${link}`);
+            if (preventAffiliateTransferRef.current && existingLink && existingLink !== link) {
+                verboseLog(`Transfer blocked: existing affiliate "${existingLink}" protected from being replaced by "${link}"`);
                 return;
             }
             verboseLog(`Updating React state with referrer link: ${link}`);
@@ -1489,12 +1534,12 @@ const DeepLinkIapProvider = ({ children, }) => {
             verboseLog(`Referrer link saved to AsyncStorage successfully`);
             // Automatically fetch and store offer code for any affiliate identifier
             verboseLog('Attempting to fetch offer code for stored affiliate identifier...');
-            yield retrieveAndStoreOfferCode(link);
-            // Trigger callback with the current affiliate identifier
+            const offerCode = yield retrieveAndStoreOfferCode(link);
+            // Trigger callback with the current affiliate identifier and offer code
             if (insertAffiliateIdentifierChangeCallbackRef.current) {
                 const currentIdentifier = yield returnInsertAffiliateIdentifierImpl();
-                verboseLog(`Triggering callback with identifier: ${currentIdentifier}`);
-                insertAffiliateIdentifierChangeCallbackRef.current(currentIdentifier);
+                verboseLog(`Triggering callback with identifier: ${currentIdentifier}, offerCode: ${offerCode}`);
+                insertAffiliateIdentifierChangeCallbackRef.current(currentIdentifier, offerCode);
             }
             // Report this new affiliate association to the backend (fire and forget)
             const fullIdentifier = yield returnInsertAffiliateIdentifierImpl();
@@ -1734,21 +1779,24 @@ const DeepLinkIapProvider = ({ children, }) => {
             const offerCode = yield fetchOfferCode(affiliateLink);
             if (offerCode && offerCode.length > 0) {
                 // Store in both AsyncStorage and state
-                yield saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, offerCode);
+                yield saveValueInAsync(ASYNC_KEYS.OFFER_CODE, offerCode);
                 setOfferCode(offerCode);
                 verboseLog(`Successfully stored offer code: ${offerCode}`);
                 console.log('[Insert Affiliate] Offer code retrieved and stored successfully');
+                return offerCode;
             }
             else {
                 verboseLog('No valid offer code found to store');
                 // Clear stored offer code if none found
-                yield saveValueInAsync(ASYNC_KEYS.IOS_OFFER_CODE, '');
+                yield saveValueInAsync(ASYNC_KEYS.OFFER_CODE, '');
                 setOfferCode(null);
+                return null;
             }
         }
         catch (error) {
             console.error('[Insert Affiliate] Error retrieving and storing offer code:', error);
             verboseLog(`Error in retrieveAndStoreOfferCode: ${error}`);
+            return null;
         }
     });
     const removeSpecialCharacters = (offerCode) => {
@@ -1768,6 +1816,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     returnInsertAffiliateIdentifierImplRef.current = returnInsertAffiliateIdentifierImpl;
     isAffiliateAttributionValidImplRef.current = isAffiliateAttributionValidImpl;
     getAffiliateStoredDateImplRef.current = getAffiliateStoredDateImpl;
+    getAffiliateExpiryTimestampImplRef.current = getAffiliateExpiryTimestampImpl;
     storeExpectedStoreTransactionImplRef.current = storeExpectedStoreTransactionImpl;
     returnUserAccountTokenAndStoreExpectedTransactionImplRef.current = returnUserAccountTokenAndStoreExpectedTransactionImpl;
     validatePurchaseWithIapticAPIImplRef.current = validatePurchaseWithIapticAPIImpl;
@@ -1778,8 +1827,8 @@ const DeepLinkIapProvider = ({ children, }) => {
     // STABLE WRAPPERS: useCallback with [] deps that delegate to refs
     // These provide stable function references that always call current implementations
     // ============================================================================
-    const initialize = (0, react_1.useCallback)((code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime) => __awaiter(void 0, void 0, void 0, function* () {
-        return initializeImplRef.current(code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime);
+    const initialize = (0, react_1.useCallback)((code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer) => __awaiter(void 0, void 0, void 0, function* () {
+        return initializeImplRef.current(code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer);
     }), []);
     const setShortCode = (0, react_1.useCallback)((shortCode) => __awaiter(void 0, void 0, void 0, function* () {
         return setShortCodeImplRef.current(shortCode);
@@ -1795,6 +1844,9 @@ const DeepLinkIapProvider = ({ children, }) => {
     }), []);
     const getAffiliateStoredDate = (0, react_1.useCallback)(() => __awaiter(void 0, void 0, void 0, function* () {
         return getAffiliateStoredDateImplRef.current();
+    }), []);
+    const getAffiliateExpiryTimestamp = (0, react_1.useCallback)(() => __awaiter(void 0, void 0, void 0, function* () {
+        return getAffiliateExpiryTimestampImplRef.current();
     }), []);
     const storeExpectedStoreTransaction = (0, react_1.useCallback)((purchaseToken) => __awaiter(void 0, void 0, void 0, function* () {
         return storeExpectedStoreTransactionImplRef.current(purchaseToken);
@@ -1813,14 +1865,18 @@ const DeepLinkIapProvider = ({ children, }) => {
     }), []);
     const setInsertAffiliateIdentifierChangeCallbackHandler = (0, react_1.useCallback)((callback) => {
         insertAffiliateIdentifierChangeCallbackRef.current = callback;
-        // If callback is being set, immediately call it with the current identifier value
+        // If callback is being set, immediately call it with the current identifier and offer code values
         // This ensures callbacks registered after initialization still receive the current state (including null if expired/not set)
         if (callback) {
-            returnInsertAffiliateIdentifierImpl().then(identifier => {
+            Promise.all([
+                returnInsertAffiliateIdentifierImpl(),
+                getValueFromAsync(ASYNC_KEYS.OFFER_CODE)
+            ]).then(([identifier, storedOfferCode]) => {
                 // Verify callback is still the same (wasn't replaced during async operation)
                 if (insertAffiliateIdentifierChangeCallbackRef.current === callback) {
-                    verboseLog(`Calling callback immediately with current identifier: ${identifier}`);
-                    callback(identifier);
+                    const offerCode = storedOfferCode && storedOfferCode.length > 0 ? storedOfferCode : null;
+                    verboseLog(`Calling callback immediately with current identifier: ${identifier}, offerCode: ${offerCode}`);
+                    callback(identifier, offerCode);
                 }
             });
         }
@@ -1837,6 +1893,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             returnInsertAffiliateIdentifier,
             isAffiliateAttributionValid,
             getAffiliateStoredDate,
+            getAffiliateExpiryTimestamp,
             storeExpectedStoreTransaction,
             returnUserAccountTokenAndStoreExpectedTransaction,
             validatePurchaseWithIapticAPI,

@@ -142,7 +142,8 @@ initialize(
   true,    // verboseLogging - Enable for debugging (disable in production)
   true,    // insertLinksEnabled - Enable Insert Links (Insert Affiliate's built-in deep linking)
   true,    // insertLinksClipboardEnabled - Enable clipboard attribution (triggers permission prompt)
-  604800   // affiliateAttributionActiveTime - 7 days attribution timeout in seconds
+  604800,  // affiliateAttributionActiveTime - 7 days attribution timeout in seconds
+  true     // preventAffiliateTransfer - Protect original affiliate from being replaced
 );
 ```
 
@@ -153,6 +154,9 @@ initialize(
   - Improves attribution accuracy when deep linking fails
   - iOS will show a permission prompt: "[Your App] would like to paste from [App Name]"
 - `affiliateAttributionActiveTime`: How long affiliate attribution lasts in seconds (omit for no timeout)
+- `preventAffiliateTransfer`: When `true`, prevents a new affiliate link from overwriting an existing affiliate attribution (defaults to `false`)
+  - Use this to ensure the first affiliate who acquired the user always gets credit
+  - New affiliate links will be silently ignored if the user already has an affiliate
 
 </details>
 
@@ -179,11 +183,18 @@ Complete the [RevenueCat SDK installation](https://www.revenuecat.com/docs/getti
 
 ```javascript
 import React, { useEffect } from 'react';
+import { AppState } from 'react-native';
 import Purchases from 'react-native-purchases';
 import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
 
 const App = () => {
-  const { initialize, isInitialized, setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
+  const {
+    initialize,
+    isInitialized,
+    setInsertAffiliateIdentifierChangeCallback,
+    isAffiliateAttributionValid,
+    getAffiliateExpiryTimestamp
+  } = useDeepLinkIapProvider();
 
   useEffect(() => {
     if (!isInitialized) {
@@ -191,11 +202,23 @@ const App = () => {
     }
   }, [initialize, isInitialized]);
 
-  // Set RevenueCat attribute when affiliate identifier changes
+  // Set RevenueCat attributes when affiliate identifier changes
+  // Note: Use preventAffiliateTransfer in initialize() to block affiliate changes in the SDK
   useEffect(() => {
-    setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
+    setInsertAffiliateIdentifierChangeCallback(async (identifier, offerCode) => {
       if (identifier) {
-        await Purchases.setAttributes({ "insert_affiliate": identifier });
+        // OPTIONAL: Prevent attribution for existing subscribers
+        // Uncomment to ensure affiliates only earn from users they actually brought:
+        // const customerInfo = await Purchases.getCustomerInfo();
+        // const hasActiveEntitlement = Object.keys(customerInfo.entitlements.active).length > 0;
+        // if (hasActiveEntitlement) return; // User already subscribed, don't attribute
+
+        // Sync affiliate to RevenueCat
+        await Purchases.setAttributes({
+          "insert_affiliate": identifier,
+          "affiliateOfferCode": offerCode || "",  // For RevenueCat Targeting
+          "insert_timedout": ""  // Clear timeout flag on new attribution
+        });
         await Purchases.syncAttributesAndOfferingsIfNeeded();
       }
     });
@@ -203,9 +226,47 @@ const App = () => {
     return () => setInsertAffiliateIdentifierChangeCallback(null);
   }, [setInsertAffiliateIdentifierChangeCallback]);
 
+  // Handle expired attribution - clear offer code and set timeout timestamp
+  // NOTE: insert_affiliate is preserved for renewal webhook attribution
+  // insert_timedout stores the TIMESTAMP when attribution expired (storedDate + timeout)
+  // Webhook compares this against purchase dates to determine if purchases should be attributed:
+  // - Purchases made BEFORE timeout → attributed (initial + all renewals)
+  // - Purchases made AFTER timeout → not attributed (initial + all renewals)
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const clearExpiredAffiliation = async () => {
+      const isValid = await isAffiliateAttributionValid();
+      if (!isValid) {
+        const expiryTimestamp = await getAffiliateExpiryTimestamp();
+        if (!expiryTimestamp) return; // No timeout configured
+
+        await Purchases.setAttributes({
+          "affiliateOfferCode": "",
+          "insert_timedout": expiryTimestamp.toString()
+        });
+        await Purchases.syncAttributesAndOfferingsIfNeeded();
+      }
+    };
+
+    // Check on app initialization
+    clearExpiredAffiliation();
+
+    // Check when app returns to foreground
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        clearExpiredAffiliation();
+      }
+    });
+
+    return () => subscription?.remove();
+  }, [isInitialized, isAffiliateAttributionValid, getAffiliateExpiryTimestamp]);
+
   return <YourAppContent />;
 };
 ```
+
+> **RevenueCat Targeting:** Use the `affiliateOfferCode` attribute in your [RevenueCat Targeting rules](https://www.revenuecat.com/docs/tools/targeting) to show different offerings to affiliates (e.g., extended free trials). Set a rule like `affiliateOfferCode is any of ["oneWeekFree", "twoWeeksFree"]` to target users with specific offer codes.
 
 **Step 2: Webhook Setup**
 
@@ -516,9 +577,12 @@ const App = () => {
   const { setInsertAffiliateIdentifierChangeCallback } = useDeepLinkIapProvider();
 
   useEffect(() => {
-    setInsertAffiliateIdentifierChangeCallback(async (identifier) => {
+    setInsertAffiliateIdentifierChangeCallback(async (identifier, offerCode) => {
       if (identifier) {
-        await Purchases.setAttributes({ "insert_affiliate": identifier });
+        await Purchases.setAttributes({
+          "insert_affiliate": identifier,
+          "affiliateOfferCode": offerCode || ""  // For RevenueCat Targeting
+        });
         await Purchases.syncAttributesAndOfferingsIfNeeded();
       }
     });
@@ -529,6 +593,8 @@ const App = () => {
   return <YourAppContent />;
 };
 ```
+
+> **Note:** For full RevenueCat integration with attribution timeout cleanup, see the [complete example in Option 1](#option-1-revenuecat-recommended) above.
 
 **With Adapty:**
 
