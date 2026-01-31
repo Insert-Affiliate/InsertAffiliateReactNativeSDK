@@ -88,11 +88,13 @@ const DeepLinkIapProvider = ({ children, }) => {
     const [insertLinksClipboardEnabled, setInsertLinksClipboardEnabled] = (0, react_1.useState)(false);
     const [OfferCode, setOfferCode] = (0, react_1.useState)(null);
     const [affiliateAttributionActiveTime, setAffiliateAttributionActiveTime] = (0, react_1.useState)(null);
+    const [preventAffiliateTransfer, setPreventAffiliateTransfer] = (0, react_1.useState)(false);
     const insertAffiliateIdentifierChangeCallbackRef = (0, react_1.useRef)(null);
     const isInitializingRef = (0, react_1.useRef)(false);
     // Refs for values that need to be current inside callbacks (to avoid stale closures)
     const companyCodeRef = (0, react_1.useRef)(null);
     const verboseLoggingRef = (0, react_1.useRef)(false);
+    const preventAffiliateTransferRef = (0, react_1.useRef)(false);
     // Refs for implementation functions (ref callback pattern for stable + fresh)
     const initializeImplRef = (0, react_1.useRef)(null);
     const setShortCodeImplRef = (0, react_1.useRef)(null);
@@ -108,7 +110,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     const setInsertAffiliateIdentifierImplRef = (0, react_1.useRef)(null);
     const handleInsertLinksImplRef = (0, react_1.useRef)(null);
     // MARK: Initialize the SDK
-    const initializeImpl = (companyCodeParam_1, ...args_1) => __awaiter(void 0, [companyCodeParam_1, ...args_1], void 0, function* (companyCodeParam, verboseLoggingParam = false, insertLinksEnabledParam = false, insertLinksClipboardEnabledParam = false, affiliateAttributionActiveTimeParam) {
+    const initializeImpl = (companyCodeParam_1, ...args_1) => __awaiter(void 0, [companyCodeParam_1, ...args_1], void 0, function* (companyCodeParam, verboseLoggingParam = false, insertLinksEnabledParam = false, insertLinksClipboardEnabledParam = false, affiliateAttributionActiveTimeParam, preventAffiliateTransferParam = false) {
         // Prevent multiple concurrent initialization attempts
         if (isInitialized || isInitializingRef.current) {
             return;
@@ -121,6 +123,8 @@ const DeepLinkIapProvider = ({ children, }) => {
         if (affiliateAttributionActiveTimeParam !== undefined) {
             setAffiliateAttributionActiveTime(affiliateAttributionActiveTimeParam);
         }
+        setPreventAffiliateTransfer(preventAffiliateTransferParam);
+        preventAffiliateTransferRef.current = preventAffiliateTransferParam;
         if (verboseLoggingParam) {
             console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
             console.log('[Insert Affiliate] [VERBOSE] Company code provided:', companyCodeParam ? 'Yes' : 'No');
@@ -1506,11 +1510,16 @@ const DeepLinkIapProvider = ({ children, }) => {
     });
     function storeInsertAffiliateIdentifier(_a) {
         return __awaiter(this, arguments, void 0, function* ({ link, source }) {
-            console.log(`[Insert Affiliate] Storing affiliate identifier: ${link} (source: ${source})`);
+            verboseLog(`Storing affiliate identifier: ${link} (source: ${source})`);
             // Check if we're trying to store the same link (prevent duplicate storage)
             const existingLink = yield getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
             if (existingLink === link) {
                 verboseLog(`Link ${link} is already stored, skipping duplicate storage`);
+                return;
+            }
+            // Prevent transfer of affiliate if enabled - keep original affiliate
+            if (preventAffiliateTransferRef.current && existingLink && existingLink !== link) {
+                verboseLog(`Transfer blocked: existing affiliate "${existingLink}" protected from being replaced by "${link}"`);
                 return;
             }
             verboseLog(`Updating React state with referrer link: ${link}`);

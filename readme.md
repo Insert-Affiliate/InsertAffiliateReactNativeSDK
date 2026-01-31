@@ -142,7 +142,8 @@ initialize(
   true,    // verboseLogging - Enable for debugging (disable in production)
   true,    // insertLinksEnabled - Enable Insert Links (Insert Affiliate's built-in deep linking)
   true,    // insertLinksClipboardEnabled - Enable clipboard attribution (triggers permission prompt)
-  604800   // affiliateAttributionActiveTime - 7 days attribution timeout in seconds
+  604800,  // affiliateAttributionActiveTime - 7 days attribution timeout in seconds
+  true     // preventAffiliateTransfer - Protect original affiliate from being replaced
 );
 ```
 
@@ -153,6 +154,9 @@ initialize(
   - Improves attribution accuracy when deep linking fails
   - iOS will show a permission prompt: "[Your App] would like to paste from [App Name]"
 - `affiliateAttributionActiveTime`: How long affiliate attribution lasts in seconds (omit for no timeout)
+- `preventAffiliateTransfer`: When `true`, prevents a new affiliate link from overwriting an existing affiliate attribution (defaults to `false`)
+  - Use this to ensure the first affiliate who acquired the user always gets credit
+  - New affiliate links will be silently ignored if the user already has an affiliate
 
 </details>
 
@@ -199,13 +203,17 @@ const App = () => {
   }, [initialize, isInitialized]);
 
   // Set RevenueCat attributes when affiliate identifier changes
+  // Note: Use preventAffiliateTransfer in initialize() to block affiliate changes in the SDK
   useEffect(() => {
     setInsertAffiliateIdentifierChangeCallback(async (identifier, offerCode) => {
       if (identifier) {
-        // Only set attributes if attribution is still valid (not expired)
-        const isValid = await isAffiliateAttributionValid();
-        if (!isValid) return;
+        // OPTIONAL: Prevent attribution for existing subscribers
+        // Uncomment to ensure affiliates only earn from users they actually brought:
+        // const customerInfo = await Purchases.getCustomerInfo();
+        // const hasActiveEntitlement = Object.keys(customerInfo.entitlements.active).length > 0;
+        // if (hasActiveEntitlement) return; // User already subscribed, don't attribute
 
+        // Sync affiliate to RevenueCat
         await Purchases.setAttributes({
           "insert_affiliate": identifier,
           "affiliateOfferCode": offerCode || "",  // For RevenueCat Targeting
@@ -216,7 +224,7 @@ const App = () => {
     });
 
     return () => setInsertAffiliateIdentifierChangeCallback(null);
-  }, [setInsertAffiliateIdentifierChangeCallback, isAffiliateAttributionValid]);
+  }, [setInsertAffiliateIdentifierChangeCallback]);
 
   // Handle expired attribution - clear offer code and set timeout timestamp
   // NOTE: insert_affiliate is preserved for renewal webhook attribution
