@@ -2,7 +2,7 @@ import React from 'react';
 type T_DEEPLINK_IAP_PROVIDER = {
     children: React.ReactNode;
 };
-export type InsertAffiliateIdentifierChangeCallback = (identifier: string | null) => void;
+export type InsertAffiliateIdentifierChangeCallback = (identifier: string | null, offerCode: string | null) => void;
 export type AffiliateDetails = {
     affiliateName: string;
     affiliateShortCode: string;
@@ -18,6 +18,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
     returnInsertAffiliateIdentifier: (ignoreTimeout?: boolean) => Promise<string | null>;
     isAffiliateAttributionValid: () => Promise<boolean>;
     getAffiliateStoredDate: () => Promise<Date | null>;
+    getAffiliateExpiryTimestamp: () => Promise<number | null>;
     validatePurchaseWithIapticAPI: (jsonIapPurchase: CustomPurchase, iapticAppId: string, iapticAppName: string, iapticPublicKey: string) => Promise<boolean>;
     returnUserAccountTokenAndStoreExpectedTransaction: () => Promise<string | null>;
     storeExpectedStoreTransaction: (purchaseToken: string) => Promise<void>;
@@ -27,7 +28,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
     setInsertAffiliateIdentifier: (referringLink: string) => Promise<void | string>;
     setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => void;
     handleInsertLinks: (url: string) => Promise<boolean>;
-    initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number) => Promise<void>;
+    initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => Promise<void>;
     isInitialized: boolean;
 };
 export declare const DeepLinkIapContext: React.Context<T_DEEPLINK_IAP_CONTEXT>;
