@@ -1367,7 +1367,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     return isValidCharacters && referringLink.length >= 3 && referringLink.length <= 25;
   };
 
-  const checkAffiliateExists = async (affiliateCode: string): Promise<boolean> => {
+  const checkAffiliateExists = async (affiliateCode: string, trackUsage: boolean = false): Promise<boolean> => {
     try {
       const activeCompanyCode = await getActiveCompanyCode();
       if (!activeCompanyCode) {
@@ -1375,11 +1375,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return false;
       }
 
-      const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
-      const payload = {
+      const url = 'https://5583-87-244-72-53.ngrok-free.app/V1/checkAffiliateExists';
+      const payload: Record<string, any> = {
         companyId: activeCompanyCode,
         affiliateCode: affiliateCode
       };
+
+      if (trackUsage) {
+        payload.trackUsage = true;
+      }
 
       verboseLog(`Checking if affiliate exists: ${affiliateCode}`);
 
@@ -1417,7 +1421,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return null;
       }
 
-      const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
+      const url = 'https://5583-87-244-72-53.ngrok-free.app/V1/checkAffiliateExists';
       const payload = {
         companyId: activeCompanyCode,
         affiliateCode: affiliateCode
@@ -1463,7 +1467,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     isShortCode(capitalisedShortCode);
 
     // Check if the affiliate exists before storing
-    const exists = await checkAffiliateExists(capitalisedShortCode);
+    const exists = await checkAffiliateExists(capitalisedShortCode, true);
 
     if (exists) {
       // If affiliate exists, set the Insert Affiliate Identifier

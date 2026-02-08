@@ -1189,7 +1189,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 verboseLog('Cannot check affiliate: no company code available');
                 return false;
             }
-            const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
+            const url = 'https://5583-87-244-72-53.ngrok-free.app/V1/checkAffiliateExists';
             const payload = {
                 companyId: activeCompanyCode,
                 affiliateCode: affiliateCode
@@ -1228,7 +1228,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 verboseLog('Cannot get affiliate details: no company code available');
                 return null;
             }
-            const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
+            const url = 'https://5583-87-244-72-53.ngrok-free.app/V1/checkAffiliateExists';
             const payload = {
                 companyId: activeCompanyCode,
                 affiliateCode: affiliateCode
