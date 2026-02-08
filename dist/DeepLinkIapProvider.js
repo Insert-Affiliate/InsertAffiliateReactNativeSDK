@@ -1182,7 +1182,7 @@ const DeepLinkIapProvider = ({ children, }) => {
         const isValidCharacters = /^[a-zA-Z0-9_]+$/.test(referringLink);
         return isValidCharacters && referringLink.length >= 3 && referringLink.length <= 25;
     };
-    const checkAffiliateExists = (affiliateCode) => __awaiter(void 0, void 0, void 0, function* () {
+    const checkAffiliateExists = (affiliateCode_1, ...args_1) => __awaiter(void 0, [affiliateCode_1, ...args_1], void 0, function* (affiliateCode, trackUsage = false) {
         try {
             const activeCompanyCode = yield getActiveCompanyCode();
             if (!activeCompanyCode) {
@@ -1194,6 +1194,9 @@ const DeepLinkIapProvider = ({ children, }) => {
                 companyId: activeCompanyCode,
                 affiliateCode: affiliateCode
             };
+            if (trackUsage) {
+                payload.trackUsage = true;
+            }
             verboseLog(`Checking if affiliate exists: ${affiliateCode}`);
             const response = yield axios_1.default.post(url, payload, {
                 headers: {
@@ -1267,7 +1270,7 @@ const DeepLinkIapProvider = ({ children, }) => {
         const capitalisedShortCode = shortCode.toUpperCase();
         isShortCode(capitalisedShortCode);
         // Check if the affiliate exists before storing
-        const exists = yield checkAffiliateExists(capitalisedShortCode);
+        const exists = yield checkAffiliateExists(capitalisedShortCode, true);
         if (exists) {
             // If affiliate exists, set the Insert Affiliate Identifier
             yield storeInsertAffiliateIdentifier({ link: capitalisedShortCode, source: 'short_code_manual' });
