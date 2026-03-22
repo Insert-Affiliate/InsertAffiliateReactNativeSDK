@@ -668,13 +668,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       // If URL scheme is used, we can straight away store the short code as the referring link
       await storeInsertAffiliateIdentifier({ link: shortCode, source: 'deep_link_ios' });
 
-      // Collect and send enhanced system info to backend
-      try {
-        const enhancedSystemInfo = await getEnhancedSystemInfo();
-        await sendSystemInfoToBackend(enhancedSystemInfo);
-      } catch (error) {
-        verboseLog(`Error sending system info for deep link: ${error}`);
-      }
+      // System info not needed here - affiliate code already received via URL scheme
 
       return true;
     } catch (error) {
