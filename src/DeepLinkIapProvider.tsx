@@ -211,10 +211,14 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       const systemInfoSent = await getValueFromAsync(ASYNC_KEYS.SYSTEM_INFO_SENT);
       verboseLog(`System info sent flag: ${systemInfoSent ? 'true (skipping)' : 'false (will send)'}`);
       if (!systemInfoSent) {
+        // Set flag immediately to prevent concurrent init calls from sending twice
+        await saveValueInAsync(ASYNC_KEYS.SYSTEM_INFO_SENT, 'pending');
         try {
           const enhancedSystemInfo = await getEnhancedSystemInfo();
           await sendSystemInfoToBackend(enhancedSystemInfo);
         } catch (error) {
+          // Remove flag on failure so it retries next launch
+          await AsyncStorage.removeItem(ASYNC_KEYS.SYSTEM_INFO_SENT);
           verboseLog(`Error sending system info for clipboard check: ${error}`);
         }
       }
