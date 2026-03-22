@@ -153,7 +153,7 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
         if (insertLinksEnabledParam && react_native_1.Platform.OS === 'ios') {
             const systemInfoSent = yield getValueFromAsync(ASYNC_KEYS.SYSTEM_INFO_SENT);
-            console.log(`[Insert Affiliate] System info sent flag: "${systemInfoSent}" (type: ${typeof systemInfoSent})`);
+            verboseLog(`System info sent flag: ${systemInfoSent ? 'true (skipping)' : 'false (will send)'}`);
             if (!systemInfoSent) {
                 // Set flag immediately to prevent concurrent init calls from sending twice
                 yield saveValueInAsync(ASYNC_KEYS.SYSTEM_INFO_SENT, 'pending');
