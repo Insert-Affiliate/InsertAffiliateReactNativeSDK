@@ -209,7 +209,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
     if (insertLinksEnabledParam && Platform.OS === 'ios') {
       const systemInfoSent = await getValueFromAsync(ASYNC_KEYS.SYSTEM_INFO_SENT);
-      verboseLog(`System info sent flag: ${systemInfoSent ? 'true (skipping)' : 'false (will send)'}`);
+      console.log(`[Insert Affiliate] System info sent flag: "${systemInfoSent}" (type: ${typeof systemInfoSent})`);
       if (!systemInfoSent) {
         // Set flag immediately to prevent concurrent init calls from sending twice
         await saveValueInAsync(ASYNC_KEYS.SYSTEM_INFO_SENT, 'pending');
