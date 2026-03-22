@@ -56,6 +56,7 @@ const ASYNC_KEYS = {
     AFFILIATE_STORED_DATE: '@app_affiliate_stored_date',
     SDK_INIT_REPORTED: '@app_sdk_init_reported',
     REPORTED_AFFILIATE_ASSOCIATIONS: '@app_reported_affiliate_associations',
+    SYSTEM_INFO_SENT: '@app_system_info_sent',
 };
 // STARTING CONTEXT IMPLEMENTATION
 exports.DeepLinkIapContext = (0, react_1.createContext)({
@@ -151,12 +152,20 @@ const DeepLinkIapProvider = ({ children, }) => {
             }
         }
         if (insertLinksEnabledParam && react_native_1.Platform.OS === 'ios') {
-            try {
-                const enhancedSystemInfo = yield getEnhancedSystemInfo();
-                yield sendSystemInfoToBackend(enhancedSystemInfo);
-            }
-            catch (error) {
-                verboseLog(`Error sending system info for clipboard check: ${error}`);
+            const systemInfoSent = yield getValueFromAsync(ASYNC_KEYS.SYSTEM_INFO_SENT);
+            verboseLog(`System info sent flag: ${systemInfoSent ? 'true (skipping)' : 'false (will send)'}`);
+            if (!systemInfoSent) {
+                // Set flag immediately to prevent concurrent init calls from sending twice
+                yield saveValueInAsync(ASYNC_KEYS.SYSTEM_INFO_SENT, 'pending');
+                try {
+                    const enhancedSystemInfo = yield getEnhancedSystemInfo();
+                    yield sendSystemInfoToBackend(enhancedSystemInfo);
+                }
+                catch (error) {
+                    // Remove flag on failure so it retries next launch
+                    yield async_storage_1.default.removeItem(ASYNC_KEYS.SYSTEM_INFO_SENT);
+                    verboseLog(`Error sending system info for clipboard check: ${error}`);
+                }
             }
         }
     });
@@ -561,14 +570,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             }
             // If URL scheme is used, we can straight away store the short code as the referring link
             yield storeInsertAffiliateIdentifier({ link: shortCode, source: 'deep_link_ios' });
-            // Collect and send enhanced system info to backend
-            try {
-                const enhancedSystemInfo = yield getEnhancedSystemInfo();
-                yield sendSystemInfoToBackend(enhancedSystemInfo);
-            }
-            catch (error) {
-                verboseLog(`Error sending system info for deep link: ${error}`);
-            }
+            // System info not needed here - affiliate code already received via URL scheme
             return true;
         }
         catch (error) {
@@ -1162,6 +1164,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             }
             // Check for a successful response
             if (response.status >= 200 && response.status <= 299) {
+                yield saveValueInAsync(ASYNC_KEYS.SYSTEM_INFO_SENT, 'true');
                 verboseLog('System info sent successfully');
             }
             else {
