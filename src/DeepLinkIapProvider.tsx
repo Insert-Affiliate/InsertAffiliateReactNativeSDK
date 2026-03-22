@@ -83,6 +83,7 @@ const ASYNC_KEYS = {
   AFFILIATE_STORED_DATE: '@app_affiliate_stored_date',
   SDK_INIT_REPORTED: '@app_sdk_init_reported',
   REPORTED_AFFILIATE_ASSOCIATIONS: '@app_reported_affiliate_associations',
+  SYSTEM_INFO_SENT: '@app_system_info_sent',
 };
 
 // Source types for affiliate association tracking
@@ -207,11 +208,14 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
 
     if (insertLinksEnabledParam && Platform.OS === 'ios') {
-      try {
-        const enhancedSystemInfo = await getEnhancedSystemInfo();
-        await sendSystemInfoToBackend(enhancedSystemInfo);
-      } catch (error) {
-        verboseLog(`Error sending system info for clipboard check: ${error}`);
+      const systemInfoSent = await getValueFromAsync(ASYNC_KEYS.SYSTEM_INFO_SENT);
+      if (!systemInfoSent) {
+        try {
+          const enhancedSystemInfo = await getEnhancedSystemInfo();
+          await sendSystemInfoToBackend(enhancedSystemInfo);
+        } catch (error) {
+          verboseLog(`Error sending system info for clipboard check: ${error}`);
+        }
       }
     }
   };
@@ -1347,6 +1351,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       
       // Check for a successful response
       if (response.status >= 200 && response.status <= 299) {
+        await saveValueInAsync(ASYNC_KEYS.SYSTEM_INFO_SENT, 'true');
         verboseLog('System info sent successfully');
       } else {
         verboseLog(`Failed to send system info with status code: ${response.status}`);
