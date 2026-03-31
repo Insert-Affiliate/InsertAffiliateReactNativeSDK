@@ -17,6 +17,7 @@ declare const useDeepLinkIapProvider: () => {
     setInsertAffiliateIdentifierChangeCallback: (callback: import("./DeepLinkIapProvider").InsertAffiliateIdentifierChangeCallback | null) => void;
     handleInsertLinks: (url: string) => Promise<boolean>;
     initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => Promise<void>;
+    setLogger: (logger: import("./DeepLinkIapProvider").InsertAffiliateLogger) => void;
     isInitialized: boolean;
     OfferCode: string | null;
 };
