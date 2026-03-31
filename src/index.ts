@@ -4,4 +4,4 @@ import useDeepLinkIapProvider from "./useDeepLinkIapProvider";
 export { DeepLinkIapProvider, useDeepLinkIapProvider };
 
 // Export types
-export type { InsertAffiliateIdentifierChangeCallback, AffiliateDetails } from "./DeepLinkIapProvider";
+export type { InsertAffiliateIdentifierChangeCallback, AffiliateDetails, InsertAffiliateLogger } from "./DeepLinkIapProvider";

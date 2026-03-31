@@ -54,6 +54,7 @@ type T_DEEPLINK_IAP_CONTEXT = {
   setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => void;
   handleInsertLinks: (url: string) => Promise<boolean>;
   initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => Promise<void>;
+  setLogger: (logger: InsertAffiliateLogger) => void;
   isInitialized: boolean;
 };
 
@@ -95,6 +96,21 @@ type AffiliateAssociationSource =
   | 'short_code_manual'  // Developer called setShortCode()
   | 'referring_link';    // Developer called setInsertAffiliateIdentifier()
 
+// Logger interface for custom logging
+export type InsertAffiliateLogger = {
+  debug: (message: string, ...args: any[]) => void;
+  info: (message: string, ...args: any[]) => void;
+  warn: (message: string, ...args: any[]) => void;
+  error: (message: string, ...args: any[]) => void;
+};
+
+const DEFAULT_LOGGER: InsertAffiliateLogger = {
+  debug: (message, ...args) => console.debug(`[Insert Affiliate] ${message}`, ...args),
+  info: (message, ...args) => console.log(`[Insert Affiliate] ${message}`, ...args),
+  warn: (message, ...args) => console.warn(`[Insert Affiliate] ${message}`, ...args),
+  error: (message, ...args) => console.error(`[Insert Affiliate] ${message}`, ...args),
+};
+
 // STARTING CONTEXT IMPLEMENTATION
 export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   referrerLink: '',
@@ -119,6 +135,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => {},
   handleInsertLinks: async (url: string) => false,
   initialize: async (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => {},
+  setLogger: (logger: InsertAffiliateLogger) => {},
   isInitialized: false,
 });
 
@@ -137,6 +154,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const [preventAffiliateTransfer, setPreventAffiliateTransfer] = useState<boolean>(false);
   const insertAffiliateIdentifierChangeCallbackRef = useRef<InsertAffiliateIdentifierChangeCallback | null>(null);
   const isInitializingRef = useRef<boolean>(false);
+
+  // Logger ref - defaults to console-based logging, can be swapped via setLogger()
+  const loggerRef = useRef<InsertAffiliateLogger>(DEFAULT_LOGGER);
 
   // Refs for values that need to be current inside callbacks (to avoid stale closures)
   const companyCodeRef = useRef<string | null>(null);
@@ -177,9 +197,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     preventAffiliateTransferRef.current = preventAffiliateTransferParam;
 
     if (verboseLoggingParam) {
-      console.log('[Insert Affiliate] [VERBOSE] Starting SDK initialization...');
-      console.log('[Insert Affiliate] [VERBOSE] Company code provided:', companyCodeParam ? 'Yes' : 'No');
-      console.log('[Insert Affiliate] [VERBOSE] Verbose logging enabled');
+      loggerRef.current.debug('[VERBOSE] Starting SDK initialization...');
+      loggerRef.current.debug('[VERBOSE] Company code provided:', companyCodeParam ? 'Yes' : 'No');
+      loggerRef.current.debug('[VERBOSE] Verbose logging enabled');
     }
 
     if (companyCodeParam && companyCodeParam.trim() !== '') {
@@ -187,23 +207,19 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       companyCodeRef.current = companyCodeParam;
       await saveValueInAsync(ASYNC_KEYS.COMPANY_CODE, companyCodeParam);
       setIsInitialized(true);
-      console.log(
-        `[Insert Affiliate] SDK initialized with company code: ${companyCodeParam}`
-      );
+      loggerRef.current.info(`SDK initialized with company code: ${companyCodeParam}`);
       if (verboseLoggingParam) {
-        console.log('[Insert Affiliate] [VERBOSE] Company code saved to AsyncStorage');
-        console.log('[Insert Affiliate] [VERBOSE] SDK marked as initialized');
+        loggerRef.current.debug('[VERBOSE] Company code saved to AsyncStorage');
+        loggerRef.current.debug('[VERBOSE] SDK marked as initialized');
       }
 
       // Report SDK initialization for onboarding verification (fire and forget)
       reportSdkInitIfNeeded(companyCodeParam, verboseLoggingParam);
     } else {
-      console.warn(
-        '[Insert Affiliate] SDK initialized without a company code.'
-      );
+      loggerRef.current.warn('SDK initialized without a company code.');
       setIsInitialized(true);
       if (verboseLoggingParam) {
-        console.log('[Insert Affiliate] [VERBOSE] No company code provided, SDK initialized in limited mode');
+        loggerRef.current.debug('[VERBOSE] No company code provided, SDK initialized in limited mode');
       }
     }
 
@@ -302,7 +318,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           }
         }
       } catch (error) {
-        console.error('[Insert Affiliate] Error getting initial URL:', error);
+        loggerRef.current.error('Error getting initial URL:', error);
       }
     };
 
@@ -317,7 +333,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           verboseLog('URL was not handled by Insert Affiliate SDK');
         }
       } catch (error) {
-        console.error('[Insert Affiliate] Error handling URL change:', error);
+        loggerRef.current.error('Error handling URL change:', error);
       }
     };
 
@@ -398,7 +414,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const reset = (): void => {
     setCompanyCode(null);
     setIsInitialized(false);
-    console.log('[Insert Affiliate] SDK has been reset.');
+    loggerRef.current.info('SDK has been reset.');
   };
 
   // MARK: Deep Link Handling
@@ -611,16 +627,16 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // Handles Insert Links deep linking - equivalent to iOS handleInsertLinks
   const handleInsertLinksImpl = async (url: string): Promise<boolean> => {
     try {
-      console.log(`[Insert Affiliate] Attempting to handle URL: ${url}`);
+      loggerRef.current.info(`Attempting to handle URL: ${url}`);
 
       if (!url || typeof url !== 'string') {
-        console.log('[Insert Affiliate] Invalid URL provided to handleInsertLinks');
+        loggerRef.current.info('Invalid URL provided to handleInsertLinks');
         return false;
       }
 
       // Check if deep links are enabled synchronously
       if (!insertLinksEnabled) {
-        console.log('[Insert Affiliate] Deep links are disabled, not handling URL');
+        loggerRef.current.info('Deep links are disabled, not handling URL');
         return false;
       }
 
@@ -638,7 +654,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       return false;
     } catch (error) {
-      console.error('[Insert Affiliate] Error handling Insert Link:', error);
+      loggerRef.current.error('Error handling Insert Link:', error);
       verboseLog(`Error in handleInsertLinks: ${error}`);
       return false;
     }
@@ -658,16 +674,16 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       
       const shortCode = parseShortCodeFromURLString(url);
       if (!shortCode) {
-        console.log(`[Insert Affiliate] Failed to parse short code from deep link: ${url}`);
+        loggerRef.current.info(`Failed to parse short code from deep link: ${url}`);
         return false;
       }
 
-      console.log(`[Insert Affiliate] Custom URL scheme detected - Company: ${companyCode}, Short code: ${shortCode}`);
+      loggerRef.current.info(`Custom URL scheme detected - Company: ${companyCode}, Short code: ${shortCode}`);
 
       // Validate company code matches initialized one
       const activeCompanyCode = await getActiveCompanyCode();
       if (activeCompanyCode && companyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
-        console.log(`[Insert Affiliate] Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
+        loggerRef.current.info(`Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
       }
 
       // If URL scheme is used, we can straight away store the short code as the referring link
@@ -677,7 +693,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       return true;
     } catch (error) {
-      console.error('[Insert Affiliate] Error handling custom URL scheme:', error);
+      loggerRef.current.error('Error handling custom URL scheme:', error);
       return false;
     }
   };
@@ -689,19 +705,19 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       
   //     // Expected format: /V1/companycode/shortcode
   //     if (pathComponents.length < 3 || pathComponents[0] !== 'V1') {
-  //       console.log(`[Insert Affiliate] Invalid universal link format: ${url.href}`);
+  //       loggerRef.current.info(`Invalid universal link format: ${url.href}`);
   //       return false;
   //     }
 
   //     const companyCode = pathComponents[1];
   //     const shortCode = pathComponents[2];
 
-  //     console.log(`[Insert Affiliate] Universal link detected - Company: ${companyCode}, Short code: ${shortCode}`);
+  //     loggerRef.current.info(`Universal link detected - Company: ${companyCode}, Short code: ${shortCode}`);
 
   //     // Validate company code matches initialized one
   //     const activeCompanyCode = await getActiveCompanyCode();
   //     if (activeCompanyCode && companyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
-  //       console.log(`[Insert Affiliate] Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
+  //       loggerRef.current.info(`Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
   //     }
 
   //     // Process the affiliate attribution
@@ -710,7 +726,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   //     return true;
   //   } catch (error) {
-  //     console.error('[Insert Affiliate] Error handling universal link:', error);
+  //     loggerRef.current.error('Error handling universal link:', error);
   //     return false;
   //   }
   // };
@@ -753,7 +769,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       // First try to extract from query parameter (new format: scheme://insert-affiliate?code=SHORTCODE)
       const queryCode = parseShortCodeFromQuery(url);
       if (queryCode) {
-        console.log(`[Insert Affiliate] Found short code in query parameter: ${queryCode}`);
+        loggerRef.current.info(`Found short code in query parameter: ${queryCode}`);
         return queryCode;
       }
 
@@ -767,7 +783,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         if (shortCode === 'insert-affiliate' || shortCode.startsWith('insert-affiliate?')) {
           return null;
         }
-        console.log(`[Insert Affiliate] Found short code in URL path (legacy format): ${shortCode}`);
+        loggerRef.current.info(`Found short code in URL path (legacy format): ${shortCode}`);
         return shortCode;
       }
       return null;
@@ -815,7 +831,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // Helper function for verbose logging (uses ref to avoid stale closures)
   const verboseLog = (message: string) => {
     if (verboseLoggingRef.current) {
-      console.log(`[Insert Affiliate] [VERBOSE] ${message}`);
+      loggerRef.current.debug(`[VERBOSE] ${message}`);
     }
   };
 
@@ -823,13 +839,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const errorLog = (message: string, type?: 'error' | 'warn' | 'log') => {
     switch (type) {
       case 'error':
-        console.error(`ENCOUNTER ERROR ~ ${message}`);
+        loggerRef.current.error(`ENCOUNTER ERROR ~ ${message}`);
         break;
       case 'warn':
-        console.warn(`ENCOUNTER WARNING ~ ${message}`);
+        loggerRef.current.warn(`ENCOUNTER WARNING ~ ${message}`);
         break;
       default:
-        console.log(`LOGGING ~ ${message}`);
+        loggerRef.current.info(`LOGGING ~ ${message}`);
         break;
     }
   };
@@ -897,7 +913,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
 
       if (verboseLogging) {
-        console.log('[Insert Affiliate] Reporting SDK initialization for onboarding verification...');
+        loggerRef.current.info('Reporting SDK initialization for onboarding verification...');
       }
 
       const response = await fetch('https://api.insertaffiliate.com/V1/onboarding/sdk-init', {
@@ -911,15 +927,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       if (response.ok) {
         await AsyncStorage.setItem(ASYNC_KEYS.SDK_INIT_REPORTED, 'true');
         if (verboseLogging) {
-          console.log('[Insert Affiliate] SDK initialization reported successfully');
+          loggerRef.current.info('SDK initialization reported successfully');
         }
       } else if (verboseLogging) {
-        console.log(`[Insert Affiliate] SDK initialization report failed with status: ${response.status}`);
+        loggerRef.current.info(`SDK initialization report failed with status: ${response.status}`);
       }
     } catch (error) {
       // Silently fail - this is non-critical telemetry
       if (verboseLogging) {
-        console.log(`[Insert Affiliate] SDK initialization report error: ${error}`);
+        loggerRef.current.info(`SDK initialization report error: ${error}`);
       }
     }
   };
@@ -1157,7 +1173,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
 
     if (verboseLogging) {
-      console.log('[Insert Affiliate] system info:', systemInfo);
+      loggerRef.current.info('system info:', systemInfo);
     }
 
     return systemInfo;
@@ -1318,7 +1334,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // Sends enhanced system info to the backend API for deep link event tracking
   const sendSystemInfoToBackend = async (systemInfo: {[key: string]: any}): Promise<void> => {
     if (verboseLogging) {
-      console.log('[Insert Affiliate] Sending system info to backend...');
+      loggerRef.current.info('Sending system info to backend...');
     }
     
     try {
@@ -1457,13 +1473,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       return null;
     } catch (error) {
       verboseLog(`Error getting affiliate details: ${error}`);
-      console.error('[Insert Affiliate] Error getting affiliate details:', error);
+      loggerRef.current.error('Error getting affiliate details:', error);
       return null;
     }
   };
 
   const setShortCodeImpl = async (shortCode: string): Promise<boolean> => {
-    console.log('[Insert Affiliate] Setting short code.');
+    loggerRef.current.info('Setting short code.');
     await generateThenSetUserID();
 
     // Validate it is a short code
@@ -1476,10 +1492,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     if (exists) {
       // If affiliate exists, set the Insert Affiliate Identifier
       await storeInsertAffiliateIdentifier({ link: capitalisedShortCode, source: 'short_code_manual' });
-      console.log(`[Insert Affiliate] Short code ${capitalisedShortCode} validated and stored successfully.`);
+      loggerRef.current.info(`Short code ${capitalisedShortCode} validated and stored successfully.`);
       return true;
     } else {
-      console.warn(`[Insert Affiliate] Short code ${capitalisedShortCode} does not exist. Not storing.`);
+      loggerRef.current.warn(`Short code ${capitalisedShortCode} does not exist. Not storing.`);
       return false;
     }
   };
@@ -1499,15 +1515,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     try {
       const shortCode = await returnInsertAffiliateIdentifierImpl();
       if (!shortCode) {
-        console.log('[Insert Affiliate] No affiliate stored - not saving expected transaction.');
+        loggerRef.current.info('No affiliate stored - not saving expected transaction.');
         return null;
       }
 
       const userAccountToken = await getOrCreateUserAccountToken();
-      console.log('[Insert Affiliate] User account token:', userAccountToken);
+      loggerRef.current.info('User account token:', userAccountToken);
 
       if (!userAccountToken) {
-        console.error('[Insert Affiliate] Failed to generate user account token.');
+        loggerRef.current.error('Failed to generate user account token.');
         return null;
       } else {
         await storeExpectedStoreTransactionImpl(userAccountToken);
@@ -1519,13 +1535,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           (error instanceof Error && error.message.includes('E_IAP_NOT_AVAILABLE'))) {
 
         if (isDevelopmentEnvironment) {
-          console.warn('[Insert Affiliate] IAP not available in development environment. Cannot store expected transaction.');
+          loggerRef.current.warn('IAP not available in development environment. Cannot store expected transaction.');
           verboseLog('E_IAP_NOT_AVAILABLE error in returnUserAccountTokenAndStoreExpectedTransaction - gracefully handling in development');
         }
         return null; // Return null but don't crash
       }
 
-      console.error('[Insert Affiliate] Error in returnUserAccountTokenAndStoreExpectedTransaction:', error);
+      loggerRef.current.error('Error in returnUserAccountTokenAndStoreExpectedTransaction:', error);
       return null;
     };
   };
@@ -1661,19 +1677,17 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const setInsertAffiliateIdentifierImpl = async (
     referringLink: string
   ): Promise<void | string> => {
-    console.log('[Insert Affiliate] Setting affiliate identifier.');
+    loggerRef.current.info('Setting affiliate identifier.');
     verboseLog(`Input referringLink: ${referringLink}`);
 
     try {
       verboseLog('Generating or retrieving user ID...');
       const customerID = await generateThenSetUserID();
-      console.log(
-        '[Insert Affiliate] Completed generateThenSetUserID within setInsertAffiliateIdentifier.'
-      );
+      loggerRef.current.info('Completed generateThenSetUserID within setInsertAffiliateIdentifier.');
       verboseLog(`Customer ID: ${customerID}`);
 
       if (!referringLink) {
-        console.warn('[Insert Affiliate] Referring link is invalid.');
+        loggerRef.current.warn('Referring link is invalid.');
         verboseLog('Referring link is empty or invalid, storing as-is');
         await storeInsertAffiliateIdentifier({ link: referringLink, source: 'referring_link' });
         return `${referringLink}-${customerID}`;
@@ -1685,9 +1699,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog(`Active company code: ${activeCompanyCode || 'Not found'}`);
       
       if (!activeCompanyCode) {
-        console.error(
-          '[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.'
-        );
+        loggerRef.current.error('Company code is not set. Please initialize the SDK with a valid company code.');
         verboseLog('Company code missing, cannot proceed with API call');
         return;
       }
@@ -1695,9 +1707,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       // Check if referring link is already a short code, if so save it and stop here.
       verboseLog('Checking if referring link is already a short code...');
       if (isShortCode(referringLink)) {
-        console.log(
-          '[Insert Affiliate] Referring link is already a short code.'
-        );
+        loggerRef.current.info('Referring link is already a short code.');
         verboseLog('Link is already a short code, storing directly');
         await storeInsertAffiliateIdentifier({ link: referringLink, source: 'referring_link' });
         return `${referringLink}-${customerID}`;
@@ -1710,7 +1720,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog('Encoding referring link for API call...');
       const encodedAffiliateLink = encodeURIComponent(referringLink);
       if (!encodedAffiliateLink) {
-        console.error('[Insert Affiliate] Failed to encode affiliate link.');
+        loggerRef.current.error('Failed to encode affiliate link.');
         verboseLog('Failed to encode link, storing original');
         await storeInsertAffiliateIdentifier({ link: referringLink, source: 'referring_link' });
         return `${referringLink}-${customerID}`;
@@ -1718,7 +1728,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       // Create the request URL
       const urlString = `https://api.insertaffiliate.com/V1/convert-deep-link-to-short-link?companyId=${activeCompanyCode}&deepLinkUrl=${encodedAffiliateLink}`;
-      console.log('[Insert Affiliate] urlString .', urlString);
+      loggerRef.current.info('urlString .', urlString);
       verboseLog('Making API request to convert deep link to short code...');
       
       const response = await axios.get(urlString, {
@@ -1732,21 +1742,21 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       // Call to the backend for the short code and save the resolse in valid
       if (response.status === 200 && response.data.shortLink) {
         const shortLink = response.data.shortLink;
-        console.log('[Insert Affiliate] Short link received:', shortLink);
+        loggerRef.current.info('Short link received:', shortLink);
         verboseLog(`Successfully converted to short link: ${shortLink}`);
         verboseLog('Storing short link to AsyncStorage...');
         await storeInsertAffiliateIdentifier({ link: shortLink, source: 'referring_link' });
         verboseLog('Short link stored successfully');
         return `${shortLink}-${customerID}`;
       } else {
-        console.warn('[Insert Affiliate] Unexpected response format.');
+        loggerRef.current.warn('Unexpected response format.');
         verboseLog(`Unexpected API response. Status: ${response.status}, Data: ${JSON.stringify(response.data)}`);
         verboseLog('Storing original link as fallback');
         await storeInsertAffiliateIdentifier({ link: referringLink, source: 'referring_link' });
         return `${referringLink}-${customerID}`;
       }
     } catch (error) {
-      console.error('[Insert Affiliate] Error:', error);
+      loggerRef.current.error('Error:', error);
       verboseLog(`Error in setInsertAffiliateIdentifier: ${error}`);
     }
   };
@@ -1811,10 +1821,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           (typeof jsonIapPurchase === 'string' && (jsonIapPurchase as string).includes('E_IAP_NOT_AVAILABLE'))) {
 
         if (isDevelopmentEnvironment) {
-          console.warn('[Insert Affiliate] IAP not available in development environment. This is expected behavior.');
+          loggerRef.current.warn('IAP not available in development environment. This is expected behavior.');
           verboseLog('E_IAP_NOT_AVAILABLE error detected in development - gracefully handling');
         } else {
-          console.error('[Insert Affiliate] IAP not available in production environment. Please check your IAP configuration.');
+          loggerRef.current.error('IAP not available in production environment. Please check your IAP configuration.');
         }
         return false; // Return false but don't crash
       }
@@ -1870,10 +1880,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       });
 
       if (response.status === 200) {
-        console.log('Validation successful:', response.data);
+        loggerRef.current.info('Validation successful:', response.data);
         return true;
       } else {
-        console.error('Validation failed:', response.data);
+        loggerRef.current.error('Validation failed:', response.data);
         return false;
       }
     } catch (error) {
@@ -1882,22 +1892,18 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           (error instanceof Error && error.message.includes('E_IAP_NOT_AVAILABLE'))) {
 
         if (isDevelopmentEnvironment) {
-          console.warn('[Insert Affiliate] IAP not available in development environment. SDK will continue without purchase validation.');
+          loggerRef.current.warn('IAP not available in development environment. SDK will continue without purchase validation.');
           verboseLog('E_IAP_NOT_AVAILABLE error caught in validatePurchaseWithIapticAPI - gracefully handling in development');
         } else {
-          console.error('[Insert Affiliate] IAP not available in production environment. Please check your IAP configuration.');
+          loggerRef.current.error('IAP not available in production environment. Please check your IAP configuration.');
         }
         return false; // Return false but don't crash
       }
 
       if (error instanceof Error) {
-        console.error(`validatePurchaseWithIapticAPI Error: ${error.message}`);
+        loggerRef.current.error(`validatePurchaseWithIapticAPI Error: ${error.message}`);
       } else {
-        console.error(
-          `validatePurchaseWithIapticAPI Unknown Error: ${JSON.stringify(
-            error
-          )}`
-        );
+        loggerRef.current.error(`validatePurchaseWithIapticAPI Unknown Error: ${JSON.stringify(error)}`);
       }
 
       return false;
@@ -1909,14 +1915,14 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
     const activeCompanyCode = await getActiveCompanyCode();
     if (!activeCompanyCode) {
-      console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+      loggerRef.current.error("Company code is not set. Please initialize the SDK with a valid company code.");
       verboseLog("Cannot store transaction: no company code available");
       return;
     }
 
     const shortCode = await returnInsertAffiliateIdentifierImpl();
     if (!shortCode) {
-      console.error("[Insert Affiliate] No affiliate identifier found. Please set one before tracking events.");
+      loggerRef.current.error("No affiliate identifier found. Please set one before tracking events.");
       verboseLog("Cannot store transaction: no affiliate identifier available");
       return;
     }
@@ -1931,7 +1937,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       storedDate: new Date().toISOString(), // ISO8601 format
     };
 
-    console.log("[Insert Affiliate] Storing expected transaction: ", payload);
+    loggerRef.current.info("Storing expected transaction: ", payload);
     verboseLog("Making API call to store expected transaction...");
 
     try {
@@ -1946,15 +1952,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog(`API response status: ${response.status}`);
 
       if (response.ok) {
-        console.info("[Insert Affiliate] Expected transaction stored successfully.");
+        loggerRef.current.info("Expected transaction stored successfully.");
         verboseLog("Expected transaction stored successfully on server");
       } else {
         const errorText = await response.text();
-        console.error(`[Insert Affiliate] Failed to store expected transaction with status code: ${response.status}. Response: ${errorText}`);
+        loggerRef.current.error(`Failed to store expected transaction with status code: ${response.status}. Response: ${errorText}`);
         verboseLog(`API error response: ${errorText}`);
       }
     } catch (error) {
-      console.error(`[Insert Affiliate] Error storing expected transaction: ${error}`);
+      loggerRef.current.error(`Error storing expected transaction: ${error}`);
       verboseLog(`Network error storing transaction: ${error}`);
     }
   };
@@ -1966,17 +1972,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       const activeCompanyCode = await getActiveCompanyCode();
       if (!activeCompanyCode) {
-        console.error("[Insert Affiliate] Company code is not set. Please initialize the SDK with a valid company code.");
+        loggerRef.current.error("Company code is not set. Please initialize the SDK with a valid company code.");
         verboseLog("Cannot track event: no company code available");
         return Promise.resolve();
       }
 
-      console.log("track event called with - companyCode: ", activeCompanyCode);
+      loggerRef.current.info("track event called with - companyCode: ", activeCompanyCode);
 
       if (!referrerLink || !userId) {
-        console.warn(
-          '[Insert Affiliate] No affiliate identifier found. Please set one before tracking events.'
-        );
+        loggerRef.current.warn('No affiliate identifier found. Please set one before tracking events.');
         verboseLog("Cannot track event: no affiliate identifier available");
         return Promise.resolve();
       }
@@ -2005,16 +2009,14 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       verboseLog(`Track event API response status: ${response.status}`);
 
       if (response.status === 200) {
-        console.log('[Insert Affiliate] Event tracked successfully');
+        loggerRef.current.info('Event tracked successfully');
         verboseLog("Event tracked successfully on server");
       } else {
-        console.error(
-          `[Insert Affiliate] Failed to track event with status code: ${response.status}`
-        );
+        loggerRef.current.error(`Failed to track event with status code: ${response.status}`);
         verboseLog(`Track event API error: status ${response.status}, response: ${JSON.stringify(response.data)}`);
       }
     } catch (error) {
-      console.error('[Insert Affiliate] Error tracking event:', error);
+      loggerRef.current.error('Error tracking event:', error);
       verboseLog(`Network error tracking event: ${error}`);
       return Promise.reject(error);
     }
@@ -2054,7 +2056,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
           offerCode.includes("errorAffiliateoffercodenotfoundinanycompanyAffiliatelinkwas") ||
           offerCode.includes("Routenotfound")
         )) {
-          console.warn(`[Insert Affiliate] Offer code not found or invalid: ${offerCode}`);
+          loggerRef.current.warn(`Offer code not found or invalid: ${offerCode}`);
           verboseLog(`Offer code not found or invalid: ${offerCode}`);
           return null;
         }
@@ -2063,12 +2065,12 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         verboseLog(`Successfully fetched and cleaned offer code: ${cleanedOfferCode}`);
         return cleanedOfferCode;
       } else {
-        console.error(`[Insert Affiliate] Failed to fetch offer code. Status code: ${response.status}, Response: ${JSON.stringify(response.data)}`);
+        loggerRef.current.error(`Failed to fetch offer code. Status code: ${response.status}, Response: ${JSON.stringify(response.data)}`);
         verboseLog(`Failed to fetch offer code. Status code: ${response.status}, Response: ${JSON.stringify(response.data)}`);
         return null;
       }
     } catch (error) {
-      console.error('[Insert Affiliate] Error fetching offer code:', error);
+      loggerRef.current.error('Error fetching offer code:', error);
       verboseLog(`Error fetching offer code: ${error}`);
       return null;
     }
@@ -2085,7 +2087,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         await saveValueInAsync(ASYNC_KEYS.OFFER_CODE, offerCode);
         setOfferCode(offerCode);
         verboseLog(`Successfully stored offer code: ${offerCode}`);
-        console.log('[Insert Affiliate] Offer code retrieved and stored successfully');
+        loggerRef.current.info('Offer code retrieved and stored successfully');
         return offerCode;
       } else {
         verboseLog('No valid offer code found to store');
@@ -2095,7 +2097,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return null;
       }
     } catch (error) {
-      console.error('[Insert Affiliate] Error retrieving and storing offer code:', error);
+      loggerRef.current.error('Error retrieving and storing offer code:', error);
       verboseLog(`Error in retrieveAndStoreOfferCode: ${error}`);
       return null;
     }
@@ -2216,6 +2218,10 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     return handleInsertLinksImplRef.current(url);
   }, []);
 
+  const setLogger = useCallback((logger: InsertAffiliateLogger) => {
+    loggerRef.current = logger;
+  }, []);
+
   return (
     <DeepLinkIapContext.Provider
       value={{
@@ -2236,6 +2242,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         setInsertAffiliateIdentifierChangeCallback: setInsertAffiliateIdentifierChangeCallbackHandler,
         handleInsertLinks,
         initialize,
+        setLogger,
         isInitialized,
       }}
     >

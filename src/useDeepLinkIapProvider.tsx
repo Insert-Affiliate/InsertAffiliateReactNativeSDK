@@ -19,6 +19,7 @@ const useDeepLinkIapProvider = () => {
     setInsertAffiliateIdentifierChangeCallback,
     handleInsertLinks,
     initialize,
+    setLogger,
     isInitialized,
     OfferCode,
   } = useContext(DeepLinkIapContext);
@@ -40,6 +41,7 @@ const useDeepLinkIapProvider = () => {
     setInsertAffiliateIdentifierChangeCallback,
     handleInsertLinks,
     initialize,
+    setLogger,
     isInitialized,
     OfferCode,
   };

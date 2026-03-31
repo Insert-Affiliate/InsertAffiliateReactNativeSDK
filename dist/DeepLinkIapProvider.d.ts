@@ -29,7 +29,14 @@ type T_DEEPLINK_IAP_CONTEXT = {
     setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => void;
     handleInsertLinks: (url: string) => Promise<boolean>;
     initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => Promise<void>;
+    setLogger: (logger: InsertAffiliateLogger) => void;
     isInitialized: boolean;
+};
+export type InsertAffiliateLogger = {
+    debug: (message: string, ...args: any[]) => void;
+    info: (message: string, ...args: any[]) => void;
+    warn: (message: string, ...args: any[]) => void;
+    error: (message: string, ...args: any[]) => void;
 };
 export declare const DeepLinkIapContext: React.Context<T_DEEPLINK_IAP_CONTEXT>;
 declare const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER>;

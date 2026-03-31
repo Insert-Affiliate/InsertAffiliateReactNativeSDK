@@ -1011,6 +1011,45 @@ const rawIdentifier = await returnInsertAffiliateIdentifier(true);
 
 </details>
 
+<details>
+<summary><h3>Custom Logger</h3></summary>
+
+By default, the SDK logs to the console. If you use a centralized logging service (e.g., Datadog, Sentry, Bugsnag), you can inject your own logger so all SDK logs flow through your system.
+
+**Set a Custom Logger:**
+
+```javascript
+import { useDeepLinkIapProvider } from 'insert-affiliate-react-native-sdk';
+import type { InsertAffiliateLogger } from 'insert-affiliate-react-native-sdk';
+
+const { setLogger, initialize } = useDeepLinkIapProvider();
+
+// Call setLogger before initialize
+setLogger({
+  debug: (message, ...args) => MyLogger.debug(message, ...args),
+  info: (message, ...args) => MyLogger.info(message, ...args),
+  warn: (message, ...args) => MyLogger.warn(message, ...args),
+  error: (message, ...args) => MyLogger.error(message, ...args),
+});
+
+initialize('YOUR_COMPANY_CODE', true);
+```
+
+**Logger Interface:**
+
+```typescript
+type InsertAffiliateLogger = {
+  debug: (message: string, ...args: any[]) => void;
+  info: (message: string, ...args: any[]) => void;
+  warn: (message: string, ...args: any[]) => void;
+  error: (message: string, ...args: any[]) => void;
+};
+```
+
+If `setLogger` is not called, the SDK uses the default console-based logger with `[Insert Affiliate]` prefixed messages.
+
+</details>
+
 ### Prevent Affiliate Transfer
 
 By default, clicking a new affiliate link will overwrite any existing attribution. Enable `preventAffiliateTransfer` to lock the first affiliate:
