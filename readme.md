@@ -745,6 +745,43 @@ Update your `ios/YourApp/AppDelegate.mm`:
 }
 ```
 
+> **Note:** The `continueUserActivity` method above is required for Universal Links. Without it, tapping an Insert Link when the app is installed will open Safari instead of the app directly.
+
+#### Universal Links (Optional, Recommended)
+
+Universal Links provide a better user experience than custom URL schemes. When a user taps an Insert Link and already has your app installed, iOS opens the app directly — without loading the browser.
+
+**Prerequisites:**
+- Enter your **Apple Team ID** and **iOS Bundle Identifier** in the Insert Affiliate dashboard settings
+
+**Step 3a: Add Associated Domains in Xcode**
+
+Go to your app target → **Signing & Capabilities** → **+ Capability** → **Associated Domains**.
+
+Add:
+```
+applinks:insertaffiliate.link
+```
+
+If you have a custom domain (e.g. `links.yourcompany.com`), also add:
+```
+applinks:links.yourcompany.com
+```
+
+> The `continueUserActivity` method in Step 3 already handles Universal Links via `RCTLinkingManager` — no additional code changes needed.
+
+**Testing Universal Links:**
+
+```bash
+# iOS Simulator
+xcrun simctl openurl booted "https://insertaffiliate.link/YOUR_COMPANY_CODE/TEST_SHORT_CODE"
+
+# Real device (get UDID from: xcrun devicectl list devices)
+xcrun devicectl device process launch -d YOUR_DEVICE_UDID com.apple.mobilesafari "https://insertaffiliate.link/YOUR_COMPANY_CODE/TEST_SHORT_CODE"
+```
+
+> Universal Links won't trigger if you type the URL directly into Safari's address bar — tap it from **Notes or Messages** for a real test.
+
 **Step 4: Expo Router Setup (If Using Expo Router)**
 
 If you're using Expo Router, deep links will cause a "This screen does not exist" error because both the Insert Affiliate SDK and Expo Router try to handle the incoming URL. The SDK correctly processes the affiliate attribution, but Expo Router simultaneously attempts to navigate to the URL path (e.g., `/insert-affiliate`), which doesn't exist as a route.
@@ -775,8 +812,11 @@ See the [Expo Router +native-intent docs](https://docs.expo.dev/router/reference
 **Testing Deep Links:**
 
 ```bash
-# iOS Simulator
+# iOS Simulator - custom URL scheme
 xcrun simctl openurl booted "YOUR_IOS_URL_SCHEME://TEST_SHORT_CODE"
+
+# iOS Simulator - Universal Links
+xcrun simctl openurl booted "https://insertaffiliate.link/YOUR_COMPANY_CODE/TEST_SHORT_CODE"
 
 # Android Emulator
 adb shell am start -W -a android.intent.action.VIEW -d "YOUR_ANDROID_URL_SCHEME://TEST_SHORT_CODE"
