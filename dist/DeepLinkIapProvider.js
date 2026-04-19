@@ -273,6 +273,12 @@ const DeepLinkIapProvider = ({ children, }) => {
         const handleDeepLink = (url) => __awaiter(void 0, void 0, void 0, function* () {
             try {
                 verboseLog(`Platform detection: Platform.OS = ${react_native_1.Platform.OS}`);
+                // App Links (Android) and Universal Links (iOS) both use https://
+                // Route these through handleInsertLinks which handles both
+                if (url.startsWith('https://') || url.startsWith('http://')) {
+                    verboseLog('Routing https URL to handleInsertLinks');
+                    return yield handleInsertLinks(url);
+                }
                 if (react_native_1.Platform.OS === 'ios') {
                     verboseLog('Routing to iOS handler (handleInsertLinks)');
                     return yield handleInsertLinks(url);
@@ -529,6 +535,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     });
     // Handles Insert Links deep linking - equivalent to iOS handleInsertLinks
     const handleInsertLinksImpl = (url) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
         try {
             loggerRef.current.info(`Attempting to handle URL: ${url}`);
             if (!url || typeof url !== 'string') {
@@ -545,10 +552,15 @@ const DeepLinkIapProvider = ({ children, }) => {
             if (urlObj.protocol && urlObj.protocol.startsWith('ia-')) {
                 return yield handleCustomURLScheme(url, urlObj.protocol);
             }
-            // Handle universal links (https://insertaffiliate.link/V1/companycode/shortcode)
-            // if (urlObj.protocol === 'https:' && urlObj.hostname?.includes('insertaffiliate.link')) {
-            //   return await handleUniversalLink(urlObj);
-            // }
+            // Handle universal links from insertaffiliate.link
+            if (urlObj.protocol === 'https:' && ((_a = urlObj.hostname) === null || _a === void 0 ? void 0 : _a.includes('insertaffiliate.link'))) {
+                return yield handleUniversalLink(url);
+            }
+            // Handle universal links from any https domain (custom domains)
+            // iOS only delivers universal links for domains in Associated Domains entitlement
+            if (urlObj.protocol === 'https:') {
+                return yield handleCustomDomainUniversalLink(url);
+            }
             return false;
         }
         catch (error) {
@@ -587,31 +599,70 @@ const DeepLinkIapProvider = ({ children, }) => {
             return false;
         }
     });
-    // Handle universal links like https://insertaffiliate.link/V1/companycode/shortcode
-    // const handleUniversalLink = async (url: URL): Promise<boolean> => {
-    //   try {
-    //     const pathComponents = url.pathname.split('/').filter(segment => segment.length > 0);
-    //     // Expected format: /V1/companycode/shortcode
-    //     if (pathComponents.length < 3 || pathComponents[0] !== 'V1') {
-    //       loggerRef.current.info(`Invalid universal link format: ${url.href}`);
-    //       return false;
-    //     }
-    //     const companyCode = pathComponents[1];
-    //     const shortCode = pathComponents[2];
-    //     loggerRef.current.info(`Universal link detected - Company: ${companyCode}, Short code: ${shortCode}`);
-    //     // Validate company code matches initialized one
-    //     const activeCompanyCode = await getActiveCompanyCode();
-    //     if (activeCompanyCode && companyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
-    //       loggerRef.current.info(`Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
-    //     }
-    //     // Process the affiliate attribution
-    //     await storeInsertAffiliateIdentifier({ link: shortCode });
-    //     return true;
-    //   } catch (error) {
-    //     loggerRef.current.error('Error handling universal link:', error);
-    //     return false;
-    //   }
-    // };
+    // Handle universal links like https://insertaffiliate.link/companycode/shortcode
+    // Also supports legacy format: https://insertaffiliate.link/V1/companycode/shortcode
+    const handleUniversalLink = (url) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const pathMatch = url.match(/^https?:\/\/[^\/]+(\/.*)?$/);
+            const pathname = (pathMatch === null || pathMatch === void 0 ? void 0 : pathMatch[1]) || '';
+            const pathComponents = pathname.split('/').filter(segment => segment.length > 0);
+            let companyCode;
+            let shortCode;
+            if (pathComponents.length >= 3 && pathComponents[0] === 'V1') {
+                // Legacy format: /V1/companycode/shortcode
+                companyCode = pathComponents[1];
+                shortCode = pathComponents[2];
+            }
+            else if (pathComponents.length >= 2) {
+                // Current format: /companycode/shortcode
+                companyCode = pathComponents[0];
+                shortCode = pathComponents[1];
+            }
+            else {
+                loggerRef.current.info(`Invalid universal link format: ${url}`);
+                return false;
+            }
+            loggerRef.current.info(`Universal link detected - Company: ${companyCode}, Short code: ${shortCode}`);
+            const activeCompanyCode = yield getActiveCompanyCode();
+            if (activeCompanyCode && companyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
+                loggerRef.current.info(`Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
+            }
+            yield storeInsertAffiliateIdentifier({ link: shortCode, source: react_native_1.Platform.OS === 'android' ? 'app_link' : 'universal_link' });
+            return true;
+        }
+        catch (error) {
+            loggerRef.current.error('Error handling universal link:', error);
+            return false;
+        }
+    });
+    // Handle universal links from custom domains (e.g. https://links.yourcompany.com/companycode/shortcode)
+    // iOS only delivers universal links for domains in the app's Associated Domains entitlement
+    const handleCustomDomainUniversalLink = (url) => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            const pathMatch = url.match(/^https?:\/\/[^\/]+(\/.*)?$/);
+            const pathname = (pathMatch === null || pathMatch === void 0 ? void 0 : pathMatch[1]) || '';
+            const pathComponents = pathname.split('/').filter(segment => segment.length > 0);
+            if (pathComponents.length < 2) {
+                return false;
+            }
+            const urlCompanyCode = pathComponents[0];
+            const shortCode = pathComponents[1];
+            const activeCompanyCode = yield getActiveCompanyCode();
+            if (!activeCompanyCode)
+                return false;
+            if (urlCompanyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
+                loggerRef.current.info(`Custom domain universal link company code (${urlCompanyCode}) doesn't match initialized company code (${activeCompanyCode}), ignoring`);
+                return false;
+            }
+            loggerRef.current.info(`Custom domain universal link detected - Short code: ${shortCode}`);
+            yield storeInsertAffiliateIdentifier({ link: shortCode, source: react_native_1.Platform.OS === 'android' ? 'app_link' : 'universal_link' });
+            return true;
+        }
+        catch (error) {
+            loggerRef.current.error('Error handling custom domain universal link:', error);
+            return false;
+        }
+    });
     // Parse short code from URL
     const parseShortCodeFromURL = (url) => {
         try {

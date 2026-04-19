@@ -94,7 +94,9 @@ type AffiliateAssociationSource =
   | 'install_referrer'   // Android Play Store install referrer
   | 'clipboard_match'    // iOS clipboard UUID match from backend
   | 'short_code_manual'  // Developer called setShortCode()
-  | 'referring_link';    // Developer called setInsertAffiliateIdentifier()
+  | 'referring_link'     // Developer called setInsertAffiliateIdentifier()
+  | 'universal_link'     // iOS Universal Link (https://insertaffiliate.link/companycode/shortcode)
+  | 'app_link';          // Android App Link (https://insertaffiliate.link/companycode/shortcode)
 
 // Logger interface for custom logging
 export type InsertAffiliateLogger = {
@@ -341,6 +343,14 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     const handleDeepLink = async (url: string): Promise<boolean> => {
       try {
         verboseLog(`Platform detection: Platform.OS = ${Platform.OS}`);
+
+        // App Links (Android) and Universal Links (iOS) both use https://
+        // Route these through handleInsertLinks which handles both
+        if (url.startsWith('https://') || url.startsWith('http://')) {
+          verboseLog('Routing https URL to handleInsertLinks');
+          return await handleInsertLinks(url);
+        }
+
         if (Platform.OS === 'ios') {
           verboseLog('Routing to iOS handler (handleInsertLinks)');
           return await handleInsertLinks(url);
@@ -647,10 +657,16 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return await handleCustomURLScheme(url, urlObj.protocol);
       }
 
-      // Handle universal links (https://insertaffiliate.link/V1/companycode/shortcode)
-      // if (urlObj.protocol === 'https:' && urlObj.hostname?.includes('insertaffiliate.link')) {
-      //   return await handleUniversalLink(urlObj);
-      // }
+      // Handle universal links from insertaffiliate.link
+      if (urlObj.protocol === 'https:' && urlObj.hostname?.includes('insertaffiliate.link')) {
+        return await handleUniversalLink(url);
+      }
+
+      // Handle universal links from any https domain (custom domains)
+      // iOS only delivers universal links for domains in Associated Domains entitlement
+      if (urlObj.protocol === 'https:') {
+        return await handleCustomDomainUniversalLink(url);
+      }
 
       return false;
     } catch (error) {
@@ -698,38 +714,76 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     }
   };
 
-  // Handle universal links like https://insertaffiliate.link/V1/companycode/shortcode
-  // const handleUniversalLink = async (url: URL): Promise<boolean> => {
-  //   try {
-  //     const pathComponents = url.pathname.split('/').filter(segment => segment.length > 0);
-      
-  //     // Expected format: /V1/companycode/shortcode
-  //     if (pathComponents.length < 3 || pathComponents[0] !== 'V1') {
-  //       loggerRef.current.info(`Invalid universal link format: ${url.href}`);
-  //       return false;
-  //     }
+  // Handle universal links like https://insertaffiliate.link/companycode/shortcode
+  // Also supports legacy format: https://insertaffiliate.link/V1/companycode/shortcode
+  const handleUniversalLink = async (url: string): Promise<boolean> => {
+    try {
+      const pathMatch = url.match(/^https?:\/\/[^\/]+(\/.*)?$/);
+      const pathname = pathMatch?.[1] || '';
+      const pathComponents = pathname.split('/').filter(segment => segment.length > 0);
 
-  //     const companyCode = pathComponents[1];
-  //     const shortCode = pathComponents[2];
+      let companyCode: string;
+      let shortCode: string;
 
-  //     loggerRef.current.info(`Universal link detected - Company: ${companyCode}, Short code: ${shortCode}`);
+      if (pathComponents.length >= 3 && pathComponents[0] === 'V1') {
+        // Legacy format: /V1/companycode/shortcode
+        companyCode = pathComponents[1];
+        shortCode = pathComponents[2];
+      } else if (pathComponents.length >= 2) {
+        // Current format: /companycode/shortcode
+        companyCode = pathComponents[0];
+        shortCode = pathComponents[1];
+      } else {
+        loggerRef.current.info(`Invalid universal link format: ${url}`);
+        return false;
+      }
 
-  //     // Validate company code matches initialized one
-  //     const activeCompanyCode = await getActiveCompanyCode();
-  //     if (activeCompanyCode && companyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
-  //       loggerRef.current.info(`Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
-  //     }
+      loggerRef.current.info(`Universal link detected - Company: ${companyCode}, Short code: ${shortCode}`);
 
-  //     // Process the affiliate attribution
-  //     await storeInsertAffiliateIdentifier({ link: shortCode });
+      const activeCompanyCode = await getActiveCompanyCode();
+      if (activeCompanyCode && companyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
+        loggerRef.current.info(`Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
+      }
 
+      await storeInsertAffiliateIdentifier({ link: shortCode, source: Platform.OS === 'android' ? 'app_link' : 'universal_link' });
+      return true;
+    } catch (error) {
+      loggerRef.current.error('Error handling universal link:', error);
+      return false;
+    }
+  };
 
-  //     return true;
-  //   } catch (error) {
-  //     loggerRef.current.error('Error handling universal link:', error);
-  //     return false;
-  //   }
-  // };
+  // Handle universal links from custom domains (e.g. https://links.yourcompany.com/companycode/shortcode)
+  // iOS only delivers universal links for domains in the app's Associated Domains entitlement
+  const handleCustomDomainUniversalLink = async (url: string): Promise<boolean> => {
+    try {
+      const pathMatch = url.match(/^https?:\/\/[^\/]+(\/.*)?$/);
+      const pathname = pathMatch?.[1] || '';
+      const pathComponents = pathname.split('/').filter(segment => segment.length > 0);
+
+      if (pathComponents.length < 2) {
+        return false;
+      }
+
+      const urlCompanyCode = pathComponents[0];
+      const shortCode = pathComponents[1];
+
+      const activeCompanyCode = await getActiveCompanyCode();
+      if (!activeCompanyCode) return false;
+
+      if (urlCompanyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
+        loggerRef.current.info(`Custom domain universal link company code (${urlCompanyCode}) doesn't match initialized company code (${activeCompanyCode}), ignoring`);
+        return false;
+      }
+
+      loggerRef.current.info(`Custom domain universal link detected - Short code: ${shortCode}`);
+      await storeInsertAffiliateIdentifier({ link: shortCode, source: Platform.OS === 'android' ? 'app_link' : 'universal_link' });
+      return true;
+    } catch (error) {
+      loggerRef.current.error('Error handling custom domain universal link:', error);
+      return false;
+    }
+  };
 
   // Parse short code from URL
   const parseShortCodeFromURL = (url: URL): string | null => {
