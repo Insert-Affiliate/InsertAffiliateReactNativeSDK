@@ -273,6 +273,12 @@ const DeepLinkIapProvider = ({ children, }) => {
         const handleDeepLink = (url) => __awaiter(void 0, void 0, void 0, function* () {
             try {
                 verboseLog(`Platform detection: Platform.OS = ${react_native_1.Platform.OS}`);
+                // App Links (Android) and Universal Links (iOS) both use https://
+                // Route these through handleInsertLinks which handles both
+                if (url.startsWith('https://') || url.startsWith('http://')) {
+                    verboseLog('Routing https URL to handleInsertLinks');
+                    return yield handleInsertLinks(url);
+                }
                 if (react_native_1.Platform.OS === 'ios') {
                     verboseLog('Routing to iOS handler (handleInsertLinks)');
                     return yield handleInsertLinks(url);
@@ -621,7 +627,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             if (activeCompanyCode && companyCode.toLowerCase() !== activeCompanyCode.toLowerCase()) {
                 loggerRef.current.info(`Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
             }
-            yield storeInsertAffiliateIdentifier({ link: shortCode, source: 'universal_link' });
+            yield storeInsertAffiliateIdentifier({ link: shortCode, source: react_native_1.Platform.OS === 'android' ? 'app_link' : 'universal_link' });
             return true;
         }
         catch (error) {
@@ -649,7 +655,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 return false;
             }
             loggerRef.current.info(`Custom domain universal link detected - Short code: ${shortCode}`);
-            yield storeInsertAffiliateIdentifier({ link: shortCode, source: 'universal_link' });
+            yield storeInsertAffiliateIdentifier({ link: shortCode, source: react_native_1.Platform.OS === 'android' ? 'app_link' : 'universal_link' });
             return true;
         }
         catch (error) {

@@ -95,7 +95,8 @@ type AffiliateAssociationSource =
   | 'clipboard_match'    // iOS clipboard UUID match from backend
   | 'short_code_manual'  // Developer called setShortCode()
   | 'referring_link'     // Developer called setInsertAffiliateIdentifier()
-  | 'universal_link';    // iOS Universal Link (https://insertaffiliate.link/companycode/shortcode)
+  | 'universal_link'     // iOS Universal Link (https://insertaffiliate.link/companycode/shortcode)
+  | 'app_link';          // Android App Link (https://insertaffiliate.link/companycode/shortcode)
 
 // Logger interface for custom logging
 export type InsertAffiliateLogger = {
@@ -342,6 +343,14 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     const handleDeepLink = async (url: string): Promise<boolean> => {
       try {
         verboseLog(`Platform detection: Platform.OS = ${Platform.OS}`);
+
+        // App Links (Android) and Universal Links (iOS) both use https://
+        // Route these through handleInsertLinks which handles both
+        if (url.startsWith('https://') || url.startsWith('http://')) {
+          verboseLog('Routing https URL to handleInsertLinks');
+          return await handleInsertLinks(url);
+        }
+
         if (Platform.OS === 'ios') {
           verboseLog('Routing to iOS handler (handleInsertLinks)');
           return await handleInsertLinks(url);
@@ -736,7 +745,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         loggerRef.current.info(`Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
       }
 
-      await storeInsertAffiliateIdentifier({ link: shortCode, source: 'universal_link' });
+      await storeInsertAffiliateIdentifier({ link: shortCode, source: Platform.OS === 'android' ? 'app_link' : 'universal_link' });
       return true;
     } catch (error) {
       loggerRef.current.error('Error handling universal link:', error);
@@ -768,7 +777,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
 
       loggerRef.current.info(`Custom domain universal link detected - Short code: ${shortCode}`);
-      await storeInsertAffiliateIdentifier({ link: shortCode, source: 'universal_link' });
+      await storeInsertAffiliateIdentifier({ link: shortCode, source: Platform.OS === 'android' ? 'app_link' : 'universal_link' });
       return true;
     } catch (error) {
       loggerRef.current.error('Error handling custom domain universal link:', error);

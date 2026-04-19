@@ -809,6 +809,41 @@ This ensures:
 
 See the [Expo Router +native-intent docs](https://docs.expo.dev/router/reference/native-intent/) for more details.
 
+#### Android App Links (Optional, Recommended)
+
+Android App Links provide a better user experience than custom URL schemes. When a user taps an Insert Link and already has your app installed, Android opens the app directly — without loading the browser or showing a disambiguation dialog.
+
+**Prerequisites:**
+- Enter your **Android Bundle Identifier** (package name) and **SHA-256 Certificate Fingerprints** in the Insert Affiliate dashboard settings
+
+**Step 1: Add intent filter to AndroidManifest.xml**
+
+Add this inside your main `<activity>` tag in `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<intent-filter android:autoVerify="true">
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="https" android:host="insertaffiliate.link" />
+</intent-filter>
+```
+
+If you have a custom domain, add another intent filter with your domain.
+
+**Step 2: Set launch mode**
+
+Add `android:launchMode="singleTop"` to your main activity to prevent it being recreated when an App Link is tapped:
+
+```xml
+<activity
+    android:name=".MainActivity"
+    android:launchMode="singleTop"
+    ...>
+```
+
+> No additional code changes needed — the SDK's `Linking.addEventListener` already receives App Link URLs and routes them to the correct handler automatically.
+
 **Testing Deep Links:**
 
 ```bash
@@ -818,8 +853,8 @@ xcrun simctl openurl booted "YOUR_IOS_URL_SCHEME://TEST_SHORT_CODE"
 # iOS Simulator - Universal Links
 xcrun simctl openurl booted "https://insertaffiliate.link/YOUR_COMPANY_CODE/TEST_SHORT_CODE"
 
-# Android Emulator
-adb shell am start -W -a android.intent.action.VIEW -d "YOUR_ANDROID_URL_SCHEME://TEST_SHORT_CODE"
+# Android Emulator / Device
+adb shell am start -a android.intent.action.VIEW -d "https://insertaffiliate.link/YOUR_COMPANY_CODE/TEST_SHORT_CODE"
 ```
 
 **Insert Links setup complete!** Skip to [Verify Your Integration](#-verify-your-integration)
