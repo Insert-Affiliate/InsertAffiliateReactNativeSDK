@@ -718,7 +718,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // Also supports legacy format: https://insertaffiliate.link/V1/companycode/shortcode
   const handleUniversalLink = async (url: string): Promise<boolean> => {
     try {
-      const pathMatch = url.match(/^https?:\/\/[^\/]+(\/.*)?$/);
+      const pathMatch = url.match(/^https?:\/\/[^\/]+(\/[^?#]*)?/);
       const pathname = pathMatch?.[1] || '';
       const pathComponents = pathname.split('/').filter(segment => segment.length > 0);
 
@@ -757,7 +757,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // iOS only delivers universal links for domains in the app's Associated Domains entitlement
   const handleCustomDomainUniversalLink = async (url: string): Promise<boolean> => {
     try {
-      const pathMatch = url.match(/^https?:\/\/[^\/]+(\/.*)?$/);
+      const pathMatch = url.match(/^https?:\/\/[^\/]+(\/[^?#]*)?/);
       const pathname = pathMatch?.[1] || '';
       const pathComponents = pathname.split('/').filter(segment => segment.length > 0);
 

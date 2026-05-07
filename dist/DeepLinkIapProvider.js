@@ -603,7 +603,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     // Also supports legacy format: https://insertaffiliate.link/V1/companycode/shortcode
     const handleUniversalLink = (url) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const pathMatch = url.match(/^https?:\/\/[^\/]+(\/.*)?$/);
+            const pathMatch = url.match(/^https?:\/\/[^\/]+(\/[^?#]*)?/);
             const pathname = (pathMatch === null || pathMatch === void 0 ? void 0 : pathMatch[1]) || '';
             const pathComponents = pathname.split('/').filter(segment => segment.length > 0);
             let companyCode;
@@ -639,7 +639,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     // iOS only delivers universal links for domains in the app's Associated Domains entitlement
     const handleCustomDomainUniversalLink = (url) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const pathMatch = url.match(/^https?:\/\/[^\/]+(\/.*)?$/);
+            const pathMatch = url.match(/^https?:\/\/[^\/]+(\/[^?#]*)?/);
             const pathname = (pathMatch === null || pathMatch === void 0 ? void 0 : pathMatch[1]) || '';
             const pathComponents = pathname.split('/').filter(segment => segment.length > 0);
             if (pathComponents.length < 2) {
