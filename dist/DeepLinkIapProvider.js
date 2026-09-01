@@ -1245,6 +1245,15 @@ const DeepLinkIapProvider = ({ children, }) => {
         const isValidCharacters = /^[a-zA-Z0-9_]+$/.test(referringLink);
         return isValidCharacters && referringLink.length >= 3 && referringLink.length <= 25;
     };
+    const isWebLink = (referringLink) => {
+        try {
+            const url = new URL(referringLink);
+            return url.protocol === 'http:' || url.protocol === 'https:';
+        }
+        catch (_a) {
+            return false;
+        }
+    };
     const checkAffiliateExists = (affiliateCode_1, ...args_1) => __awaiter(void 0, [affiliateCode_1, ...args_1], void 0, function* (affiliateCode, trackUsage = false) {
         try {
             const activeCompanyCode = yield getActiveCompanyCode();
@@ -1529,6 +1538,14 @@ const DeepLinkIapProvider = ({ children, }) => {
                 verboseLog('Link is already a short code, storing directly');
                 yield storeInsertAffiliateIdentifier({ link: referringLink, source: 'referring_link' });
                 return `${referringLink}-${customerID}`;
+            }
+            // Attribution providers report every app deep link, including internal
+            // navigation URLs. Those are not affiliate links and must not be sent to
+            // the conversion endpoint, where they result in a 404 response.
+            if (!isWebLink(referringLink)) {
+                loggerRef.current.warn('Referring link must be a short code or an HTTP(S) URL. Ignoring.');
+                verboseLog(`Ignoring non-web referring link: ${referringLink}`);
+                return;
             }
             verboseLog('Link is not a short code, will convert via API');
             // If the code is not already a short code, encode it raedy to send to our endpoint to return the short code. Save it before making the call in case something goes wrong

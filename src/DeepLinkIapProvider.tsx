@@ -1441,6 +1441,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     return isValidCharacters && referringLink.length >= 3 && referringLink.length <= 25;
   };
 
+  const isWebLink = (referringLink: string): boolean => {
+    try {
+      const url = new URL(referringLink);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
   const checkAffiliateExists = async (affiliateCode: string, trackUsage: boolean = false): Promise<boolean> => {
     try {
       const activeCompanyCode = await getActiveCompanyCode();
@@ -1765,6 +1774,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         verboseLog('Link is already a short code, storing directly');
         await storeInsertAffiliateIdentifier({ link: referringLink, source: 'referring_link' });
         return `${referringLink}-${customerID}`;
+      }
+
+      // Attribution providers report every app deep link, including internal
+      // navigation URLs. Those are not affiliate links and must not be sent to
+      // the conversion endpoint, where they result in a 404 response.
+      if (!isWebLink(referringLink)) {
+        loggerRef.current.warn('Referring link must be a short code or an HTTP(S) URL. Ignoring.');
+        verboseLog(`Ignoring non-web referring link: ${referringLink}`);
+        return;
       }
 
       verboseLog('Link is not a short code, will convert via API');
@@ -2314,4 +2332,3 @@ export default DeepLinkIapProvider;
       return v.toString(16);
     });
   }
-

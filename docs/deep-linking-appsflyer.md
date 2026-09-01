@@ -21,6 +21,11 @@ This covers all platform-specific configurations including:
 
 Choose the example that matches your IAP verification platform:
 
+AppsFlyer invokes these callbacks for every deep link handled by the app, not
+only Insert Affiliate links. Always check the attribution source before passing
+a value to `setInsertAffiliateIdentifier`. The examples below expect the source
+name `Insert Affiliate`; adjust it if you configured a different media source.
+
 ### Example with RevenueCat
 
 ```javascript
@@ -56,7 +61,14 @@ const DeepLinkHandler = () => {
     // Handle deep link data
     const handleDeepLink = async (deepLinkData) => {
       if (deepLinkData && deepLinkData.data) {
-        const referringLink = deepLinkData.data.link || deepLinkData.data.deep_link_value;
+        const data = deepLinkData.data;
+        const source = data.pid || data.media_source;
+        const isInsertAffiliateAttribution =
+          typeof source === 'string' &&
+          source.replace(/[^a-z0-9]/gi, '').toLowerCase() === 'insertaffiliate';
+        const referringLink = isInsertAffiliateAttribution
+          ? data.link || data.deep_link_value
+          : null;
 
         if (referringLink) {
           try {
@@ -152,7 +164,14 @@ const DeepLinkHandler = () => {
 
     const handleDeepLink = async (deepLinkData) => {
       if (deepLinkData && deepLinkData.data) {
-        const referringLink = deepLinkData.data.link || deepLinkData.data.deep_link_value;
+        const data = deepLinkData.data;
+        const source = data.pid || data.media_source;
+        const isInsertAffiliateAttribution =
+          typeof source === 'string' &&
+          source.replace(/[^a-z0-9]/gi, '').toLowerCase() === 'insertaffiliate';
+        const referringLink = isInsertAffiliateAttribution
+          ? data.link || data.deep_link_value
+          : null;
 
         if (referringLink) {
           try {
@@ -228,7 +247,14 @@ const DeepLinkHandler = () => {
 
     const handleDeepLink = async (deepLinkData) => {
       if (deepLinkData && deepLinkData.data) {
-        const referringLink = deepLinkData.data.link || deepLinkData.data.deep_link_value;
+        const data = deepLinkData.data;
+        const source = data.pid || data.media_source;
+        const isInsertAffiliateAttribution =
+          typeof source === 'string' &&
+          source.replace(/[^a-z0-9]/gi, '').toLowerCase() === 'insertaffiliate';
+        const referringLink = isInsertAffiliateAttribution
+          ? data.link || data.deep_link_value
+          : null;
 
         if (referringLink) {
           try {
@@ -297,7 +323,14 @@ const DeepLinkHandler = () => {
 
     const handleDeepLink = async (deepLinkData) => {
       if (deepLinkData && deepLinkData.data) {
-        const referringLink = deepLinkData.data.link || deepLinkData.data.deep_link_value;
+        const data = deepLinkData.data;
+        const source = data.pid || data.media_source;
+        const isInsertAffiliateAttribution =
+          typeof source === 'string' &&
+          source.replace(/[^a-z0-9]/gi, '').toLowerCase() === 'insertaffiliate';
+        const referringLink = isInsertAffiliateAttribution
+          ? data.link || data.deep_link_value
+          : null;
 
         if (referringLink) {
           try {
@@ -375,6 +408,10 @@ adb shell am start -W -a android.intent.action.VIEW -d "https://your-app.onelink
 **Problem:** `deep_link_value` is undefined
 - **Solution:** Ensure you're accessing the correct property path in the callback data
 - Log the full `deepLinkData` object to see available fields
+
+**Problem:** The conversion endpoint returns 404 for an app deep link
+- **Solution:** Verify `pid` or `media_source` identifies your Insert Affiliate campaign before calling `setInsertAffiliateIdentifier`
+- Do not forward internal navigation URLs such as `myapp://settings`
 
 ## Next Steps
 
