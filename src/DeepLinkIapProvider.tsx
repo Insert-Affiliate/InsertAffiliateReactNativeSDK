@@ -23,6 +23,19 @@ export type AffiliateDetails = {
   deeplinkurl: string;
 } | null;
 
+// 'found' means an affiliate matches the code. 'notFound' means the backend confirmed no
+// affiliate matches the code. 'lookupFailed' means the backend couldn't be reached or
+// errored (outage, timeout, rate limit) — the code itself may still be valid. Callers that
+// need to distinguish "definitely invalid" from "couldn't check" (e.g. to retry instead of
+// silently dropping attribution) should use getAffiliateLookupResult instead of
+// getAffiliateDetails.
+export type AffiliateLookupStatus = 'found' | 'notFound' | 'lookupFailed';
+
+export type AffiliateLookupResult = {
+  status: AffiliateLookupStatus;
+  details: AffiliateDetails; // non-null only when status === 'found'
+};
+
 type CustomPurchase = {
   [key: string]: any; // Accept any fields to allow it to work wtih multiple IAP libraries
 };
@@ -46,8 +59,9 @@ type T_DEEPLINK_IAP_CONTEXT = {
     purchaseToken: string
   ) => Promise<void>;
   trackEvent: (eventName: string) => Promise<void>;
-  setShortCode: (shortCode: string) => Promise<boolean>;
+  setShortCode: (shortCode: string, options?: { onLookupFailed?: () => void }) => Promise<boolean>;
   getAffiliateDetails: (affiliateCode: string) => Promise<AffiliateDetails>;
+  getAffiliateLookupResult: (affiliateCode: string, trackUsage?: boolean) => Promise<AffiliateLookupResult>;
   setInsertAffiliateIdentifier: (
     referringLink: string
   ) => Promise<void | string>;
@@ -131,8 +145,9 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   returnUserAccountTokenAndStoreExpectedTransaction: async () => '',
   storeExpectedStoreTransaction: async (purchaseToken: string) => {},
   trackEvent: async (eventName: string) => {},
-  setShortCode: async (shortCode: string) => false,
+  setShortCode: async (shortCode: string, options?: { onLookupFailed?: () => void }) => false,
   getAffiliateDetails: async (affiliateCode: string) => null,
+  getAffiliateLookupResult: async (affiliateCode: string, trackUsage?: boolean) => ({ status: 'lookupFailed', details: null }),
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
   setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => {},
   handleInsertLinks: async (url: string) => false,
@@ -167,8 +182,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   // Refs for implementation functions (ref callback pattern for stable + fresh)
   const initializeImplRef = useRef<(code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => Promise<void>>(null as any);
-  const setShortCodeImplRef = useRef<(shortCode: string) => Promise<boolean>>(null as any);
+  const setShortCodeImplRef = useRef<(shortCode: string, options?: { onLookupFailed?: () => void }) => Promise<boolean>>(null as any);
   const getAffiliateDetailsImplRef = useRef<(affiliateCode: string) => Promise<AffiliateDetails>>(null as any);
+  const getAffiliateLookupResultImplRef = useRef<(affiliateCode: string, trackUsage?: boolean) => Promise<AffiliateLookupResult>>(null as any);
   const returnInsertAffiliateIdentifierImplRef = useRef<(ignoreTimeout?: boolean) => Promise<string | null>>(null as any);
   const isAffiliateAttributionValidImplRef = useRef<() => Promise<boolean>>(null as any);
   const getAffiliateStoredDateImplRef = useRef<() => Promise<Date | null>>(null as any);
@@ -1441,12 +1457,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     return isValidCharacters && referringLink.length >= 3 && referringLink.length <= 25;
   };
 
-  const checkAffiliateExists = async (affiliateCode: string, trackUsage: boolean = false): Promise<boolean> => {
+  // Real implementation, shared by getAffiliateDetailsImpl and setShortCodeImpl (below) so
+  // there's one network call site instead of two independently collapsing to the same
+  // false/null on both "not found" and "couldn't check".
+  const getAffiliateLookupResultImpl = async (affiliateCode: string, trackUsage: boolean = false): Promise<AffiliateLookupResult> => {
     try {
       const activeCompanyCode = await getActiveCompanyCode();
       if (!activeCompanyCode) {
-        verboseLog('Cannot check affiliate: no company code available');
-        return false;
+        verboseLog('Cannot get affiliate details: no company code available');
+        return { status: 'lookupFailed', details: null };
       }
 
       const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
@@ -1458,48 +1477,6 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       if (trackUsage) {
         payload.trackUsage = true;
       }
-
-      verboseLog(`Checking if affiliate exists: ${affiliateCode}`);
-
-      const response = await axios.post(url, payload, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      verboseLog(`Affiliate check response: ${JSON.stringify(response.data)}`);
-
-      if (response.status === 200 && response.data) {
-        const exists = response.data.exists === true;
-        if (exists) {
-          verboseLog(`Affiliate ${affiliateCode} exists and is valid`);
-        } else {
-          verboseLog(`Affiliate ${affiliateCode} does not exist`);
-        }
-        return exists;
-      } else {
-        verboseLog(`Unexpected response checking affiliate: status ${response.status}`);
-        return false;
-      }
-    } catch (error) {
-      verboseLog(`Error checking affiliate exists: ${error}`);
-      return false;
-    }
-  };
-
-  const getAffiliateDetailsImpl = async (affiliateCode: string): Promise<AffiliateDetails> => {
-    try {
-      const activeCompanyCode = await getActiveCompanyCode();
-      if (!activeCompanyCode) {
-        verboseLog('Cannot get affiliate details: no company code available');
-        return null;
-      }
-
-      const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
-      const payload = {
-        companyId: activeCompanyCode,
-        affiliateCode: affiliateCode
-      };
 
       verboseLog(`Getting affiliate details for: ${affiliateCode}`);
 
@@ -1516,23 +1493,39 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         if (affiliate) {
           verboseLog(`Retrieved affiliate details: ${JSON.stringify(affiliate)}`);
           return {
-            affiliateName: affiliate.affiliateName || '',
-            affiliateShortCode: affiliate.affiliateShortCode || '',
-            deeplinkurl: affiliate.deeplinkurl || ''
+            status: 'found',
+            details: {
+              affiliateName: affiliate.affiliateName || '',
+              affiliateShortCode: affiliate.affiliateShortCode || '',
+              deeplinkurl: affiliate.deeplinkurl || ''
+            },
           };
         }
       }
 
-      verboseLog(`Affiliate ${affiliateCode} not found or invalid response`);
-      return null;
+      if (response.status === 200) {
+        verboseLog(`Affiliate ${affiliateCode} not found`);
+        return { status: 'notFound', details: null };
+      }
+
+      verboseLog(`Unexpected response checking affiliate: status ${response.status}`);
+      return { status: 'lookupFailed', details: null };
     } catch (error) {
       verboseLog(`Error getting affiliate details: ${error}`);
       loggerRef.current.error('Error getting affiliate details:', error);
-      return null;
+      return { status: 'lookupFailed', details: null };
     }
   };
 
-  const setShortCodeImpl = async (shortCode: string): Promise<boolean> => {
+  // Kept for backward compatibility: collapses 'notFound' and 'lookupFailed' into the same
+  // null result, exactly as before. Use getAffiliateLookupResult if you need to tell an
+  // invalid code apart from a backend outage.
+  const getAffiliateDetailsImpl = async (affiliateCode: string): Promise<AffiliateDetails> => {
+    const result = await getAffiliateLookupResultImpl(affiliateCode);
+    return result.details;
+  };
+
+  const setShortCodeImpl = async (shortCode: string, options?: { onLookupFailed?: () => void }): Promise<boolean> => {
     loggerRef.current.info('Setting short code.');
     await generateThenSetUserID();
 
@@ -1541,15 +1534,18 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     isShortCode(capitalisedShortCode);
 
     // Check if the affiliate exists before storing
-    const exists = await checkAffiliateExists(capitalisedShortCode, true);
+    const lookup = await getAffiliateLookupResultImpl(capitalisedShortCode, true);
 
-    if (exists) {
+    if (lookup.status === 'found') {
       // If affiliate exists, set the Insert Affiliate Identifier
       await storeInsertAffiliateIdentifier({ link: capitalisedShortCode, source: 'short_code_manual' });
       loggerRef.current.info(`Short code ${capitalisedShortCode} validated and stored successfully.`);
       return true;
     } else {
       loggerRef.current.warn(`Short code ${capitalisedShortCode} does not exist. Not storing.`);
+      if (lookup.status === 'lookupFailed') {
+        options?.onLookupFailed?.();
+      }
       return false;
     }
   };
@@ -2173,6 +2169,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   initializeImplRef.current = initializeImpl;
   setShortCodeImplRef.current = setShortCodeImpl;
   getAffiliateDetailsImplRef.current = getAffiliateDetailsImpl;
+  getAffiliateLookupResultImplRef.current = getAffiliateLookupResultImpl;
   returnInsertAffiliateIdentifierImplRef.current = returnInsertAffiliateIdentifierImpl;
   isAffiliateAttributionValidImplRef.current = isAffiliateAttributionValidImpl;
   getAffiliateStoredDateImplRef.current = getAffiliateStoredDateImpl;
@@ -2199,12 +2196,16 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     return initializeImplRef.current(code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer);
   }, []);
 
-  const setShortCode = useCallback(async (shortCode: string): Promise<boolean> => {
-    return setShortCodeImplRef.current(shortCode);
+  const setShortCode = useCallback(async (shortCode: string, options?: { onLookupFailed?: () => void }): Promise<boolean> => {
+    return setShortCodeImplRef.current(shortCode, options);
   }, []);
 
   const getAffiliateDetails = useCallback(async (affiliateCode: string): Promise<AffiliateDetails> => {
     return getAffiliateDetailsImplRef.current(affiliateCode);
+  }, []);
+
+  const getAffiliateLookupResult = useCallback(async (affiliateCode: string, trackUsage?: boolean): Promise<AffiliateLookupResult> => {
+    return getAffiliateLookupResultImplRef.current(affiliateCode, trackUsage);
   }, []);
 
   const returnInsertAffiliateIdentifier = useCallback(async (ignoreTimeout?: boolean): Promise<string | null> => {
@@ -2284,6 +2285,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         OfferCode,
         setShortCode,
         getAffiliateDetails,
+        getAffiliateLookupResult,
         returnInsertAffiliateIdentifier,
         isAffiliateAttributionValid,
         getAffiliateStoredDate,
