@@ -23,13 +23,9 @@ export type AffiliateDetails = {
   deeplinkurl: string;
 } | null;
 
-// 'found' means an affiliate matches the code. 'notFound' means the backend confirmed no
-// affiliate matches the code. 'lookupFailed' means the backend couldn't be reached or
-// errored (outage, timeout, rate limit) — the code itself may still be valid. Callers that
-// need to distinguish "definitely invalid" from "couldn't check" (e.g. to retry instead of
-// silently dropping attribution) should use getAffiliateLookupResult instead of
-// getAffiliateDetails.
-export type AffiliateLookupStatus = 'found' | 'notFound' | 'lookupFailed';
+// 'lookupFailed' (backend outage/timeout/error) may be worth retrying. 'notConfigured'
+// (no company code set) never will be — it's always a bug in the calling app.
+export type AffiliateLookupStatus = 'found' | 'notFound' | 'lookupFailed' | 'notConfigured';
 
 export type AffiliateLookupResult = {
   status: AffiliateLookupStatus;
@@ -147,7 +143,7 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   trackEvent: async (eventName: string) => {},
   setShortCode: async (shortCode: string, options?: { onLookupFailed?: () => void }) => false,
   getAffiliateDetails: async (affiliateCode: string) => null,
-  getAffiliateLookupResult: async (affiliateCode: string, trackUsage?: boolean) => ({ status: 'lookupFailed', details: null }),
+  getAffiliateLookupResult: async (affiliateCode: string, trackUsage?: boolean) => ({ status: 'notConfigured', details: null }),
   setInsertAffiliateIdentifier: async (referringLink: string) => {},
   setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => {},
   handleInsertLinks: async (url: string) => false,
@@ -1457,15 +1453,12 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     return isValidCharacters && referringLink.length >= 3 && referringLink.length <= 25;
   };
 
-  // Real implementation, shared by getAffiliateDetailsImpl and setShortCodeImpl (below) so
-  // there's one network call site instead of two independently collapsing to the same
-  // false/null on both "not found" and "couldn't check".
   const getAffiliateLookupResultImpl = async (affiliateCode: string, trackUsage: boolean = false): Promise<AffiliateLookupResult> => {
     try {
       const activeCompanyCode = await getActiveCompanyCode();
       if (!activeCompanyCode) {
         verboseLog('Cannot get affiliate details: no company code available');
-        return { status: 'lookupFailed', details: null };
+        return { status: 'notConfigured', details: null };
       }
 
       const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
@@ -1488,22 +1481,25 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       verboseLog(`Affiliate details response: ${JSON.stringify(response.data)}`);
 
-      if (response.status === 200 && response.data && response.data.exists === true) {
-        const affiliate = response.data.affiliate;
-        if (affiliate) {
-          verboseLog(`Retrieved affiliate details: ${JSON.stringify(affiliate)}`);
-          return {
-            status: 'found',
-            details: {
-              affiliateName: affiliate.affiliateName || '',
-              affiliateShortCode: affiliate.affiliateShortCode || '',
-              deeplinkurl: affiliate.deeplinkurl || ''
-            },
-          };
-        }
-      }
+      if (response.status === 200 && response.data) {
+        if (response.data.exists === true) {
+          const affiliate = response.data.affiliate;
+          if (affiliate) {
+            verboseLog(`Retrieved affiliate details: ${JSON.stringify(affiliate)}`);
+            return {
+              status: 'found',
+              details: {
+                affiliateName: affiliate.affiliateName || '',
+                affiliateShortCode: affiliate.affiliateShortCode || '',
+                deeplinkurl: affiliate.deeplinkurl || ''
+              },
+            };
+          }
 
-      if (response.status === 200) {
+          verboseLog(`Affiliate ${affiliateCode} exists but response is malformed (missing affiliate details)`);
+          return { status: 'lookupFailed', details: null };
+        }
+
         verboseLog(`Affiliate ${affiliateCode} not found`);
         return { status: 'notFound', details: null };
       }
