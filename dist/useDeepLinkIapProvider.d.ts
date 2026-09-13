@@ -11,8 +11,11 @@ declare const useDeepLinkIapProvider: () => {
     getAffiliateStoredDate: () => Promise<Date | null>;
     getAffiliateExpiryTimestamp: () => Promise<number | null>;
     trackEvent: (eventName: string) => Promise<void>;
-    setShortCode: (shortCode: string) => Promise<boolean>;
+    setShortCode: (shortCode: string, options?: {
+        onLookupFailed?: () => void;
+    }) => Promise<boolean>;
     getAffiliateDetails: (affiliateCode: string) => Promise<import("./DeepLinkIapProvider").AffiliateDetails>;
+    getAffiliateLookupResult: (affiliateCode: string, trackUsage?: boolean) => Promise<import("./DeepLinkIapProvider").AffiliateLookupResult>;
     setInsertAffiliateIdentifier: (referringLink: string) => Promise<void | string>;
     setInsertAffiliateIdentifierChangeCallback: (callback: import("./DeepLinkIapProvider").InsertAffiliateIdentifierChangeCallback | null) => void;
     handleInsertLinks: (url: string) => Promise<boolean>;

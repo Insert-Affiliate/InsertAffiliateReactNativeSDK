@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -77,8 +87,9 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     returnUserAccountTokenAndStoreExpectedTransaction: () => __awaiter(void 0, void 0, void 0, function* () { return ''; }),
     storeExpectedStoreTransaction: (purchaseToken) => __awaiter(void 0, void 0, void 0, function* () { }),
     trackEvent: (eventName) => __awaiter(void 0, void 0, void 0, function* () { }),
-    setShortCode: (shortCode) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
+    setShortCode: (shortCode, options) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     getAffiliateDetails: (affiliateCode) => __awaiter(void 0, void 0, void 0, function* () { return null; }),
+    getAffiliateLookupResult: (affiliateCode, trackUsage) => __awaiter(void 0, void 0, void 0, function* () { return ({ status: 'notConfigured', details: null }); }),
     setInsertAffiliateIdentifier: (referringLink) => __awaiter(void 0, void 0, void 0, function* () { }),
     setInsertAffiliateIdentifierChangeCallback: (callback) => { },
     handleInsertLinks: (url) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
@@ -109,6 +120,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     const initializeImplRef = (0, react_1.useRef)(null);
     const setShortCodeImplRef = (0, react_1.useRef)(null);
     const getAffiliateDetailsImplRef = (0, react_1.useRef)(null);
+    const getAffiliateLookupResultImplRef = (0, react_1.useRef)(null);
     const returnInsertAffiliateIdentifierImplRef = (0, react_1.useRef)(null);
     const isAffiliateAttributionValidImplRef = (0, react_1.useRef)(null);
     const getAffiliateStoredDateImplRef = (0, react_1.useRef)(null);
@@ -1245,12 +1257,12 @@ const DeepLinkIapProvider = ({ children, }) => {
         const isValidCharacters = /^[a-zA-Z0-9_]+$/.test(referringLink);
         return isValidCharacters && referringLink.length >= 3 && referringLink.length <= 25;
     };
-    const checkAffiliateExists = (affiliateCode_1, ...args_1) => __awaiter(void 0, [affiliateCode_1, ...args_1], void 0, function* (affiliateCode, trackUsage = false) {
+    const getAffiliateLookupResultImpl = (affiliateCode_1, ...args_1) => __awaiter(void 0, [affiliateCode_1, ...args_1], void 0, function* (affiliateCode, trackUsage = false) {
         try {
             const activeCompanyCode = yield getActiveCompanyCode();
             if (!activeCompanyCode) {
-                verboseLog('Cannot check affiliate: no company code available');
-                return false;
+                verboseLog('Cannot get affiliate details: no company code available');
+                return { status: 'notConfigured', details: null };
             }
             const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
             const payload = {
@@ -1260,45 +1272,6 @@ const DeepLinkIapProvider = ({ children, }) => {
             if (trackUsage) {
                 payload.trackUsage = true;
             }
-            verboseLog(`Checking if affiliate exists: ${affiliateCode}`);
-            const response = yield axios_1.default.post(url, payload, {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            verboseLog(`Affiliate check response: ${JSON.stringify(response.data)}`);
-            if (response.status === 200 && response.data) {
-                const exists = response.data.exists === true;
-                if (exists) {
-                    verboseLog(`Affiliate ${affiliateCode} exists and is valid`);
-                }
-                else {
-                    verboseLog(`Affiliate ${affiliateCode} does not exist`);
-                }
-                return exists;
-            }
-            else {
-                verboseLog(`Unexpected response checking affiliate: status ${response.status}`);
-                return false;
-            }
-        }
-        catch (error) {
-            verboseLog(`Error checking affiliate exists: ${error}`);
-            return false;
-        }
-    });
-    const getAffiliateDetailsImpl = (affiliateCode) => __awaiter(void 0, void 0, void 0, function* () {
-        try {
-            const activeCompanyCode = yield getActiveCompanyCode();
-            if (!activeCompanyCode) {
-                verboseLog('Cannot get affiliate details: no company code available');
-                return null;
-            }
-            const url = 'https://api.insertaffiliate.com/V1/checkAffiliateExists';
-            const payload = {
-                companyId: activeCompanyCode,
-                affiliateCode: affiliateCode
-            };
             verboseLog(`Getting affiliate details for: ${affiliateCode}`);
             const response = yield axios_1.default.post(url, payload, {
                 headers: {
@@ -1306,35 +1279,52 @@ const DeepLinkIapProvider = ({ children, }) => {
                 },
             });
             verboseLog(`Affiliate details response: ${JSON.stringify(response.data)}`);
-            if (response.status === 200 && response.data && response.data.exists === true) {
-                const affiliate = response.data.affiliate;
-                if (affiliate) {
-                    verboseLog(`Retrieved affiliate details: ${JSON.stringify(affiliate)}`);
-                    return {
-                        affiliateName: affiliate.affiliateName || '',
-                        affiliateShortCode: affiliate.affiliateShortCode || '',
-                        deeplinkurl: affiliate.deeplinkurl || ''
-                    };
+            if (response.status === 200 && response.data) {
+                if (response.data.exists === true) {
+                    const affiliate = response.data.affiliate;
+                    if (affiliate) {
+                        verboseLog(`Retrieved affiliate details: ${JSON.stringify(affiliate)}`);
+                        return {
+                            status: 'found',
+                            details: {
+                                affiliateName: affiliate.affiliateName || '',
+                                affiliateShortCode: affiliate.affiliateShortCode || '',
+                                deeplinkurl: affiliate.deeplinkurl || ''
+                            },
+                        };
+                    }
+                    verboseLog(`Affiliate ${affiliateCode} exists but response is malformed (missing affiliate details)`);
+                    return { status: 'lookupFailed', details: null };
                 }
+                verboseLog(`Affiliate ${affiliateCode} not found`);
+                return { status: 'notFound', details: null };
             }
-            verboseLog(`Affiliate ${affiliateCode} not found or invalid response`);
-            return null;
+            verboseLog(`Unexpected response checking affiliate: status ${response.status}`);
+            return { status: 'lookupFailed', details: null };
         }
         catch (error) {
             verboseLog(`Error getting affiliate details: ${error}`);
             loggerRef.current.error('Error getting affiliate details:', error);
-            return null;
+            return { status: 'lookupFailed', details: null };
         }
     });
-    const setShortCodeImpl = (shortCode) => __awaiter(void 0, void 0, void 0, function* () {
+    // Kept for backward compatibility: collapses 'notFound' and 'lookupFailed' into the same
+    // null result, exactly as before. Use getAffiliateLookupResult if you need to tell an
+    // invalid code apart from a backend outage.
+    const getAffiliateDetailsImpl = (affiliateCode) => __awaiter(void 0, void 0, void 0, function* () {
+        const result = yield getAffiliateLookupResultImpl(affiliateCode);
+        return result.details;
+    });
+    const setShortCodeImpl = (shortCode, options) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
         loggerRef.current.info('Setting short code.');
         yield generateThenSetUserID();
         // Validate it is a short code
         const capitalisedShortCode = shortCode.toUpperCase();
         isShortCode(capitalisedShortCode);
         // Check if the affiliate exists before storing
-        const exists = yield checkAffiliateExists(capitalisedShortCode, true);
-        if (exists) {
+        const lookup = yield getAffiliateLookupResultImpl(capitalisedShortCode, true);
+        if (lookup.status === 'found') {
             // If affiliate exists, set the Insert Affiliate Identifier
             yield storeInsertAffiliateIdentifier({ link: capitalisedShortCode, source: 'short_code_manual' });
             loggerRef.current.info(`Short code ${capitalisedShortCode} validated and stored successfully.`);
@@ -1342,6 +1332,9 @@ const DeepLinkIapProvider = ({ children, }) => {
         }
         else {
             loggerRef.current.warn(`Short code ${capitalisedShortCode} does not exist. Not storing.`);
+            if (lookup.status === 'lookupFailed') {
+                (_a = options === null || options === void 0 ? void 0 : options.onLookupFailed) === null || _a === void 0 ? void 0 : _a.call(options);
+            }
             return false;
         }
     });
@@ -1879,6 +1872,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     initializeImplRef.current = initializeImpl;
     setShortCodeImplRef.current = setShortCodeImpl;
     getAffiliateDetailsImplRef.current = getAffiliateDetailsImpl;
+    getAffiliateLookupResultImplRef.current = getAffiliateLookupResultImpl;
     returnInsertAffiliateIdentifierImplRef.current = returnInsertAffiliateIdentifierImpl;
     isAffiliateAttributionValidImplRef.current = isAffiliateAttributionValidImpl;
     getAffiliateStoredDateImplRef.current = getAffiliateStoredDateImpl;
@@ -1896,11 +1890,14 @@ const DeepLinkIapProvider = ({ children, }) => {
     const initialize = (0, react_1.useCallback)((code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer) => __awaiter(void 0, void 0, void 0, function* () {
         return initializeImplRef.current(code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer);
     }), []);
-    const setShortCode = (0, react_1.useCallback)((shortCode) => __awaiter(void 0, void 0, void 0, function* () {
-        return setShortCodeImplRef.current(shortCode);
+    const setShortCode = (0, react_1.useCallback)((shortCode, options) => __awaiter(void 0, void 0, void 0, function* () {
+        return setShortCodeImplRef.current(shortCode, options);
     }), []);
     const getAffiliateDetails = (0, react_1.useCallback)((affiliateCode) => __awaiter(void 0, void 0, void 0, function* () {
         return getAffiliateDetailsImplRef.current(affiliateCode);
+    }), []);
+    const getAffiliateLookupResult = (0, react_1.useCallback)((affiliateCode, trackUsage) => __awaiter(void 0, void 0, void 0, function* () {
+        return getAffiliateLookupResultImplRef.current(affiliateCode, trackUsage);
     }), []);
     const returnInsertAffiliateIdentifier = (0, react_1.useCallback)((ignoreTimeout) => __awaiter(void 0, void 0, void 0, function* () {
         return returnInsertAffiliateIdentifierImplRef.current(ignoreTimeout);
@@ -1959,6 +1956,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             OfferCode,
             setShortCode,
             getAffiliateDetails,
+            getAffiliateLookupResult,
             returnInsertAffiliateIdentifier,
             isAffiliateAttributionValid,
             getAffiliateStoredDate,

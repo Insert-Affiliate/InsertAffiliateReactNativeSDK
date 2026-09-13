@@ -8,6 +8,11 @@ export type AffiliateDetails = {
     affiliateShortCode: string;
     deeplinkurl: string;
 } | null;
+export type AffiliateLookupStatus = 'found' | 'notFound' | 'lookupFailed' | 'notConfigured';
+export type AffiliateLookupResult = {
+    status: AffiliateLookupStatus;
+    details: AffiliateDetails;
+};
 type CustomPurchase = {
     [key: string]: any;
 };
@@ -23,8 +28,11 @@ type T_DEEPLINK_IAP_CONTEXT = {
     returnUserAccountTokenAndStoreExpectedTransaction: () => Promise<string | null>;
     storeExpectedStoreTransaction: (purchaseToken: string) => Promise<void>;
     trackEvent: (eventName: string) => Promise<void>;
-    setShortCode: (shortCode: string) => Promise<boolean>;
+    setShortCode: (shortCode: string, options?: {
+        onLookupFailed?: () => void;
+    }) => Promise<boolean>;
     getAffiliateDetails: (affiliateCode: string) => Promise<AffiliateDetails>;
+    getAffiliateLookupResult: (affiliateCode: string, trackUsage?: boolean) => Promise<AffiliateLookupResult>;
     setInsertAffiliateIdentifier: (referringLink: string) => Promise<void | string>;
     setInsertAffiliateIdentifierChangeCallback: (callback: InsertAffiliateIdentifierChangeCallback | null) => void;
     handleInsertLinks: (url: string) => Promise<boolean>;
