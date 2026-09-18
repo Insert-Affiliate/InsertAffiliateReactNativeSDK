@@ -23,6 +23,13 @@ const useDeepLinkIapProvider = () => {
     setLogger,
     isInitialized,
     OfferCode,
+    createAffiliateForUser,
+    verifyAffiliateCode,
+    getMyAffiliateDetails,
+    isUserAnAffiliate,
+    signOutAffiliate,
+    getReferralProgramConfig,
+    shareReferralLink,
   } = useContext(DeepLinkIapContext);
 
   return {
@@ -46,6 +53,13 @@ const useDeepLinkIapProvider = () => {
     setLogger,
     isInitialized,
     OfferCode,
+    createAffiliateForUser,
+    verifyAffiliateCode,
+    getMyAffiliateDetails,
+    isUserAnAffiliate,
+    signOutAffiliate,
+    getReferralProgramConfig,
+    shareReferralLink,
   };
 };
 

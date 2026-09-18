@@ -23,5 +23,12 @@ declare const useDeepLinkIapProvider: () => {
     setLogger: (logger: import("./DeepLinkIapProvider").InsertAffiliateLogger) => void;
     isInitialized: boolean;
     OfferCode: string | null;
+    createAffiliateForUser: (email: string, name: string) => Promise<import("./referrals").ReferralEnrolResult>;
+    verifyAffiliateCode: (email: string, code: string, name?: string) => Promise<import("./referrals").ReferralEnrolResult>;
+    getMyAffiliateDetails: () => Promise<import("./referrals").MyAffiliateDetails | null>;
+    isUserAnAffiliate: () => Promise<boolean>;
+    signOutAffiliate: () => Promise<void>;
+    getReferralProgramConfig: () => Promise<import("./referrals").ReferralProgramConfig | null>;
+    shareReferralLink: (message?: string) => Promise<boolean>;
 };
 export default useDeepLinkIapProvider;

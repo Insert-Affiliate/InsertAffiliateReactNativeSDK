@@ -6,6 +6,13 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import NetInfo from '@react-native-community/netinfo';
 import DeviceInfo from 'react-native-device-info';
 import { PlayInstallReferrer, PlayInstallReferrerInfo } from 'react-native-play-install-referrer';
+import * as referrals from './referrals';
+import type {
+  ReferralDeps,
+  ReferralEnrolResult,
+  MyAffiliateDetails,
+  ReferralProgramConfig,
+} from './referrals';
 
 // Development environment check for React Native
 const isDevelopmentEnvironment = typeof __DEV__ !== 'undefined' && __DEV__;
@@ -66,6 +73,14 @@ type T_DEEPLINK_IAP_CONTEXT = {
   initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => Promise<void>;
   setLogger: (logger: InsertAffiliateLogger) => void;
   isInitialized: boolean;
+  // In-app referrals (see referrals.ts)
+  createAffiliateForUser: (email: string, name: string) => Promise<ReferralEnrolResult>;
+  verifyAffiliateCode: (email: string, code: string, name?: string) => Promise<ReferralEnrolResult>;
+  getMyAffiliateDetails: () => Promise<MyAffiliateDetails | null>;
+  isUserAnAffiliate: () => Promise<boolean>;
+  signOutAffiliate: () => Promise<void>;
+  getReferralProgramConfig: () => Promise<ReferralProgramConfig | null>;
+  shareReferralLink: (message?: string) => Promise<boolean>;
 };
 
 type RequestBody = {
@@ -150,6 +165,13 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   initialize: async (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => {},
   setLogger: (logger: InsertAffiliateLogger) => {},
   isInitialized: false,
+  createAffiliateForUser: async (email: string, name: string) => ({ status: 'error', errorCode: 'NOT_INITIALIZED' }),
+  verifyAffiliateCode: async (email: string, code: string, name?: string) => ({ status: 'error', errorCode: 'NOT_INITIALIZED' }),
+  getMyAffiliateDetails: async () => null,
+  isUserAnAffiliate: async () => false,
+  signOutAffiliate: async () => {},
+  getReferralProgramConfig: async () => null,
+  shareReferralLink: async (message?: string) => false,
 });
 
 const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
@@ -191,6 +213,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   const trackEventImplRef = useRef<(eventName: string) => Promise<void>>(null as any);
   const setInsertAffiliateIdentifierImplRef = useRef<(referringLink: string) => Promise<void | string>>(null as any);
   const handleInsertLinksImplRef = useRef<(url: string) => Promise<boolean>>(null as any);
+  const referralDepsRef = useRef<ReferralDeps>(null as any);
 
   // MARK: Initialize the SDK
   const initializeImpl = async (companyCodeParam: string | null, verboseLoggingParam: boolean = false, insertLinksEnabledParam: boolean = false, insertLinksClipboardEnabledParam: boolean = false, affiliateAttributionActiveTimeParam?: number, preventAffiliateTransferParam: boolean = false): Promise<void> => {
@@ -2176,6 +2199,11 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   trackEventImplRef.current = trackEventImpl;
   setInsertAffiliateIdentifierImplRef.current = setInsertAffiliateIdentifierImpl;
   handleInsertLinksImplRef.current = handleInsertLinksImpl;
+  referralDepsRef.current = {
+    getCompanyId: getActiveCompanyCode,
+    verboseLog,
+    errorLog: (message: string, error?: unknown) => loggerRef.current.error(message, error),
+  };
 
   // ============================================================================
   // STABLE WRAPPERS: useCallback with [] deps that delegate to refs
@@ -2273,6 +2301,35 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     loggerRef.current = logger;
   }, []);
 
+  // In-app referrals: logic lives in referrals.ts
+  const createAffiliateForUser = useCallback(async (email: string, name: string): Promise<ReferralEnrolResult> => {
+    return referrals.createAffiliateForUser(referralDepsRef.current, email, name);
+  }, []);
+
+  const verifyAffiliateCode = useCallback(async (email: string, code: string, name?: string): Promise<ReferralEnrolResult> => {
+    return referrals.verifyAffiliateCode(referralDepsRef.current, email, code, name);
+  }, []);
+
+  const getMyAffiliateDetails = useCallback(async (): Promise<MyAffiliateDetails | null> => {
+    return referrals.getMyAffiliateDetails(referralDepsRef.current);
+  }, []);
+
+  const isUserAnAffiliate = useCallback(async (): Promise<boolean> => {
+    return referrals.isUserAnAffiliate(referralDepsRef.current);
+  }, []);
+
+  const signOutAffiliate = useCallback(async (): Promise<void> => {
+    return referrals.signOutAffiliate(referralDepsRef.current);
+  }, []);
+
+  const getReferralProgramConfig = useCallback(async (): Promise<ReferralProgramConfig | null> => {
+    return referrals.getReferralProgramConfig(referralDepsRef.current);
+  }, []);
+
+  const shareReferralLink = useCallback(async (message?: string): Promise<boolean> => {
+    return referrals.shareReferralLink(referralDepsRef.current, message);
+  }, []);
+
   return (
     <DeepLinkIapContext.Provider
       value={{
@@ -2296,6 +2353,13 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         initialize,
         setLogger,
         isInitialized,
+        createAffiliateForUser,
+        verifyAffiliateCode,
+        getMyAffiliateDetails,
+        isUserAnAffiliate,
+        signOutAffiliate,
+        getReferralProgramConfig,
+        shareReferralLink,
       }}
     >
       {children}
