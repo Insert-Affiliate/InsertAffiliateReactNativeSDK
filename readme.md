@@ -15,6 +15,7 @@ The official React Native SDK for [Insert Affiliate](https://insertaffiliate.com
   - [3. Set Up Deep Linking](#3-set-up-deep-linking)
 - [Verify Your Integration](#-verify-your-integration)
 - [Advanced Features](#-advanced-features)
+- [In-App Referrals](#-in-app-referrals)
 - [Troubleshooting](#-troubleshooting)
 - [Support](#-support)
 
@@ -1147,6 +1148,112 @@ initialize(
 - Useful for preventing "affiliate stealing" where users click competitor links
 
 Learn more: [Prevent Affiliate Transfer Documentation](https://docs.insertaffiliate.com/prevent-affiliate-transfer)
+
+## 🤝 In-App Referrals
+
+Turn your own users into affiliates from inside your app, show them a ready-made "Refer a friend" screen, and read their referral stats so you can reward them.
+
+**Before you start:** switch on In-app referrals in your [Insert Affiliate dashboard](https://app.insertaffiliate.com) and choose what counts as a referral (install, event or purchase). The SDK must be initialized with your company code.
+
+Every referrer is a normal affiliate: they get the usual welcome email, dashboard login and commission (if you pay one), and they take an affiliate seat.
+
+### Drop-in "Refer a friend" screen
+
+Render `ReferAFriend` anywhere inside `DeepLinkIapProvider`. It handles every step: signing up, the email code step, and showing the code, link, stats and share button.
+
+```javascript
+import { ReferAFriend } from 'insert-affiliate-react-native-sdk';
+
+const [showReferrals, setShowReferrals] = useState(false);
+
+<Button title="Refer a friend" onPress={() => setShowReferrals(true)} />
+
+<ReferAFriend
+  visible={showReferrals}
+  onClose={() => setShowReferrals(false)}
+  email={currentUser.email}   // prefill with your logged-in user
+  name={currentUser.name}
+/>
+```
+
+| Prop | Description |
+|------|-------------|
+| `visible` | Shows or hides the screen |
+| `onClose` | Called when the user closes the screen |
+| `email`, `name` | Prefill the sign-up fields, usually from your logged-in user |
+| `shareMessage` | Message shared with the link. May use `{link}` and `{code}` placeholders |
+| `primaryColor` | Button and accent colour. Falls back to the dashboard setting, then `#6A0DAD` |
+| `headline`, `rewardText` | Override the copy set in your dashboard |
+
+Headline, reward text and colour set in your dashboard are applied without an app release.
+
+### Referral methods
+
+Use these directly to build your own UI:
+
+```javascript
+const {
+  createAffiliateForUser,
+  verifyAffiliateCode,
+  getMyAffiliateDetails,
+  isUserAnAffiliate,
+  signOutAffiliate,
+  getReferralProgramConfig,
+  shareReferralLink,
+} = useDeepLinkIapProvider();
+
+// 1. Make the user a referrer
+const result = await createAffiliateForUser('jane@example.com', 'Jane');
+
+if (result.status === 'verificationRequired') {
+  // This email is already an affiliate (for example after a reinstall).
+  // We emailed them a 6-digit code; ask for it, then:
+  const verified = await verifyAffiliateCode('jane@example.com', '123456');
+}
+
+if (result.status === 'error') {
+  console.log(result.errorCode, result.errorMessage); // e.g. PROGRAM_DISABLED
+}
+
+// 2. Read their stats
+const me = await getMyAffiliateDetails();
+if (me) {
+  console.log(me.affiliateShortCode, me.deeplinkurl);
+  console.log(me.referralCount, me.totalEarned, me.currency);
+}
+
+// 3. Share their link with the system share sheet
+await shareReferralLink(); // or shareReferralLink('Get 20% off with my link: {link}')
+
+// On app logout
+await signOutAffiliate();
+```
+
+| Method | Returns |
+|--------|---------|
+| `createAffiliateForUser(email, name)` | `{ status: 'created' \| 'verificationRequired' \| 'error', affiliate?, errorCode?, errorMessage? }` |
+| `verifyAffiliateCode(email, code, name?)` | Same shape, with status `'connected' \| 'created' \| 'error'` |
+| `getMyAffiliateDetails()` | The user's details and stats, or `null` when they are not a referrer on this device |
+| `isUserAnAffiliate()` | `true` when this device is connected to a referrer (no network call) |
+| `signOutAffiliate()` | Disconnects this device. The affiliate account is untouched |
+| `getReferralProgramConfig()` | `{ enabled, companyName, referralTrigger, headline, rewardText, primaryColor }`, or `null` |
+| `shareReferralLink(message?)` | Opens the share sheet. `false` when the user is not a referrer |
+
+`getMyAffiliateDetails()` returns `affiliateName`, `affiliateShortCode`, `deeplinkurl`, `referralTrigger`, `referralCount`, `installCount`, `eventCount`, `purchaseCount`, `totalEarned`, `totalPaid`, `totalUnpaid`, `currency` and `dashboardUrl`. `referralCount` is the count for the trigger you chose in the dashboard and only ever goes up.
+
+**Error codes:** `INVALID_EMAIL`, `INVALID_CODE`, `PROGRAM_DISABLED`, `AFFILIATE_LIMIT_REACHED`, `COMPANY_NOT_FOUND`, `TOO_MANY_CODES`, `RATE_LIMITED`, `NETWORK_ERROR`, `NOT_INITIALIZED`.
+
+**How the device stays connected:** after sign-up or verification the SDK stores a private token for your company in AsyncStorage. If the app is deleted or the token is lost, call `createAffiliateForUser` again with the same email; the user gets an emailed code and reconnects to the same affiliate account.
+
+### Rewarding referrers
+
+The values returned on the device are for display only, because a modified device can change what it shows. Grant anything valuable (credits, premium time, payouts) from your server using the `referral.created` webhook or the Public API. The webhook includes a running `referral_count`, so rewarding up to that number never rewards twice.
+
+### Store rules
+
+- The SDK only uses the system share sheet. It never asks for Contacts access.
+- Never lock features behind sharing, and never reward ratings or reviews.
+- For free premium time, use App Store / Google Play offer codes or RevenueCat promotional entitlements.
 
 ---
 
