@@ -50,7 +50,7 @@ export type ReferralDeps = {
     getCompanyId: () => Promise<string | null>;
     getDeviceId: () => Promise<string | null>;
     verboseLog: (message: string) => void;
-    errorLog: (message: string, error?: unknown) => void;
+    errorLog: (message: string) => void;
 };
 export declare const parseReferrerAffiliate: (data: any) => ReferrerAffiliate;
 export declare const parseRewardCodes: (value: unknown) => ReferralRewardCode[];
@@ -63,6 +63,7 @@ export declare const parseEnrolResponse: (httpStatus: number, data: any) => {
     token: string | null;
 };
 export declare const buildReferralShareText: (affiliate: ReferrerAffiliate, companyName: string, message?: string) => string;
+export declare const describeError: (error: unknown) => string;
 export declare const isTokenRejected: (httpStatus: number, data: any) => boolean;
 export declare const createAffiliateForUser: (deps: ReferralDeps, email: string, name: string, options?: ReferrerAccountOptions) => Promise<ReferralEnrolResult>;
 export declare const verifyAffiliateCode: (deps: ReferralDeps, email: string, code: string, name?: string, options?: ReferrerAccountOptions) => Promise<ReferralEnrolResult>;

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.openShareSheet = exports.shareReferralLink = exports.getReferralProgramConfig = exports.signOutAffiliate = exports.isUserAnAffiliate = exports.setReferrerAccount = exports.getMyAffiliateDetails = exports.verifyAffiliateCode = exports.createAffiliateForUser = exports.isTokenRejected = exports.buildReferralShareText = exports.parseEnrolResponse = exports.parseReferralProgramConfig = exports.parseMyAffiliateDetails = exports.isPremiumActive = exports.rewardCodesForPlatform = exports.parseRewardCodes = exports.parseReferrerAffiliate = void 0;
+exports.openShareSheet = exports.shareReferralLink = exports.getReferralProgramConfig = exports.signOutAffiliate = exports.isUserAnAffiliate = exports.setReferrerAccount = exports.getMyAffiliateDetails = exports.verifyAffiliateCode = exports.createAffiliateForUser = exports.isTokenRejected = exports.describeError = exports.buildReferralShareText = exports.parseEnrolResponse = exports.parseReferralProgramConfig = exports.parseMyAffiliateDetails = exports.isPremiumActive = exports.rewardCodesForPlatform = exports.parseRewardCodes = exports.parseReferrerAffiliate = void 0;
 // In-app referrals: turn the app's own user into an affiliate, read their
 // referral stats and share their link. Backend: /V1/sdk/affiliate.
 //
@@ -126,6 +126,17 @@ const buildReferralShareText = (affiliate, companyName, message) => {
     return `Use my code ${code} in ${appName}`;
 };
 exports.buildReferralShareText = buildReferralShareText;
+// LOGGING
+// An error's message and code only, never the error itself: an axios error
+// carries the request headers (the token) and body (email, emailed code, Play
+// purchase token), which would reach an app's custom logger.
+const describeError = (error) => {
+    const e = error && typeof error === 'object' ? error : null;
+    const message = e && typeof e.message === 'string' && e.message ? e.message : 'Unknown error';
+    const code = e && (typeof e.code === 'string' || typeof e.code === 'number') ? ` (${e.code})` : '';
+    return `${message}${code}`;
+};
+exports.describeError = describeError;
 // TOKEN STORAGE
 const tokenKey = (companyId) => `${TOKEN_KEY_PREFIX}${companyId}`;
 const readToken = (companyId) => __awaiter(void 0, void 0, void 0, function* () {
@@ -180,7 +191,7 @@ const identityBody = (deps, options) => __awaiter(void 0, void 0, void 0, functi
         deviceId = yield deps.getDeviceId();
     }
     catch (error) {
-        deps.errorLog('Error reading device id for referrer:', error);
+        deps.errorLog(`Error reading device id for referrer: ${(0, exports.describeError)(error)}`);
     }
     if (deviceId)
         body.deviceId = deviceId;
@@ -210,7 +221,7 @@ const postEnrolment = (deps, path, body, options) => __awaiter(void 0, void 0, v
         return result;
     }
     catch (error) {
-        deps.errorLog(`Referrer ${path} failed:`, error);
+        deps.errorLog(`Referrer ${path} failed: ${(0, exports.describeError)(error)}`);
         return networkError();
     }
 });
@@ -248,7 +259,7 @@ const getMyAffiliateDetails = (deps) => __awaiter(void 0, void 0, void 0, functi
         return (0, exports.parseMyAffiliateDetails)(response.data);
     }
     catch (error) {
-        deps.errorLog('Error getting referrer details:', error);
+        deps.errorLog(`Error getting referrer details: ${(0, exports.describeError)(error)}`);
         return null;
     }
 });
@@ -278,7 +289,7 @@ const setReferrerAccount = (deps, options) => __awaiter(void 0, void 0, void 0, 
         return saved;
     }
     catch (error) {
-        deps.errorLog('Error setting referrer account:', error);
+        deps.errorLog(`Error setting referrer account: ${(0, exports.describeError)(error)}`);
         return false;
     }
 });
@@ -313,7 +324,7 @@ const getReferralProgramConfig = (deps) => __awaiter(void 0, void 0, void 0, fun
         return (0, exports.parseReferralProgramConfig)(response.data);
     }
     catch (error) {
-        deps.errorLog('Error getting referral program config:', error);
+        deps.errorLog(`Error getting referral program config: ${(0, exports.describeError)(error)}`);
         return null;
     }
 });
@@ -336,7 +347,7 @@ const openShareSheet = (text, deps) => __awaiter(void 0, void 0, void 0, functio
     }
     catch (error) {
         if (deps)
-            deps.errorLog('Error opening share sheet:', error);
+            deps.errorLog(`Error opening share sheet: ${(0, exports.describeError)(error)}`);
         return false;
     }
 });

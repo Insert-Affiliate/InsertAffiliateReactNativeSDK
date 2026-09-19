@@ -2207,7 +2207,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     // Same id as in the "{shortCode}-{deviceId}" identifier; created and saved if missing.
     getDeviceId: generateThenSetUserID,
     verboseLog,
-    errorLog: (message: string, error?: unknown) => loggerRef.current.error(message, error),
+    errorLog: (message: string) => loggerRef.current.error(message),
   };
 
   // ============================================================================

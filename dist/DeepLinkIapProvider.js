@@ -1888,7 +1888,7 @@ const DeepLinkIapProvider = ({ children, }) => {
         // Same id as in the "{shortCode}-{deviceId}" identifier; created and saved if missing.
         getDeviceId: generateThenSetUserID,
         verboseLog,
-        errorLog: (message, error) => loggerRef.current.error(message, error),
+        errorLog: (message) => loggerRef.current.error(message),
     };
     // ============================================================================
     // STABLE WRAPPERS: useCallback with [] deps that delegate to refs

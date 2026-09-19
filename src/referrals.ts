@@ -98,7 +98,8 @@ export type ReferralDeps = {
   getCompanyId: () => Promise<string | null>;
   getDeviceId: () => Promise<string | null>;
   verboseLog: (message: string) => void;
-  errorLog: (message: string, error?: unknown) => void;
+  // Takes text only: errors are passed through describeError first.
+  errorLog: (message: string) => void;
 };
 
 // PARSING
@@ -228,6 +229,17 @@ export const buildReferralShareText = (
   return `Use my code ${code} in ${appName}`;
 };
 
+// LOGGING
+// An error's message and code only, never the error itself: an axios error
+// carries the request headers (the token) and body (email, emailed code, Play
+// purchase token), which would reach an app's custom logger.
+export const describeError = (error: unknown): string => {
+  const e = error && typeof error === 'object' ? (error as { message?: unknown; code?: unknown }) : null;
+  const message = e && typeof e.message === 'string' && e.message ? e.message : 'Unknown error';
+  const code = e && (typeof e.code === 'string' || typeof e.code === 'number') ? ` (${e.code})` : '';
+  return `${message}${code}`;
+};
+
 // TOKEN STORAGE
 const tokenKey = (companyId: string) => `${TOKEN_KEY_PREFIX}${companyId}`;
 
@@ -291,7 +303,7 @@ const identityBody = async (
   try {
     deviceId = await deps.getDeviceId();
   } catch (error) {
-    deps.errorLog('Error reading device id for referrer:', error);
+    deps.errorLog(`Error reading device id for referrer: ${describeError(error)}`);
   }
   if (deviceId) body.deviceId = deviceId;
   const appUserId = ((options && options.appUserId) || '').trim();
@@ -326,7 +338,7 @@ const postEnrolment = async (
     deps.verboseLog(`Referrer ${path} result: ${result.status}${result.errorCode ? ` (${result.errorCode})` : ''}`);
     return result;
   } catch (error) {
-    deps.errorLog(`Referrer ${path} failed:`, error);
+    deps.errorLog(`Referrer ${path} failed: ${describeError(error)}`);
     return networkError();
   }
 };
@@ -381,7 +393,7 @@ export const getMyAffiliateDetails = async (deps: ReferralDeps): Promise<MyAffil
     }
     return parseMyAffiliateDetails(response.data);
   } catch (error) {
-    deps.errorLog('Error getting referrer details:', error);
+    deps.errorLog(`Error getting referrer details: ${describeError(error)}`);
     return null;
   }
 };
@@ -417,7 +429,7 @@ export const setReferrerAccount = async (
     deps.verboseLog(saved ? 'Referrer account saved' : `Referrer account request failed with status ${response.status}`);
     return saved;
   } catch (error) {
-    deps.errorLog('Error setting referrer account:', error);
+    deps.errorLog(`Error setting referrer account: ${describeError(error)}`);
     return false;
   }
 };
@@ -449,7 +461,7 @@ export const getReferralProgramConfig = async (deps: ReferralDeps): Promise<Refe
     }
     return parseReferralProgramConfig(response.data);
   } catch (error) {
-    deps.errorLog('Error getting referral program config:', error);
+    deps.errorLog(`Error getting referral program config: ${describeError(error)}`);
     return null;
   }
 };
@@ -470,7 +482,7 @@ export const openShareSheet = async (text: string, deps?: Pick<ReferralDeps, 'er
     await Share.share({ message: text });
     return true;
   } catch (error) {
-    if (deps) deps.errorLog('Error opening share sheet:', error);
+    if (deps) deps.errorLog(`Error opening share sheet: ${describeError(error)}`);
     return false;
   }
 };
