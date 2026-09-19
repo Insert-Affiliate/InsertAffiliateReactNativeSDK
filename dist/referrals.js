@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.openShareSheet = exports.shareReferralLink = exports.getReferralProgramConfig = exports.signOutAffiliate = exports.isUserAnAffiliate = exports.setReferrerAccount = exports.getMyAffiliateDetails = exports.verifyAffiliateCode = exports.createAffiliateForUser = exports.buildReferralShareText = exports.parseEnrolResponse = exports.parseReferralProgramConfig = exports.parseMyAffiliateDetails = exports.isPremiumActive = exports.parseRewardCodes = exports.parseReferrerAffiliate = void 0;
+exports.openShareSheet = exports.shareReferralLink = exports.getReferralProgramConfig = exports.signOutAffiliate = exports.isUserAnAffiliate = exports.setReferrerAccount = exports.getMyAffiliateDetails = exports.verifyAffiliateCode = exports.createAffiliateForUser = exports.buildReferralShareText = exports.parseEnrolResponse = exports.parseReferralProgramConfig = exports.parseMyAffiliateDetails = exports.isPremiumActive = exports.rewardCodesForPlatform = exports.parseRewardCodes = exports.parseReferrerAffiliate = void 0;
 // In-app referrals: turn the app's own user into an affiliate, read their
 // referral stats and share their link. Backend: /V1/sdk/affiliate.
 //
@@ -46,10 +46,21 @@ const parseRewardCodes = (value) => Array.isArray(value)
         .map((item) => ({
         code: asString(item.code),
         redeemUrl: asString(item.redeemUrl),
+        store: asString(item.store).trim() || 'app_store',
         grantedAt: asNullableString(item.grantedAt),
     }))
     : [];
 exports.parseRewardCodes = parseRewardCodes;
+// The codes that can be redeemed on this phone: App Store codes on iOS, Google
+// Play codes on Android, everything elsewhere.
+const rewardCodesForPlatform = (codes, os) => {
+    if (os === 'ios')
+        return codes.filter((c) => c.store === 'app_store');
+    if (os === 'android')
+        return codes.filter((c) => c.store === 'google_play');
+    return codes;
+};
+exports.rewardCodesForPlatform = rewardCodesForPlatform;
 // True when premiumUntil is a valid date later than now.
 const isPremiumActive = (premiumUntil, now = Date.now()) => {
     if (!premiumUntil)

@@ -15,6 +15,7 @@ export type {
   ReferralEnrolResult,
   ReferralErrorCode,
   ReferralRewardCode,
+  ReferralRewardStore,
   ReferrerAccountOptions,
 } from "./referrals";
 export type { ReferAFriendProps } from "./ReferAFriend";

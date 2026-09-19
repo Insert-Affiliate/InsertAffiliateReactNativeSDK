@@ -192,6 +192,8 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
             react_native_1.Linking.openURL(redeemUrl).catch(() => { });
         }
     };
+    // Only codes this phone's store can redeem (App Store on iOS, Google Play on Android).
+    const rewardCodes = details ? (0, referrals_1.rewardCodesForPlatform)(details.rewardCodes, react_native_1.Platform.OS) : [];
     const onOpenDashboard = () => {
         if (details && details.dashboardUrl) {
             react_native_1.Linking.openURL(details.dashboardUrl).catch(() => { });
@@ -250,9 +252,9 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
                 details.premiumUntil && (0, referrals_1.isPremiumActive)(details.premiumUntil) ? (react_1.default.createElement(react_native_1.Text, { style: styles.premium },
                     "Free premium until ",
                     formatDate(details.premiumUntil))) : null,
-                react_native_1.Platform.OS !== 'android' && details.rewardCodes.length > 0 ? (react_1.default.createElement(react_native_1.View, { style: styles.rewards },
+                rewardCodes.length > 0 ? (react_1.default.createElement(react_native_1.View, { style: styles.rewards },
                     react_1.default.createElement(react_native_1.Text, { style: styles.rewardsTitle }, "Your rewards"),
-                    details.rewardCodes.map((reward) => (react_1.default.createElement(react_native_1.View, { key: reward.code, style: styles.rewardRow },
+                    rewardCodes.map((reward) => (react_1.default.createElement(react_native_1.View, { key: reward.code, style: styles.rewardRow },
                         react_1.default.createElement(react_native_1.Text, { style: styles.rewardCode, selectable: true }, reward.code),
                         react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: () => onRedeem(reward.redeemUrl), disabled: !reward.redeemUrl, style: ({ pressed }) => [styles.redeemButton, { backgroundColor: primaryColor, opacity: !reward.redeemUrl ? 0.5 : pressed ? 0.8 : 1 }] },
                             react_1.default.createElement(react_native_1.Text, { style: styles.redeemText }, "Redeem"))))))) : null,

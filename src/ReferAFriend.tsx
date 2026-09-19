@@ -27,6 +27,7 @@ import {
   ReferralEnrolResult,
   ReferralProgramConfig,
   ReferrerAffiliate,
+  rewardCodesForPlatform,
 } from './referrals';
 
 const DEFAULT_PRIMARY_COLOR = '#6A0DAD';
@@ -225,6 +226,9 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     }
   };
 
+  // Only codes this phone's store can redeem (App Store on iOS, Google Play on Android).
+  const rewardCodes = details ? rewardCodesForPlatform(details.rewardCodes, Platform.OS) : [];
+
   const onOpenDashboard = () => {
     if (details && details.dashboardUrl) {
       Linking.openURL(details.dashboardUrl).catch(() => {});
@@ -348,11 +352,10 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
             {details.premiumUntil && isPremiumActive(details.premiumUntil) ? (
               <Text style={styles.premium}>Free premium until {formatDate(details.premiumUntil)}</Text>
             ) : null}
-            {/* App Store offer codes can't be redeemed on Android */}
-            {Platform.OS !== 'android' && details.rewardCodes.length > 0 ? (
+            {rewardCodes.length > 0 ? (
               <View style={styles.rewards}>
                 <Text style={styles.rewardsTitle}>Your rewards</Text>
-                {details.rewardCodes.map((reward) => (
+                {rewardCodes.map((reward) => (
                   <View key={reward.code} style={styles.rewardRow}>
                     <Text style={styles.rewardCode} selectable>{reward.code}</Text>
                     <Pressable

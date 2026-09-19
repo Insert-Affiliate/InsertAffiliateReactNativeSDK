@@ -1159,7 +1159,7 @@ Every referrer is a normal affiliate: they get the usual welcome email, dashboar
 
 ### Drop-in "Refer a friend" screen
 
-Render `ReferAFriend` anywhere inside `DeepLinkIapProvider`. It handles every step: signing up, the email code step, and showing the code, link, stats and share button. When the user has earned rewards it also shows "Free premium until {date}" and a "Your rewards" list of App Store offer codes, each with a Redeem button (the list is hidden on Android, where App Store codes can't be redeemed).
+Render `ReferAFriend` anywhere inside `DeepLinkIapProvider`. It handles every step: signing up, the email code step, and showing the code, link, stats and share button. When the user has earned rewards it also shows "Free premium until {date}" and a "Your rewards" list of reward codes, each with a Redeem button. It lists only the codes this phone can redeem: App Store offer codes on iOS, Google Play promo codes on Android.
 
 ```javascript
 import { ReferAFriend } from 'insert-affiliate-react-native-sdk';
@@ -1247,7 +1247,7 @@ await signOutAffiliate();
 | `getReferralProgramConfig()` | `{ enabled, companyName, referralTrigger, headline, rewardText, primaryColor }`, or `null` |
 | `shareReferralLink(message?)` | Opens the share sheet. `false` when the user is not a referrer |
 
-`getMyAffiliateDetails()` returns `affiliateName`, `affiliateShortCode`, `deeplinkurl`, `referralTrigger`, `referralCount`, `installCount`, `eventCount`, `purchaseCount`, `totalEarned`, `totalPaid`, `totalUnpaid`, `currency`, `dashboardUrl`, `rewardsGranted`, `premiumUntil` (ISO date or `null`) and `rewardCodes` (`[{ code, redeemUrl, grantedAt }]`, App Store one-time offer codes, newest first). `referralCount` is the count for the trigger you chose in the dashboard and only ever goes up.
+`getMyAffiliateDetails()` returns `affiliateName`, `affiliateShortCode`, `deeplinkurl`, `referralTrigger`, `referralCount`, `installCount`, `eventCount`, `purchaseCount`, `totalEarned`, `totalPaid`, `totalUnpaid`, `currency`, `dashboardUrl`, `rewardsGranted`, `premiumUntil` (ISO date or `null`) and `rewardCodes` (`[{ code, redeemUrl, store, grantedAt }]`, newest first). `store` is `'app_store'` for an App Store one-time offer code or `'google_play'` for a Google Play promo code (its `redeemUrl` is `https://play.google.com/redeem?code=...`); codes from older servers have no store and are read as `'app_store'`. `referralCount` is the count for the trigger you chose in the dashboard and only ever goes up.
 
 **`options`:** `{ appUserId?, playPurchaseToken? }`. `appUserId` is the user's RevenueCat app user id or Adapty customer user id. `playPurchaseToken` is the user's own Google Play subscription purchase token (Android). The SDK also sends the same device id it uses in the insert affiliate identifier, so a referrer who installs through their own link isn't counted. If the user subscribes or logs in after joining, call `setReferrerAccount` then; any rewards that were waiting for them are granted.
 

@@ -4,9 +4,11 @@ export type ReferrerAffiliate = {
     deeplinkurl: string;
 };
 export type ReferralTrigger = 'install' | 'event' | 'purchase';
+export type ReferralRewardStore = 'app_store' | 'google_play' | (string & {});
 export type ReferralRewardCode = {
     code: string;
     redeemUrl: string;
+    store: ReferralRewardStore;
     grantedAt: string | null;
 };
 export type ReferrerAccountOptions = {
@@ -52,6 +54,7 @@ export type ReferralDeps = {
 };
 export declare const parseReferrerAffiliate: (data: any) => ReferrerAffiliate;
 export declare const parseRewardCodes: (value: unknown) => ReferralRewardCode[];
+export declare const rewardCodesForPlatform: (codes: ReferralRewardCode[], os: string) => ReferralRewardCode[];
 export declare const isPremiumActive: (premiumUntil: string | null, now?: number) => boolean;
 export declare const parseMyAffiliateDetails: (data: any) => MyAffiliateDetails;
 export declare const parseReferralProgramConfig: (data: any) => ReferralProgramConfig;

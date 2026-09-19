@@ -22,10 +22,16 @@ export type ReferrerAffiliate = {
 
 export type ReferralTrigger = 'install' | 'event' | 'purchase';
 
-// An App Store one-time offer code granted as a referrer reward.
+// Which store a reward code is redeemed in. Other values from newer servers are kept as-is.
+export type ReferralRewardStore = 'app_store' | 'google_play' | (string & {});
+
+// A reward code granted to the referrer: an App Store one-time offer code, or
+// a Google Play promo code if they were rewarded on an Android phone.
 export type ReferralRewardCode = {
   code: string;
   redeemUrl: string;
+  // Missing on older servers, where every code is an App Store code.
+  store: ReferralRewardStore;
   grantedAt: string | null;
 };
 
@@ -122,9 +128,18 @@ export const parseRewardCodes = (value: unknown): ReferralRewardCode[] =>
         .map((item) => ({
           code: asString(item.code),
           redeemUrl: asString(item.redeemUrl),
+          store: asString(item.store).trim() || 'app_store',
           grantedAt: asNullableString(item.grantedAt),
         }))
     : [];
+
+// The codes that can be redeemed on this phone: App Store codes on iOS, Google
+// Play codes on Android, everything elsewhere.
+export const rewardCodesForPlatform = (codes: ReferralRewardCode[], os: string): ReferralRewardCode[] => {
+  if (os === 'ios') return codes.filter((c) => c.store === 'app_store');
+  if (os === 'android') return codes.filter((c) => c.store === 'google_play');
+  return codes;
+};
 
 // True when premiumUntil is a valid date later than now.
 export const isPremiumActive = (premiumUntil: string | null, now: number = Date.now()): boolean => {
