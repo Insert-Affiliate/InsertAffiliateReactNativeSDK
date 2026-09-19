@@ -62,6 +62,7 @@ export declare const parseEnrolResponse: (httpStatus: number, data: any) => {
     result: ReferralEnrolResult;
     token: string | null;
 };
+export declare const normalizeVerificationCode: (value: string) => string;
 export declare const buildReferralShareText: (affiliate: ReferrerAffiliate, companyName: string, message?: string) => string;
 export declare const describeError: (error: unknown) => string;
 export declare const isTokenRejected: (httpStatus: number, data: any) => boolean;

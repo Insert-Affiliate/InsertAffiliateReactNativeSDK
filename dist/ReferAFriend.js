@@ -274,7 +274,7 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
         if (step === 'code') {
             return (react_1.default.createElement(react_native_1.View, null,
                 react_1.default.createElement(react_native_1.Text, { style: styles.label }, "Enter the 6-digit code"),
-                react_1.default.createElement(react_native_1.TextInput, { style: [styles.input, styles.codeInput], value: code, onChangeText: (value) => setCode(value.replace(/[^0-9]/g, '').slice(0, 6)), placeholder: "123456", keyboardType: "number-pad", textContentType: "oneTimeCode", maxLength: 6 }),
+                react_1.default.createElement(react_native_1.TextInput, { style: [styles.input, styles.codeInput], value: code, onChangeText: (value) => setCode((0, referrals_1.normalizeVerificationCode)(value).slice(0, 6)), placeholder: "123456", keyboardType: "number-pad", textContentType: "oneTimeCode" }),
                 primaryButton('Verify', onVerify, code.length !== 6),
                 linkButton('Send a new code', onResend),
                 linkButton('Use a different email', () => { setError(''); setNotice(''); setStep('enrol'); })));

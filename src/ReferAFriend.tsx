@@ -24,6 +24,7 @@ import useDeepLinkIapProvider from './useDeepLinkIapProvider';
 import {
   buildReferralShareText,
   isPremiumActive,
+  normalizeVerificationCode,
   openShareSheet,
   MyAffiliateDetails,
   ReferralEnrolResult,
@@ -352,11 +353,10 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
           <TextInput
             style={[styles.input, styles.codeInput]}
             value={code}
-            onChangeText={(value) => setCode(value.replace(/[^0-9]/g, '').slice(0, 6))}
+            onChangeText={(value) => setCode(normalizeVerificationCode(value).slice(0, 6))}
             placeholder="123456"
             keyboardType="number-pad"
             textContentType="oneTimeCode"
-            maxLength={6}
           />
           {primaryButton('Verify', onVerify, code.length !== 6)}
           {linkButton('Send a new code', onResend)}
