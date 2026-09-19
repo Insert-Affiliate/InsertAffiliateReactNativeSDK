@@ -1251,7 +1251,10 @@ await signOutAffiliate();
 
 **`options`:** `{ appUserId?, playPurchaseToken? }`. `appUserId` is the user's RevenueCat app user id or Adapty customer user id. `playPurchaseToken` is the user's own Google Play subscription purchase token (Android). The SDK also sends the same device id it uses in the insert affiliate identifier, so a referrer who installs through their own link isn't counted. If the user subscribes or logs in after joining, call `setReferrerAccount` then; any rewards that were waiting for them are granted.
 
-**Error codes:** `INVALID_EMAIL`, `INVALID_CODE`, `PROGRAM_DISABLED`, `AFFILIATE_LIMIT_REACHED`, `COMPANY_NOT_FOUND`, `TOO_MANY_CODES`, `RATE_LIMITED`, `NETWORK_ERROR`, `NOT_INITIALIZED`.
+**Error codes:** `INVALID_EMAIL`, `INVALID_COMPANY_ID`, `INVALID_CODE`, `PROGRAM_DISABLED`, `AFFILIATE_LIMIT_REACHED`, `COMPANY_NOT_FOUND`, `TOO_MANY_CODES`, `RATE_LIMITED`, `DEEP_LINK_POOL_CONFLICT` (try again), `NETWORK_ERROR`, `NOT_INITIALIZED`.
+
+- `INVALID_RESPONSE`: the server answered with success but without the expected data.
+- `HTTP_<status>` (for example `HTTP_500`): the server returned an error without a code.
 
 **How the device stays connected:** after sign-up or verification the SDK stores a private token for your company in AsyncStorage. If the app is deleted or the token is lost, call `createAffiliateForUser` again with the same email; the user gets an emailed code and reconnects to the same affiliate account.
 
