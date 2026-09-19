@@ -2,13 +2,14 @@
 //
 // States: loading -> not enrolled (email + name, "Get my link") -> code step
 // when the email already belongs to an affiliate -> enrolled (code, link,
-// Copy, Share, stats, "Open my dashboard").
+// Copy, Share, stats, free premium date, reward codes, "Open my dashboard").
 // Store rules: share sheet only, no Contacts access, nothing gated behind sharing.
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,6 +21,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import useDeepLinkIapProvider from './useDeepLinkIapProvider';
 import {
   buildReferralShareText,
+  isPremiumActive,
   openShareSheet,
   MyAffiliateDetails,
   ReferralEnrolResult,
@@ -64,6 +66,15 @@ const formatMoney = (amount: number, currency: string) => {
     return amount.toLocaleString(undefined, { style: 'currency', currency });
   } catch {
     return `${currency} ${amount.toFixed(2)}`;
+  }
+};
+
+const formatDate = (iso: string) => {
+  const date = new Date(iso);
+  try {
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  } catch {
+    return date.toDateString();
   }
 };
 
@@ -195,6 +206,12 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     if (shareText) openShareSheet(shareText);
   };
 
+  const onRedeem = (redeemUrl: string) => {
+    if (redeemUrl) {
+      Linking.openURL(redeemUrl).catch(() => {});
+    }
+  };
+
   const onOpenDashboard = () => {
     if (details && details.dashboardUrl) {
       Linking.openURL(details.dashboardUrl).catch(() => {});
@@ -315,6 +332,28 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
                 <Text style={styles.statLabel}>Earned</Text>
               </View>
             </View>
+            {details.premiumUntil && isPremiumActive(details.premiumUntil) ? (
+              <Text style={styles.premium}>Free premium until {formatDate(details.premiumUntil)}</Text>
+            ) : null}
+            {/* App Store offer codes can't be redeemed on Android */}
+            {Platform.OS !== 'android' && details.rewardCodes.length > 0 ? (
+              <View style={styles.rewards}>
+                <Text style={styles.rewardsTitle}>Your rewards</Text>
+                {details.rewardCodes.map((reward) => (
+                  <View key={reward.code} style={styles.rewardRow}>
+                    <Text style={styles.rewardCode} selectable>{reward.code}</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => onRedeem(reward.redeemUrl)}
+                      disabled={!reward.redeemUrl}
+                      style={({ pressed }) => [styles.redeemButton, { backgroundColor: primaryColor, opacity: !reward.redeemUrl ? 0.5 : pressed ? 0.8 : 1 }]}
+                    >
+                      <Text style={styles.redeemText}>Redeem</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
             {details.dashboardUrl ? linkButton('Open my dashboard', onOpenDashboard) : null}
           </>
         ) : null}
@@ -371,6 +410,13 @@ const styles = StyleSheet.create({
   stat: { flex: 1, alignItems: 'center' },
   statValue: { fontSize: 20, fontWeight: '700', color: '#111111' },
   statLabel: { fontSize: 13, color: '#666666', marginTop: 2 },
+  premium: { fontSize: 15, fontWeight: '600', color: '#2E7D32', textAlign: 'center', marginTop: 16 },
+  rewards: { marginTop: 20, borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 16 },
+  rewardsTitle: { fontSize: 16, fontWeight: '700', color: '#111111', marginBottom: 8 },
+  rewardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
+  rewardCode: { flex: 1, fontSize: 16, fontWeight: '600', letterSpacing: 1, color: '#111111', marginRight: 12 },
+  redeemButton: { borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
+  redeemText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
 });
 
 export default ReferAFriend;

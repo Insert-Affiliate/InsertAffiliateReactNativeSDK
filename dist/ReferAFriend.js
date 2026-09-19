@@ -39,7 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 //
 // States: loading -> not enrolled (email + name, "Get my link") -> code step
 // when the email already belongs to an affiliate -> enrolled (code, link,
-// Copy, Share, stats, "Open my dashboard").
+// Copy, Share, stats, free premium date, reward codes, "Open my dashboard").
 // Store rules: share sheet only, no Contacts access, nothing gated behind sharing.
 const react_1 = __importStar(require("react"));
 const react_native_1 = require("react-native");
@@ -64,6 +64,15 @@ const formatMoney = (amount, currency) => {
     }
     catch (_a) {
         return `${currency} ${amount.toFixed(2)}`;
+    }
+};
+const formatDate = (iso) => {
+    const date = new Date(iso);
+    try {
+        return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+    catch (_a) {
+        return date.toDateString();
     }
 };
 const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, shareMessage, primaryColor: primaryColorProp, headline: headlineProp, rewardText: rewardTextProp, }) => {
@@ -171,6 +180,11 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, shar
         if (shareText)
             (0, referrals_1.openShareSheet)(shareText);
     };
+    const onRedeem = (redeemUrl) => {
+        if (redeemUrl) {
+            react_native_1.Linking.openURL(redeemUrl).catch(() => { });
+        }
+    };
     const onOpenDashboard = () => {
         if (details && details.dashboardUrl) {
             react_native_1.Linking.openURL(details.dashboardUrl).catch(() => { });
@@ -226,6 +240,15 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, shar
                     react_1.default.createElement(react_native_1.View, { style: styles.stat },
                         react_1.default.createElement(react_native_1.Text, { style: styles.statValue }, formatMoney(details.totalEarned, details.currency)),
                         react_1.default.createElement(react_native_1.Text, { style: styles.statLabel }, "Earned"))),
+                details.premiumUntil && (0, referrals_1.isPremiumActive)(details.premiumUntil) ? (react_1.default.createElement(react_native_1.Text, { style: styles.premium },
+                    "Free premium until ",
+                    formatDate(details.premiumUntil))) : null,
+                react_native_1.Platform.OS !== 'android' && details.rewardCodes.length > 0 ? (react_1.default.createElement(react_native_1.View, { style: styles.rewards },
+                    react_1.default.createElement(react_native_1.Text, { style: styles.rewardsTitle }, "Your rewards"),
+                    details.rewardCodes.map((reward) => (react_1.default.createElement(react_native_1.View, { key: reward.code, style: styles.rewardRow },
+                        react_1.default.createElement(react_native_1.Text, { style: styles.rewardCode, selectable: true }, reward.code),
+                        react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: () => onRedeem(reward.redeemUrl), disabled: !reward.redeemUrl, style: ({ pressed }) => [styles.redeemButton, { backgroundColor: primaryColor, opacity: !reward.redeemUrl ? 0.5 : pressed ? 0.8 : 1 }] },
+                            react_1.default.createElement(react_native_1.Text, { style: styles.redeemText }, "Redeem"))))))) : null,
                 details.dashboardUrl ? linkButton('Open my dashboard', onOpenDashboard) : null)) : null));
     };
     return (react_1.default.createElement(react_native_1.Modal, { visible: visible, animationType: "slide", transparent: true, onRequestClose: onClose },
@@ -268,5 +291,12 @@ const styles = react_native_1.StyleSheet.create({
     stat: { flex: 1, alignItems: 'center' },
     statValue: { fontSize: 20, fontWeight: '700', color: '#111111' },
     statLabel: { fontSize: 13, color: '#666666', marginTop: 2 },
+    premium: { fontSize: 15, fontWeight: '600', color: '#2E7D32', textAlign: 'center', marginTop: 16 },
+    rewards: { marginTop: 20, borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 16 },
+    rewardsTitle: { fontSize: 16, fontWeight: '700', color: '#111111', marginBottom: 8 },
+    rewardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
+    rewardCode: { flex: 1, fontSize: 16, fontWeight: '600', letterSpacing: 1, color: '#111111', marginRight: 12 },
+    redeemButton: { borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
+    redeemText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
 });
 exports.default = ReferAFriend;

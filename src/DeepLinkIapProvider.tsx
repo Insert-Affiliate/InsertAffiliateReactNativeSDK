@@ -12,6 +12,7 @@ import type {
   ReferralEnrolResult,
   MyAffiliateDetails,
   ReferralProgramConfig,
+  ReferrerAccountOptions,
 } from './referrals';
 
 // Development environment check for React Native
@@ -74,8 +75,9 @@ type T_DEEPLINK_IAP_CONTEXT = {
   setLogger: (logger: InsertAffiliateLogger) => void;
   isInitialized: boolean;
   // In-app referrals (see referrals.ts)
-  createAffiliateForUser: (email: string, name: string) => Promise<ReferralEnrolResult>;
-  verifyAffiliateCode: (email: string, code: string, name?: string) => Promise<ReferralEnrolResult>;
+  createAffiliateForUser: (email: string, name: string, options?: ReferrerAccountOptions) => Promise<ReferralEnrolResult>;
+  verifyAffiliateCode: (email: string, code: string, name?: string, options?: ReferrerAccountOptions) => Promise<ReferralEnrolResult>;
+  setReferrerAccount: (options: ReferrerAccountOptions) => Promise<boolean>;
   getMyAffiliateDetails: () => Promise<MyAffiliateDetails | null>;
   isUserAnAffiliate: () => Promise<boolean>;
   signOutAffiliate: () => Promise<void>;
@@ -165,8 +167,9 @@ export const DeepLinkIapContext = createContext<T_DEEPLINK_IAP_CONTEXT>({
   initialize: async (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => {},
   setLogger: (logger: InsertAffiliateLogger) => {},
   isInitialized: false,
-  createAffiliateForUser: async (email: string, name: string) => ({ status: 'error', errorCode: 'NOT_INITIALIZED' }),
-  verifyAffiliateCode: async (email: string, code: string, name?: string) => ({ status: 'error', errorCode: 'NOT_INITIALIZED' }),
+  createAffiliateForUser: async (email: string, name: string, options?: ReferrerAccountOptions) => ({ status: 'error', errorCode: 'NOT_INITIALIZED' }),
+  verifyAffiliateCode: async (email: string, code: string, name?: string, options?: ReferrerAccountOptions) => ({ status: 'error', errorCode: 'NOT_INITIALIZED' }),
+  setReferrerAccount: async (options: ReferrerAccountOptions) => false,
   getMyAffiliateDetails: async () => null,
   isUserAnAffiliate: async () => false,
   signOutAffiliate: async () => {},
@@ -2201,6 +2204,8 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   handleInsertLinksImplRef.current = handleInsertLinksImpl;
   referralDepsRef.current = {
     getCompanyId: getActiveCompanyCode,
+    // Same id as in the "{shortCode}-{deviceId}" identifier; created and saved if missing.
+    getDeviceId: generateThenSetUserID,
     verboseLog,
     errorLog: (message: string, error?: unknown) => loggerRef.current.error(message, error),
   };
@@ -2302,12 +2307,16 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   }, []);
 
   // In-app referrals: logic lives in referrals.ts
-  const createAffiliateForUser = useCallback(async (email: string, name: string): Promise<ReferralEnrolResult> => {
-    return referrals.createAffiliateForUser(referralDepsRef.current, email, name);
+  const createAffiliateForUser = useCallback(async (email: string, name: string, options?: ReferrerAccountOptions): Promise<ReferralEnrolResult> => {
+    return referrals.createAffiliateForUser(referralDepsRef.current, email, name, options);
   }, []);
 
-  const verifyAffiliateCode = useCallback(async (email: string, code: string, name?: string): Promise<ReferralEnrolResult> => {
-    return referrals.verifyAffiliateCode(referralDepsRef.current, email, code, name);
+  const verifyAffiliateCode = useCallback(async (email: string, code: string, name?: string, options?: ReferrerAccountOptions): Promise<ReferralEnrolResult> => {
+    return referrals.verifyAffiliateCode(referralDepsRef.current, email, code, name, options);
+  }, []);
+
+  const setReferrerAccount = useCallback(async (options: ReferrerAccountOptions): Promise<boolean> => {
+    return referrals.setReferrerAccount(referralDepsRef.current, options);
   }, []);
 
   const getMyAffiliateDetails = useCallback(async (): Promise<MyAffiliateDetails | null> => {
@@ -2355,6 +2364,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         isInitialized,
         createAffiliateForUser,
         verifyAffiliateCode,
+        setReferrerAccount,
         getMyAffiliateDetails,
         isUserAnAffiliate,
         signOutAffiliate,

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.openShareSheet = exports.shareReferralLink = exports.getReferralProgramConfig = exports.signOutAffiliate = exports.isUserAnAffiliate = exports.getMyAffiliateDetails = exports.verifyAffiliateCode = exports.createAffiliateForUser = exports.buildReferralShareText = exports.parseEnrolResponse = exports.parseReferralProgramConfig = exports.parseMyAffiliateDetails = exports.parseReferrerAffiliate = void 0;
+exports.openShareSheet = exports.shareReferralLink = exports.getReferralProgramConfig = exports.signOutAffiliate = exports.isUserAnAffiliate = exports.setReferrerAccount = exports.getMyAffiliateDetails = exports.verifyAffiliateCode = exports.createAffiliateForUser = exports.buildReferralShareText = exports.parseEnrolResponse = exports.parseReferralProgramConfig = exports.parseMyAffiliateDetails = exports.isPremiumActive = exports.parseRewardCodes = exports.parseReferrerAffiliate = void 0;
 // In-app referrals: turn the app's own user into an affiliate, read their
 // referral stats and share their link. Backend: /V1/sdk/affiliate.
 //
@@ -32,6 +32,7 @@ const asNumber = (value) => {
     const n = typeof value === 'number' ? value : Number(value);
     return Number.isFinite(n) ? n : 0;
 };
+const asNullableString = (value) => typeof value === 'string' && value ? value : null;
 const asTrigger = (value) => value === 'install' || value === 'event' ? value : 'purchase';
 const parseReferrerAffiliate = (data) => ({
     affiliateName: asString(data && data.affiliateName),
@@ -39,7 +40,25 @@ const parseReferrerAffiliate = (data) => ({
     deeplinkurl: asString(data && data.deeplinkurl),
 });
 exports.parseReferrerAffiliate = parseReferrerAffiliate;
-const parseMyAffiliateDetails = (data) => (Object.assign(Object.assign({}, (0, exports.parseReferrerAffiliate)(data)), { referralTrigger: asTrigger(data && data.referralTrigger), referralCount: asNumber(data && data.referralCount), installCount: asNumber(data && data.installCount), eventCount: asNumber(data && data.eventCount), purchaseCount: asNumber(data && data.purchaseCount), totalEarned: asNumber(data && data.totalEarned), totalPaid: asNumber(data && data.totalPaid), totalUnpaid: asNumber(data && data.totalUnpaid), currency: asString(data && data.currency) || 'USD', dashboardUrl: asString(data && data.dashboardUrl) }));
+const parseRewardCodes = (value) => Array.isArray(value)
+    ? value
+        .filter((item) => item && asString(item.code))
+        .map((item) => ({
+        code: asString(item.code),
+        redeemUrl: asString(item.redeemUrl),
+        grantedAt: asNullableString(item.grantedAt),
+    }))
+    : [];
+exports.parseRewardCodes = parseRewardCodes;
+// True when premiumUntil is a valid date later than now.
+const isPremiumActive = (premiumUntil, now = Date.now()) => {
+    if (!premiumUntil)
+        return false;
+    const time = Date.parse(premiumUntil);
+    return Number.isFinite(time) && time > now;
+};
+exports.isPremiumActive = isPremiumActive;
+const parseMyAffiliateDetails = (data) => (Object.assign(Object.assign({}, (0, exports.parseReferrerAffiliate)(data)), { referralTrigger: asTrigger(data && data.referralTrigger), referralCount: asNumber(data && data.referralCount), installCount: asNumber(data && data.installCount), eventCount: asNumber(data && data.eventCount), purchaseCount: asNumber(data && data.purchaseCount), totalEarned: asNumber(data && data.totalEarned), totalPaid: asNumber(data && data.totalPaid), totalUnpaid: asNumber(data && data.totalUnpaid), currency: asString(data && data.currency) || 'USD', dashboardUrl: asString(data && data.dashboardUrl), rewardsGranted: asNumber(data && data.rewardsGranted), premiumUntil: asNullableString(data && data.premiumUntil), rewardCodes: (0, exports.parseRewardCodes)(data && data.rewardCodes) }));
 exports.parseMyAffiliateDetails = parseMyAffiliateDetails;
 const parseReferralProgramConfig = (data) => ({
     enabled: !!data && data.enabled === true,
@@ -127,14 +146,34 @@ const networkError = () => ({
     errorCode: 'NETWORK_ERROR',
     errorMessage: 'Could not reach Insert Affiliate.',
 });
-const postEnrolment = (deps, path, body) => __awaiter(void 0, void 0, void 0, function* () {
+// The device id plus any app-supplied accounts, with empty values left out.
+const identityBody = (deps, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const body = {};
+    let deviceId = null;
+    try {
+        deviceId = yield deps.getDeviceId();
+    }
+    catch (error) {
+        deps.errorLog('Error reading device id for referrer:', error);
+    }
+    if (deviceId)
+        body.deviceId = deviceId;
+    const appUserId = ((options && options.appUserId) || '').trim();
+    const playPurchaseToken = ((options && options.playPurchaseToken) || '').trim();
+    if (appUserId)
+        body.appUserId = appUserId;
+    if (playPurchaseToken)
+        body.playPurchaseToken = playPurchaseToken;
+    return body;
+});
+const postEnrolment = (deps, path, body, options) => __awaiter(void 0, void 0, void 0, function* () {
     const companyId = yield deps.getCompanyId();
     if (!companyId) {
         deps.verboseLog(`Cannot ${path} referrer: no company code available`);
         return notInitialized();
     }
     try {
-        const response = yield axios_1.default.post(`${API_BASE}/${path}`, Object.assign(Object.assign({}, body), { companyId, platform: PLATFORM }), requestOptions());
+        const response = yield axios_1.default.post(`${API_BASE}/${path}`, Object.assign(Object.assign(Object.assign({}, body), (yield identityBody(deps, options))), { companyId, platform: PLATFORM }), requestOptions());
         const { result, token } = (0, exports.parseEnrolResponse)(response.status, response.data);
         if (token) {
             yield saveToken(companyId, token);
@@ -148,13 +187,13 @@ const postEnrolment = (deps, path, body) => __awaiter(void 0, void 0, void 0, fu
     }
 });
 // PUBLIC METHODS (wrapped by the provider)
-const createAffiliateForUser = (deps, email, name) => postEnrolment(deps, 'enrol', { email: (email || '').trim(), name: name || '' });
+const createAffiliateForUser = (deps, email, name, options) => postEnrolment(deps, 'enrol', { email: (email || '').trim(), name: name || '' }, options);
 exports.createAffiliateForUser = createAffiliateForUser;
-const verifyAffiliateCode = (deps, email, code, name) => postEnrolment(deps, 'verify', {
+const verifyAffiliateCode = (deps, email, code, name, options) => postEnrolment(deps, 'verify', {
     email: (email || '').trim(),
     code: (code || '').replace(/\s/g, ''),
     name: name || '',
-});
+}, options);
 exports.verifyAffiliateCode = verifyAffiliateCode;
 const getMyAffiliateDetails = (deps) => __awaiter(void 0, void 0, void 0, function* () {
     const companyId = yield deps.getCompanyId();
@@ -186,6 +225,36 @@ const getMyAffiliateDetails = (deps) => __awaiter(void 0, void 0, void 0, functi
     }
 });
 exports.getMyAffiliateDetails = getMyAffiliateDetails;
+// Saves the referrer's app accounts after they joined (for users who subscribe
+// or log in later). The server then grants any rewards that were waiting.
+const setReferrerAccount = (deps, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const companyId = yield deps.getCompanyId();
+    if (!companyId) {
+        deps.verboseLog('Cannot set referrer account: no company code available');
+        return false;
+    }
+    const token = yield readToken(companyId);
+    if (!token) {
+        deps.verboseLog('No referrer token stored; user is not an affiliate on this device');
+        return false;
+    }
+    try {
+        const response = yield axios_1.default.post(`${API_BASE}/me/identity`, yield identityBody(deps, options), requestOptions({ [TOKEN_HEADER]: token }));
+        if (response.status === 401 || response.status === 404) {
+            deps.verboseLog(`Referrer token rejected (${response.status}); clearing it`);
+            yield clearToken(companyId);
+            return false;
+        }
+        const saved = response.status === 200 && !!response.data && response.data.saved === true;
+        deps.verboseLog(saved ? 'Referrer account saved' : `Referrer account request failed with status ${response.status}`);
+        return saved;
+    }
+    catch (error) {
+        deps.errorLog('Error setting referrer account:', error);
+        return false;
+    }
+});
+exports.setReferrerAccount = setReferrerAccount;
 const isUserAnAffiliate = (deps) => __awaiter(void 0, void 0, void 0, function* () {
     const companyId = yield deps.getCompanyId();
     if (!companyId)

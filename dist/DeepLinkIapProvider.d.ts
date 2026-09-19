@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ReferralEnrolResult, MyAffiliateDetails, ReferralProgramConfig } from './referrals';
+import type { ReferralEnrolResult, MyAffiliateDetails, ReferralProgramConfig, ReferrerAccountOptions } from './referrals';
 type T_DEEPLINK_IAP_PROVIDER = {
     children: React.ReactNode;
 };
@@ -40,8 +40,9 @@ type T_DEEPLINK_IAP_CONTEXT = {
     initialize: (code: string | null, verboseLogging?: boolean, insertLinksEnabled?: boolean, insertLinksClipboardEnabled?: boolean, affiliateAttributionActiveTime?: number, preventAffiliateTransfer?: boolean) => Promise<void>;
     setLogger: (logger: InsertAffiliateLogger) => void;
     isInitialized: boolean;
-    createAffiliateForUser: (email: string, name: string) => Promise<ReferralEnrolResult>;
-    verifyAffiliateCode: (email: string, code: string, name?: string) => Promise<ReferralEnrolResult>;
+    createAffiliateForUser: (email: string, name: string, options?: ReferrerAccountOptions) => Promise<ReferralEnrolResult>;
+    verifyAffiliateCode: (email: string, code: string, name?: string, options?: ReferrerAccountOptions) => Promise<ReferralEnrolResult>;
+    setReferrerAccount: (options: ReferrerAccountOptions) => Promise<boolean>;
     getMyAffiliateDetails: () => Promise<MyAffiliateDetails | null>;
     isUserAnAffiliate: () => Promise<boolean>;
     signOutAffiliate: () => Promise<void>;

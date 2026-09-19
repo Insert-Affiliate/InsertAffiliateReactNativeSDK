@@ -87,8 +87,9 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     initialize: (code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer) => __awaiter(void 0, void 0, void 0, function* () { }),
     setLogger: (logger) => { },
     isInitialized: false,
-    createAffiliateForUser: (email, name) => __awaiter(void 0, void 0, void 0, function* () { return ({ status: 'error', errorCode: 'NOT_INITIALIZED' }); }),
-    verifyAffiliateCode: (email, code, name) => __awaiter(void 0, void 0, void 0, function* () { return ({ status: 'error', errorCode: 'NOT_INITIALIZED' }); }),
+    createAffiliateForUser: (email, name, options) => __awaiter(void 0, void 0, void 0, function* () { return ({ status: 'error', errorCode: 'NOT_INITIALIZED' }); }),
+    verifyAffiliateCode: (email, code, name, options) => __awaiter(void 0, void 0, void 0, function* () { return ({ status: 'error', errorCode: 'NOT_INITIALIZED' }); }),
+    setReferrerAccount: (options) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     getMyAffiliateDetails: () => __awaiter(void 0, void 0, void 0, function* () { return null; }),
     isUserAnAffiliate: () => __awaiter(void 0, void 0, void 0, function* () { return false; }),
     signOutAffiliate: () => __awaiter(void 0, void 0, void 0, function* () { }),
@@ -1884,6 +1885,8 @@ const DeepLinkIapProvider = ({ children, }) => {
     handleInsertLinksImplRef.current = handleInsertLinksImpl;
     referralDepsRef.current = {
         getCompanyId: getActiveCompanyCode,
+        // Same id as in the "{shortCode}-{deviceId}" identifier; created and saved if missing.
+        getDeviceId: generateThenSetUserID,
         verboseLog,
         errorLog: (message, error) => loggerRef.current.error(message, error),
     };
@@ -1955,11 +1958,14 @@ const DeepLinkIapProvider = ({ children, }) => {
         loggerRef.current = logger;
     }, []);
     // In-app referrals: logic lives in referrals.ts
-    const createAffiliateForUser = (0, react_1.useCallback)((email, name) => __awaiter(void 0, void 0, void 0, function* () {
-        return referrals.createAffiliateForUser(referralDepsRef.current, email, name);
+    const createAffiliateForUser = (0, react_1.useCallback)((email, name, options) => __awaiter(void 0, void 0, void 0, function* () {
+        return referrals.createAffiliateForUser(referralDepsRef.current, email, name, options);
     }), []);
-    const verifyAffiliateCode = (0, react_1.useCallback)((email, code, name) => __awaiter(void 0, void 0, void 0, function* () {
-        return referrals.verifyAffiliateCode(referralDepsRef.current, email, code, name);
+    const verifyAffiliateCode = (0, react_1.useCallback)((email, code, name, options) => __awaiter(void 0, void 0, void 0, function* () {
+        return referrals.verifyAffiliateCode(referralDepsRef.current, email, code, name, options);
+    }), []);
+    const setReferrerAccount = (0, react_1.useCallback)((options) => __awaiter(void 0, void 0, void 0, function* () {
+        return referrals.setReferrerAccount(referralDepsRef.current, options);
     }), []);
     const getMyAffiliateDetails = (0, react_1.useCallback)(() => __awaiter(void 0, void 0, void 0, function* () {
         return referrals.getMyAffiliateDetails(referralDepsRef.current);
@@ -1999,6 +2005,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             isInitialized,
             createAffiliateForUser,
             verifyAffiliateCode,
+            setReferrerAccount,
             getMyAffiliateDetails,
             isUserAnAffiliate,
             signOutAffiliate,

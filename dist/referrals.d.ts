@@ -4,6 +4,15 @@ export type ReferrerAffiliate = {
     deeplinkurl: string;
 };
 export type ReferralTrigger = 'install' | 'event' | 'purchase';
+export type ReferralRewardCode = {
+    code: string;
+    redeemUrl: string;
+    grantedAt: string | null;
+};
+export type ReferrerAccountOptions = {
+    appUserId?: string;
+    playPurchaseToken?: string;
+};
 export type MyAffiliateDetails = ReferrerAffiliate & {
     referralTrigger: ReferralTrigger;
     referralCount: number;
@@ -15,6 +24,9 @@ export type MyAffiliateDetails = ReferrerAffiliate & {
     totalUnpaid: number;
     currency: string;
     dashboardUrl: string;
+    rewardsGranted: number;
+    premiumUntil: string | null;
+    rewardCodes: ReferralRewardCode[];
 };
 export type ReferralProgramConfig = {
     enabled: boolean;
@@ -34,10 +46,13 @@ export type ReferralEnrolResult = {
 };
 export type ReferralDeps = {
     getCompanyId: () => Promise<string | null>;
+    getDeviceId: () => Promise<string | null>;
     verboseLog: (message: string) => void;
     errorLog: (message: string, error?: unknown) => void;
 };
 export declare const parseReferrerAffiliate: (data: any) => ReferrerAffiliate;
+export declare const parseRewardCodes: (value: unknown) => ReferralRewardCode[];
+export declare const isPremiumActive: (premiumUntil: string | null, now?: number) => boolean;
 export declare const parseMyAffiliateDetails: (data: any) => MyAffiliateDetails;
 export declare const parseReferralProgramConfig: (data: any) => ReferralProgramConfig;
 export declare const parseEnrolResponse: (httpStatus: number, data: any) => {
@@ -45,9 +60,10 @@ export declare const parseEnrolResponse: (httpStatus: number, data: any) => {
     token: string | null;
 };
 export declare const buildReferralShareText: (affiliate: ReferrerAffiliate, companyName: string, message?: string) => string;
-export declare const createAffiliateForUser: (deps: ReferralDeps, email: string, name: string) => Promise<ReferralEnrolResult>;
-export declare const verifyAffiliateCode: (deps: ReferralDeps, email: string, code: string, name?: string) => Promise<ReferralEnrolResult>;
+export declare const createAffiliateForUser: (deps: ReferralDeps, email: string, name: string, options?: ReferrerAccountOptions) => Promise<ReferralEnrolResult>;
+export declare const verifyAffiliateCode: (deps: ReferralDeps, email: string, code: string, name?: string, options?: ReferrerAccountOptions) => Promise<ReferralEnrolResult>;
 export declare const getMyAffiliateDetails: (deps: ReferralDeps) => Promise<MyAffiliateDetails | null>;
+export declare const setReferrerAccount: (deps: ReferralDeps, options: ReferrerAccountOptions) => Promise<boolean>;
 export declare const isUserAnAffiliate: (deps: ReferralDeps) => Promise<boolean>;
 export declare const signOutAffiliate: (deps: ReferralDeps) => Promise<void>;
 export declare const getReferralProgramConfig: (deps: ReferralDeps) => Promise<ReferralProgramConfig | null>;

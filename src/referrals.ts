@@ -22,6 +22,22 @@ export type ReferrerAffiliate = {
 
 export type ReferralTrigger = 'install' | 'event' | 'purchase';
 
+// An App Store one-time offer code granted as a referrer reward.
+export type ReferralRewardCode = {
+  code: string;
+  redeemUrl: string;
+  grantedAt: string | null;
+};
+
+// The referrer's own accounts, so the server can grant rewards to them and
+// skip self-referrals. appUserId is the RevenueCat app user id or Adapty
+// customer user id; playPurchaseToken is their own Google Play subscription
+// purchase token (Android).
+export type ReferrerAccountOptions = {
+  appUserId?: string;
+  playPurchaseToken?: string;
+};
+
 export type MyAffiliateDetails = ReferrerAffiliate & {
   referralTrigger: ReferralTrigger;
   referralCount: number;
@@ -33,6 +49,9 @@ export type MyAffiliateDetails = ReferrerAffiliate & {
   totalUnpaid: number;
   currency: string;
   dashboardUrl: string;
+  rewardsGranted: number;
+  premiumUntil: string | null;
+  rewardCodes: ReferralRewardCode[];
 };
 
 export type ReferralProgramConfig = {
@@ -67,9 +86,11 @@ export type ReferralEnrolResult = {
   errorMessage?: string;
 };
 
-// What the provider hands in: the active company ID and its loggers.
+// What the provider hands in: the active company ID, the device id used in the
+// insert affiliate identifier ("{shortCode}-{deviceId}") and its loggers.
 export type ReferralDeps = {
   getCompanyId: () => Promise<string | null>;
+  getDeviceId: () => Promise<string | null>;
   verboseLog: (message: string) => void;
   errorLog: (message: string, error?: unknown) => void;
 };
@@ -82,6 +103,9 @@ const asNumber = (value: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+const asNullableString = (value: unknown): string | null =>
+  typeof value === 'string' && value ? value : null;
+
 const asTrigger = (value: unknown): ReferralTrigger =>
   value === 'install' || value === 'event' ? value : 'purchase';
 
@@ -90,6 +114,24 @@ export const parseReferrerAffiliate = (data: any): ReferrerAffiliate => ({
   affiliateShortCode: asString(data && data.affiliateShortCode),
   deeplinkurl: asString(data && data.deeplinkurl),
 });
+
+export const parseRewardCodes = (value: unknown): ReferralRewardCode[] =>
+  Array.isArray(value)
+    ? value
+        .filter((item) => item && asString(item.code))
+        .map((item) => ({
+          code: asString(item.code),
+          redeemUrl: asString(item.redeemUrl),
+          grantedAt: asNullableString(item.grantedAt),
+        }))
+    : [];
+
+// True when premiumUntil is a valid date later than now.
+export const isPremiumActive = (premiumUntil: string | null, now: number = Date.now()): boolean => {
+  if (!premiumUntil) return false;
+  const time = Date.parse(premiumUntil);
+  return Number.isFinite(time) && time > now;
+};
 
 export const parseMyAffiliateDetails = (data: any): MyAffiliateDetails => ({
   ...parseReferrerAffiliate(data),
@@ -103,6 +145,9 @@ export const parseMyAffiliateDetails = (data: any): MyAffiliateDetails => ({
   totalUnpaid: asNumber(data && data.totalUnpaid),
   currency: asString(data && data.currency) || 'USD',
   dashboardUrl: asString(data && data.dashboardUrl),
+  rewardsGranted: asNumber(data && data.rewardsGranted),
+  premiumUntil: asNullableString(data && data.premiumUntil),
+  rewardCodes: parseRewardCodes(data && data.rewardCodes),
 });
 
 export const parseReferralProgramConfig = (data: any): ReferralProgramConfig => ({
@@ -205,10 +250,31 @@ const networkError = (): ReferralEnrolResult => ({
   errorMessage: 'Could not reach Insert Affiliate.',
 });
 
+// The device id plus any app-supplied accounts, with empty values left out.
+const identityBody = async (
+  deps: ReferralDeps,
+  options?: ReferrerAccountOptions
+): Promise<Record<string, string>> => {
+  const body: Record<string, string> = {};
+  let deviceId: string | null = null;
+  try {
+    deviceId = await deps.getDeviceId();
+  } catch (error) {
+    deps.errorLog('Error reading device id for referrer:', error);
+  }
+  if (deviceId) body.deviceId = deviceId;
+  const appUserId = ((options && options.appUserId) || '').trim();
+  const playPurchaseToken = ((options && options.playPurchaseToken) || '').trim();
+  if (appUserId) body.appUserId = appUserId;
+  if (playPurchaseToken) body.playPurchaseToken = playPurchaseToken;
+  return body;
+};
+
 const postEnrolment = async (
   deps: ReferralDeps,
   path: 'enrol' | 'verify',
-  body: Record<string, string>
+  body: Record<string, string>,
+  options?: ReferrerAccountOptions
 ): Promise<ReferralEnrolResult> => {
   const companyId = await deps.getCompanyId();
   if (!companyId) {
@@ -218,7 +284,7 @@ const postEnrolment = async (
   try {
     const response = await axios.post(
       `${API_BASE}/${path}`,
-      { ...body, companyId, platform: PLATFORM },
+      { ...body, ...(await identityBody(deps, options)), companyId, platform: PLATFORM },
       requestOptions()
     );
     const { result, token } = parseEnrolResponse(response.status, response.data);
@@ -234,15 +300,30 @@ const postEnrolment = async (
 };
 
 // PUBLIC METHODS (wrapped by the provider)
-export const createAffiliateForUser = (deps: ReferralDeps, email: string, name: string) =>
-  postEnrolment(deps, 'enrol', { email: (email || '').trim(), name: name || '' });
+export const createAffiliateForUser = (
+  deps: ReferralDeps,
+  email: string,
+  name: string,
+  options?: ReferrerAccountOptions
+) => postEnrolment(deps, 'enrol', { email: (email || '').trim(), name: name || '' }, options);
 
-export const verifyAffiliateCode = (deps: ReferralDeps, email: string, code: string, name?: string) =>
-  postEnrolment(deps, 'verify', {
-    email: (email || '').trim(),
-    code: (code || '').replace(/\s/g, ''),
-    name: name || '',
-  });
+export const verifyAffiliateCode = (
+  deps: ReferralDeps,
+  email: string,
+  code: string,
+  name?: string,
+  options?: ReferrerAccountOptions
+) =>
+  postEnrolment(
+    deps,
+    'verify',
+    {
+      email: (email || '').trim(),
+      code: (code || '').replace(/\s/g, ''),
+      name: name || '',
+    },
+    options
+  );
 
 export const getMyAffiliateDetails = async (deps: ReferralDeps): Promise<MyAffiliateDetails | null> => {
   const companyId = await deps.getCompanyId();
@@ -270,6 +351,42 @@ export const getMyAffiliateDetails = async (deps: ReferralDeps): Promise<MyAffil
   } catch (error) {
     deps.errorLog('Error getting referrer details:', error);
     return null;
+  }
+};
+
+// Saves the referrer's app accounts after they joined (for users who subscribe
+// or log in later). The server then grants any rewards that were waiting.
+export const setReferrerAccount = async (
+  deps: ReferralDeps,
+  options: ReferrerAccountOptions
+): Promise<boolean> => {
+  const companyId = await deps.getCompanyId();
+  if (!companyId) {
+    deps.verboseLog('Cannot set referrer account: no company code available');
+    return false;
+  }
+  const token = await readToken(companyId);
+  if (!token) {
+    deps.verboseLog('No referrer token stored; user is not an affiliate on this device');
+    return false;
+  }
+  try {
+    const response = await axios.post(
+      `${API_BASE}/me/identity`,
+      await identityBody(deps, options),
+      requestOptions({ [TOKEN_HEADER]: token })
+    );
+    if (response.status === 401 || response.status === 404) {
+      deps.verboseLog(`Referrer token rejected (${response.status}); clearing it`);
+      await clearToken(companyId);
+      return false;
+    }
+    const saved = response.status === 200 && !!response.data && response.data.saved === true;
+    deps.verboseLog(saved ? 'Referrer account saved' : `Referrer account request failed with status ${response.status}`);
+    return saved;
+  } catch (error) {
+    deps.errorLog('Error setting referrer account:', error);
+    return false;
   }
 };
 
