@@ -223,8 +223,13 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     setError(errorText(result));
   };
 
+  // A ref, not the busy state, guards submits: two taps in the same frame both
+  // see the same busy value, but the ref changes at once.
+  const submittingRef = useRef(false);
+
   const run = async (action: () => Promise<void>) => {
-    if (busy) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setBusy(true);
     setError('');
     try {
@@ -232,6 +237,7 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     } catch {
       setError(errorText({ status: 'error' }));
     } finally {
+      submittingRef.current = false;
       setBusy(false);
     }
   };

@@ -192,9 +192,13 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
         }
         setError(errorText(result));
     });
+    // A ref, not the busy state, guards submits: two taps in the same frame both
+    // see the same busy value, but the ref changes at once.
+    const submittingRef = (0, react_1.useRef)(false);
     const run = (action) => __awaiter(void 0, void 0, void 0, function* () {
-        if (busy)
+        if (submittingRef.current)
             return;
+        submittingRef.current = true;
         setBusy(true);
         setError('');
         try {
@@ -204,6 +208,7 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
             setError(errorText({ status: 'error' }));
         }
         finally {
+            submittingRef.current = false;
             setBusy(false);
         }
     });
