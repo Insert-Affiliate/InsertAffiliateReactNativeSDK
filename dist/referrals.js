@@ -146,7 +146,8 @@ const networkError = () => ({
     errorCode: 'NETWORK_ERROR',
     errorMessage: 'Could not reach Insert Affiliate.',
 });
-// The device id plus any app-supplied accounts, with empty values left out.
+// The device id, the phone's OS (so the server can pick the referrer's reward
+// store) and any app-supplied accounts, with empty values left out.
 const identityBody = (deps, options) => __awaiter(void 0, void 0, void 0, function* () {
     const body = {};
     let deviceId = null;
@@ -164,6 +165,8 @@ const identityBody = (deps, options) => __awaiter(void 0, void 0, void 0, functi
         body.appUserId = appUserId;
     if (playPurchaseToken)
         body.playPurchaseToken = playPurchaseToken;
+    if (react_native_1.Platform.OS === 'ios' || react_native_1.Platform.OS === 'android')
+        body.os = react_native_1.Platform.OS;
     return body;
 });
 const postEnrolment = (deps, path, body, options) => __awaiter(void 0, void 0, void 0, function* () {

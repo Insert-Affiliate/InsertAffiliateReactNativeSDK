@@ -4,7 +4,7 @@
 // The company ID is public (it ships in every app binary), so reading the
 // user's own stats needs the device token issued on enrol/verify. The token is
 // stored per company ID in AsyncStorage and is never logged.
-import { Share } from 'react-native';
+import { Platform, Share } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -250,7 +250,8 @@ const networkError = (): ReferralEnrolResult => ({
   errorMessage: 'Could not reach Insert Affiliate.',
 });
 
-// The device id plus any app-supplied accounts, with empty values left out.
+// The device id, the phone's OS (so the server can pick the referrer's reward
+// store) and any app-supplied accounts, with empty values left out.
 const identityBody = async (
   deps: ReferralDeps,
   options?: ReferrerAccountOptions
@@ -267,6 +268,7 @@ const identityBody = async (
   const playPurchaseToken = ((options && options.playPurchaseToken) || '').trim();
   if (appUserId) body.appUserId = appUserId;
   if (playPurchaseToken) body.playPurchaseToken = playPurchaseToken;
+  if (Platform.OS === 'ios' || Platform.OS === 'android') body.os = Platform.OS;
   return body;
 };
 
