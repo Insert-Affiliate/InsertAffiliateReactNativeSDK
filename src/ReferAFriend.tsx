@@ -3,8 +3,10 @@
 // States: loading -> not enrolled (email + name, "Get my link") -> code step
 // when the email already belongs to an affiliate -> enrolled (code, link,
 // Copy, Share, stats, free premium date, reward codes, "Open my dashboard").
+// A connected device whose details cannot be loaded (offline, server error)
+// shows "Try again" instead of the sign-up form.
 // Store rules: share sheet only, no Contacts access, nothing gated behind sharing.
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -51,7 +53,7 @@ export type ReferAFriendProps = {
   rewardText?: string;
 };
 
-type Step = 'loading' | 'enrol' | 'code' | 'enrolled';
+type Step = 'loading' | 'enrol' | 'code' | 'enrolled' | 'failed';
 
 const ERROR_MESSAGES: Record<string, string> = {
   PROGRAM_DISABLED: 'Referrals are not available in this app right now.',
@@ -62,6 +64,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   INVALID_EMAIL: 'Please enter a valid email address.',
   NETWORK_ERROR: 'Could not connect. Check your connection and try again.',
 };
+
+const LOAD_FAILED_MESSAGE = 'Could not load your referral details. Check your connection and try again.';
 
 const errorText = (result: ReferralEnrolResult) =>
   (result.errorCode && ERROR_MESSAGES[result.errorCode]) || 'Something went wrong. Please try again.';
@@ -136,36 +140,63 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     return false;
   }, [getMyAffiliateDetails]);
 
-  useEffect(() => {
-    if (!visible) return;
-    let cancelled = false;
+  // Each load gets an id; a load that is no longer the latest (the screen was
+  // closed or reopened, or "Try again" was pressed) stops without updating.
+  const loadIdRef = useRef(0);
+
+  const load = async () => {
+    const loadId = ++loadIdRef.current;
+    const isCurrent = () => loadIdRef.current === loadId;
     setStep('loading');
     setError('');
+
+    const showEnrol = () => {
+      setDetails(null);
+      setAffiliate(null);
+      setStep('enrol');
+    };
+
+    const [loadedConfig, enrolled] = await Promise.all([getReferralProgramConfig(), isUserAnAffiliate()]);
+    if (!isCurrent()) return;
+    setConfig(loadedConfig);
+    if (!enrolled) {
+      showEnrol();
+      return;
+    }
+    // Already enrolled: save the accounts first so waiting rewards show below
+    if (accountOptions) {
+      await setReferrerAccount(accountOptions);
+      if (!isCurrent()) return;
+    }
+    const loaded = await getMyAffiliateDetails();
+    if (!isCurrent()) return;
+    if (loaded) {
+      setDetails(loaded);
+      setAffiliate(loaded);
+      setStep('enrolled');
+      return;
+    }
+    // Only a device whose token is gone (signed out, or rejected by the
+    // server) goes back to the sign-up form.
+    const stillEnrolled = await isUserAnAffiliate();
+    if (!isCurrent()) return;
+    if (stillEnrolled) {
+      setStep('failed');
+    } else {
+      showEnrol();
+    }
+  };
+
+  useEffect(() => {
+    if (!visible) return;
     setNotice('');
     setCode('');
     setEmail(emailProp || '');
     setName(nameProp || '');
-
-    (async () => {
-      const [loadedConfig, enrolled] = await Promise.all([getReferralProgramConfig(), isUserAnAffiliate()]);
-      if (cancelled) return;
-      setConfig(loadedConfig);
-      // Already enrolled: save the accounts first so waiting rewards show below
-      if (enrolled && accountOptions) {
-        await setReferrerAccount(accountOptions);
-        if (cancelled) return;
-      }
-      const shown = enrolled ? await showEnrolled() : false;
-      if (cancelled) return;
-      if (!shown) {
-        setDetails(null);
-        setAffiliate(null);
-        setStep('enrol');
-      }
-    })();
+    load();
 
     return () => {
-      cancelled = true;
+      loadIdRef.current += 1;
     };
   }, [visible]);
 
@@ -192,6 +223,11 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     } finally {
       setBusy(false);
     }
+  };
+
+  const onRetry = () => {
+    setNotice('');
+    load();
   };
 
   const onGetLink = () => run(async () => {
@@ -258,6 +294,15 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
   const renderBody = () => {
     if (step === 'loading') {
       return <ActivityIndicator style={styles.loading} color={primaryColor} />;
+    }
+
+    if (step === 'failed') {
+      return (
+        <View>
+          <Text style={styles.rewardText}>{LOAD_FAILED_MESSAGE}</Text>
+          {primaryButton('Try again', onRetry)}
+        </View>
+      );
     }
 
     if (step === 'enrol') {

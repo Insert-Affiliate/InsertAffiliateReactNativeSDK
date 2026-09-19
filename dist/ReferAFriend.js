@@ -40,6 +40,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // States: loading -> not enrolled (email + name, "Get my link") -> code step
 // when the email already belongs to an affiliate -> enrolled (code, link,
 // Copy, Share, stats, free premium date, reward codes, "Open my dashboard").
+// A connected device whose details cannot be loaded (offline, server error)
+// shows "Try again" instead of the sign-up form.
 // Store rules: share sheet only, no Contacts access, nothing gated behind sharing.
 const react_1 = __importStar(require("react"));
 const react_native_1 = require("react-native");
@@ -57,6 +59,7 @@ const ERROR_MESSAGES = {
     INVALID_EMAIL: 'Please enter a valid email address.',
     NETWORK_ERROR: 'Could not connect. Check your connection and try again.',
 };
+const LOAD_FAILED_MESSAGE = 'Could not load your referral details. Check your connection and try again.';
 const errorText = (result) => (result.errorCode && ERROR_MESSAGES[result.errorCode]) || 'Something went wrong. Please try again.';
 const formatMoney = (amount, currency) => {
     try {
@@ -106,38 +109,64 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
         }
         return false;
     }), [getMyAffiliateDetails]);
+    // Each load gets an id; a load that is no longer the latest (the screen was
+    // closed or reopened, or "Try again" was pressed) stops without updating.
+    const loadIdRef = (0, react_1.useRef)(0);
+    const load = () => __awaiter(void 0, void 0, void 0, function* () {
+        const loadId = ++loadIdRef.current;
+        const isCurrent = () => loadIdRef.current === loadId;
+        setStep('loading');
+        setError('');
+        const showEnrol = () => {
+            setDetails(null);
+            setAffiliate(null);
+            setStep('enrol');
+        };
+        const [loadedConfig, enrolled] = yield Promise.all([getReferralProgramConfig(), isUserAnAffiliate()]);
+        if (!isCurrent())
+            return;
+        setConfig(loadedConfig);
+        if (!enrolled) {
+            showEnrol();
+            return;
+        }
+        // Already enrolled: save the accounts first so waiting rewards show below
+        if (accountOptions) {
+            yield setReferrerAccount(accountOptions);
+            if (!isCurrent())
+                return;
+        }
+        const loaded = yield getMyAffiliateDetails();
+        if (!isCurrent())
+            return;
+        if (loaded) {
+            setDetails(loaded);
+            setAffiliate(loaded);
+            setStep('enrolled');
+            return;
+        }
+        // Only a device whose token is gone (signed out, or rejected by the
+        // server) goes back to the sign-up form.
+        const stillEnrolled = yield isUserAnAffiliate();
+        if (!isCurrent())
+            return;
+        if (stillEnrolled) {
+            setStep('failed');
+        }
+        else {
+            showEnrol();
+        }
+    });
     (0, react_1.useEffect)(() => {
         if (!visible)
             return;
-        let cancelled = false;
-        setStep('loading');
-        setError('');
         setNotice('');
         setCode('');
         setEmail(emailProp || '');
         setName(nameProp || '');
-        (() => __awaiter(void 0, void 0, void 0, function* () {
-            const [loadedConfig, enrolled] = yield Promise.all([getReferralProgramConfig(), isUserAnAffiliate()]);
-            if (cancelled)
-                return;
-            setConfig(loadedConfig);
-            // Already enrolled: save the accounts first so waiting rewards show below
-            if (enrolled && accountOptions) {
-                yield setReferrerAccount(accountOptions);
-                if (cancelled)
-                    return;
-            }
-            const shown = enrolled ? yield showEnrolled() : false;
-            if (cancelled)
-                return;
-            if (!shown) {
-                setDetails(null);
-                setAffiliate(null);
-                setStep('enrol');
-            }
-        }))();
+        load();
         return () => {
-            cancelled = true;
+            loadIdRef.current += 1;
         };
     }, [visible]);
     const handleResult = (result) => __awaiter(void 0, void 0, void 0, function* () {
@@ -165,6 +194,10 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
             setBusy(false);
         }
     });
+    const onRetry = () => {
+        setNotice('');
+        load();
+    };
     const onGetLink = () => run(() => __awaiter(void 0, void 0, void 0, function* () {
         setNotice('');
         yield handleResult(yield createAffiliateForUser(email.trim(), name.trim(), accountOptions));
@@ -208,6 +241,11 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
     const renderBody = () => {
         if (step === 'loading') {
             return react_1.default.createElement(react_native_1.ActivityIndicator, { style: styles.loading, color: primaryColor });
+        }
+        if (step === 'failed') {
+            return (react_1.default.createElement(react_native_1.View, null,
+                react_1.default.createElement(react_native_1.Text, { style: styles.rewardText }, LOAD_FAILED_MESSAGE),
+                primaryButton('Try again', onRetry)));
         }
         if (step === 'enrol') {
             if (config && !config.enabled) {
