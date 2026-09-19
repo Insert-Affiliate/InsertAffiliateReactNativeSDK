@@ -112,11 +112,21 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
     // Each load gets an id; a load that is no longer the latest (the screen was
     // closed or reopened, or "Try again" was pressed) stops without updating.
     const loadIdRef = (0, react_1.useRef)(0);
+    // Never rejects: an unexpected error shows the "Try again" step.
     const load = () => __awaiter(void 0, void 0, void 0, function* () {
         const loadId = ++loadIdRef.current;
         const isCurrent = () => loadIdRef.current === loadId;
         setStep('loading');
         setError('');
+        try {
+            yield loadSteps(isCurrent);
+        }
+        catch (_a) {
+            if (isCurrent())
+                setStep('failed');
+        }
+    });
+    const loadSteps = (isCurrent) => __awaiter(void 0, void 0, void 0, function* () {
         const showEnrol = () => {
             setDetails(null);
             setAffiliate(null);
@@ -189,6 +199,9 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
         setError('');
         try {
             yield action();
+        }
+        catch (_a) {
+            setError(errorText({ status: 'error' }));
         }
         finally {
             setBusy(false);

@@ -280,6 +280,19 @@ const requestOptions = (headers: Record<string, string> = {}) => ({
   validateStatus: () => true,
 });
 
+// The active company ID, or null when there is none or it could not be read
+// (storage errors are logged, never thrown).
+const readCompanyId = async (deps: ReferralDeps, action: string): Promise<string | null> => {
+  try {
+    const companyId = await deps.getCompanyId();
+    if (!companyId) deps.verboseLog(`Cannot ${action}: no company code available`);
+    return companyId || null;
+  } catch (error) {
+    deps.errorLog(`Cannot ${action}: could not read the company code: ${describeError(error)}`);
+    return null;
+  }
+};
+
 const notInitialized = (): ReferralEnrolResult => ({
   status: 'error',
   errorCode: 'NOT_INITIALIZED',
@@ -320,11 +333,8 @@ const postEnrolment = async (
   body: Record<string, string>,
   options?: ReferrerAccountOptions
 ): Promise<ReferralEnrolResult> => {
-  const companyId = await deps.getCompanyId();
-  if (!companyId) {
-    deps.verboseLog(`Cannot ${path} referrer: no company code available`);
-    return notInitialized();
-  }
+  const companyId = await readCompanyId(deps, `${path} referrer`);
+  if (!companyId) return notInitialized();
   try {
     const response = await axios.post(
       `${API_BASE}/${path}`,
@@ -370,11 +380,8 @@ export const verifyAffiliateCode = (
   );
 
 export const getMyAffiliateDetails = async (deps: ReferralDeps): Promise<MyAffiliateDetails | null> => {
-  const companyId = await deps.getCompanyId();
-  if (!companyId) {
-    deps.verboseLog('Cannot get referrer details: no company code available');
-    return null;
-  }
+  const companyId = await readCompanyId(deps, 'get referrer details');
+  if (!companyId) return null;
   const token = await readToken(companyId);
   if (!token) {
     deps.verboseLog('No referrer token stored; user is not an affiliate on this device');
@@ -404,11 +411,8 @@ export const setReferrerAccount = async (
   deps: ReferralDeps,
   options: ReferrerAccountOptions
 ): Promise<boolean> => {
-  const companyId = await deps.getCompanyId();
-  if (!companyId) {
-    deps.verboseLog('Cannot set referrer account: no company code available');
-    return false;
-  }
+  const companyId = await readCompanyId(deps, 'set referrer account');
+  if (!companyId) return false;
   const token = await readToken(companyId);
   if (!token) {
     deps.verboseLog('No referrer token stored; user is not an affiliate on this device');
@@ -435,24 +439,26 @@ export const setReferrerAccount = async (
 };
 
 export const isUserAnAffiliate = async (deps: ReferralDeps): Promise<boolean> => {
-  const companyId = await deps.getCompanyId();
+  const companyId = await readCompanyId(deps, 'check referrer');
   if (!companyId) return false;
   return !!(await readToken(companyId));
 };
 
+// Never rejects; a storage error is logged and the token may remain.
 export const signOutAffiliate = async (deps: ReferralDeps): Promise<void> => {
-  const companyId = await deps.getCompanyId();
+  const companyId = await readCompanyId(deps, 'sign out referrer');
   if (!companyId) return;
-  await clearToken(companyId);
-  deps.verboseLog('Referrer signed out on this device');
+  try {
+    await clearToken(companyId);
+    deps.verboseLog('Referrer signed out on this device');
+  } catch (error) {
+    deps.errorLog(`Error signing out referrer: ${describeError(error)}`);
+  }
 };
 
 export const getReferralProgramConfig = async (deps: ReferralDeps): Promise<ReferralProgramConfig | null> => {
-  const companyId = await deps.getCompanyId();
-  if (!companyId) {
-    deps.verboseLog('Cannot get referral program config: no company code available');
-    return null;
-  }
+  const companyId = await readCompanyId(deps, 'get referral program config');
+  if (!companyId) return null;
   try {
     const response = await axios.get(`${API_BASE}/config/${encodeURIComponent(companyId)}`, requestOptions());
     if (response.status !== 200 || !response.data) {

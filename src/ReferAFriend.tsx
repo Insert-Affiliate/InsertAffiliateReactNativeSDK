@@ -144,12 +144,20 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
   // closed or reopened, or "Try again" was pressed) stops without updating.
   const loadIdRef = useRef(0);
 
+  // Never rejects: an unexpected error shows the "Try again" step.
   const load = async () => {
     const loadId = ++loadIdRef.current;
     const isCurrent = () => loadIdRef.current === loadId;
     setStep('loading');
     setError('');
+    try {
+      await loadSteps(isCurrent);
+    } catch {
+      if (isCurrent()) setStep('failed');
+    }
+  };
 
+  const loadSteps = async (isCurrent: () => boolean) => {
     const showEnrol = () => {
       setDetails(null);
       setAffiliate(null);
@@ -220,6 +228,8 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     setError('');
     try {
       await action();
+    } catch {
+      setError(errorText({ status: 'error' }));
     } finally {
       setBusy(false);
     }

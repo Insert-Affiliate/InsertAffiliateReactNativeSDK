@@ -172,6 +172,20 @@ const requestOptions = (headers = {}) => ({
     headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
     validateStatus: () => true,
 });
+// The active company ID, or null when there is none or it could not be read
+// (storage errors are logged, never thrown).
+const readCompanyId = (deps, action) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const companyId = yield deps.getCompanyId();
+        if (!companyId)
+            deps.verboseLog(`Cannot ${action}: no company code available`);
+        return companyId || null;
+    }
+    catch (error) {
+        deps.errorLog(`Cannot ${action}: could not read the company code: ${(0, exports.describeError)(error)}`);
+        return null;
+    }
+});
 const notInitialized = () => ({
     status: 'error',
     errorCode: 'NOT_INITIALIZED',
@@ -206,11 +220,9 @@ const identityBody = (deps, options) => __awaiter(void 0, void 0, void 0, functi
     return body;
 });
 const postEnrolment = (deps, path, body, options) => __awaiter(void 0, void 0, void 0, function* () {
-    const companyId = yield deps.getCompanyId();
-    if (!companyId) {
-        deps.verboseLog(`Cannot ${path} referrer: no company code available`);
+    const companyId = yield readCompanyId(deps, `${path} referrer`);
+    if (!companyId)
         return notInitialized();
-    }
     try {
         const response = yield axios_1.default.post(`${API_BASE}/${path}`, Object.assign(Object.assign(Object.assign({}, body), (yield identityBody(deps, options))), { companyId, platform: PLATFORM }), requestOptions());
         const { result, token } = (0, exports.parseEnrolResponse)(response.status, response.data);
@@ -235,11 +247,9 @@ const verifyAffiliateCode = (deps, email, code, name, options) => postEnrolment(
 }, options);
 exports.verifyAffiliateCode = verifyAffiliateCode;
 const getMyAffiliateDetails = (deps) => __awaiter(void 0, void 0, void 0, function* () {
-    const companyId = yield deps.getCompanyId();
-    if (!companyId) {
-        deps.verboseLog('Cannot get referrer details: no company code available');
+    const companyId = yield readCompanyId(deps, 'get referrer details');
+    if (!companyId)
         return null;
-    }
     const token = yield readToken(companyId);
     if (!token) {
         deps.verboseLog('No referrer token stored; user is not an affiliate on this device');
@@ -267,11 +277,9 @@ exports.getMyAffiliateDetails = getMyAffiliateDetails;
 // Saves the referrer's app accounts after they joined (for users who subscribe
 // or log in later). The server then grants any rewards that were waiting.
 const setReferrerAccount = (deps, options) => __awaiter(void 0, void 0, void 0, function* () {
-    const companyId = yield deps.getCompanyId();
-    if (!companyId) {
-        deps.verboseLog('Cannot set referrer account: no company code available');
+    const companyId = yield readCompanyId(deps, 'set referrer account');
+    if (!companyId)
         return false;
-    }
     const token = yield readToken(companyId);
     if (!token) {
         deps.verboseLog('No referrer token stored; user is not an affiliate on this device');
@@ -295,26 +303,30 @@ const setReferrerAccount = (deps, options) => __awaiter(void 0, void 0, void 0, 
 });
 exports.setReferrerAccount = setReferrerAccount;
 const isUserAnAffiliate = (deps) => __awaiter(void 0, void 0, void 0, function* () {
-    const companyId = yield deps.getCompanyId();
+    const companyId = yield readCompanyId(deps, 'check referrer');
     if (!companyId)
         return false;
     return !!(yield readToken(companyId));
 });
 exports.isUserAnAffiliate = isUserAnAffiliate;
+// Never rejects; a storage error is logged and the token may remain.
 const signOutAffiliate = (deps) => __awaiter(void 0, void 0, void 0, function* () {
-    const companyId = yield deps.getCompanyId();
+    const companyId = yield readCompanyId(deps, 'sign out referrer');
     if (!companyId)
         return;
-    yield clearToken(companyId);
-    deps.verboseLog('Referrer signed out on this device');
+    try {
+        yield clearToken(companyId);
+        deps.verboseLog('Referrer signed out on this device');
+    }
+    catch (error) {
+        deps.errorLog(`Error signing out referrer: ${(0, exports.describeError)(error)}`);
+    }
 });
 exports.signOutAffiliate = signOutAffiliate;
 const getReferralProgramConfig = (deps) => __awaiter(void 0, void 0, void 0, function* () {
-    const companyId = yield deps.getCompanyId();
-    if (!companyId) {
-        deps.verboseLog('Cannot get referral program config: no company code available');
+    const companyId = yield readCompanyId(deps, 'get referral program config');
+    if (!companyId)
         return null;
-    }
     try {
         const response = yield axios_1.default.get(`${API_BASE}/config/${encodeURIComponent(companyId)}`, requestOptions());
         if (response.status !== 200 || !response.data) {
