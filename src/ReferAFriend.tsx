@@ -38,6 +38,10 @@ export type ReferAFriendProps = {
   // Prefill, usually the app's logged-in user
   email?: string;
   name?: string;
+  // The user's RevenueCat app user id / Adapty customer user id and their own
+  // Google Play subscription purchase token, so automatic rewards reach them
+  appUserId?: string;
+  playPurchaseToken?: string;
   // Share message; may use {link} and {code} placeholders
   shareMessage?: string;
   // Override the portal settings
@@ -83,6 +87,8 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
   onClose,
   email: emailProp,
   name: nameProp,
+  appUserId,
+  playPurchaseToken,
   shareMessage,
   primaryColor: primaryColorProp,
   headline: headlineProp,
@@ -91,6 +97,7 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
   const {
     createAffiliateForUser,
     verifyAffiliateCode,
+    setReferrerAccount,
     getMyAffiliateDetails,
     isUserAnAffiliate,
     getReferralProgramConfig,
@@ -109,6 +116,7 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
 
   const primaryColor = primaryColorProp || (config && config.primaryColor) || DEFAULT_PRIMARY_COLOR;
   const headline = headlineProp || (config && config.headline) || DEFAULT_HEADLINE;
+  const accountOptions = appUserId || playPurchaseToken ? { appUserId, playPurchaseToken } : undefined;
   const rewardText = rewardTextProp || (config && config.rewardText) || '';
 
   const showEnrolled = useCallback(async (fallback?: ReferrerAffiliate) => {
@@ -141,6 +149,11 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
       const [loadedConfig, enrolled] = await Promise.all([getReferralProgramConfig(), isUserAnAffiliate()]);
       if (cancelled) return;
       setConfig(loadedConfig);
+      // Already enrolled: save the accounts first so waiting rewards show below
+      if (enrolled && accountOptions) {
+        await setReferrerAccount(accountOptions);
+        if (cancelled) return;
+      }
       const shown = enrolled ? await showEnrolled() : false;
       if (cancelled) return;
       if (!shown) {
@@ -182,15 +195,15 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
 
   const onGetLink = () => run(async () => {
     setNotice('');
-    await handleResult(await createAffiliateForUser(email.trim(), name.trim()));
+    await handleResult(await createAffiliateForUser(email.trim(), name.trim(), accountOptions));
   });
 
   const onVerify = () => run(async () => {
-    await handleResult(await verifyAffiliateCode(email.trim(), code, name.trim()));
+    await handleResult(await verifyAffiliateCode(email.trim(), code, name.trim(), accountOptions));
   });
 
   const onResend = () => run(async () => {
-    await handleResult(await createAffiliateForUser(email.trim(), name.trim()));
+    await handleResult(await createAffiliateForUser(email.trim(), name.trim(), accountOptions));
   });
 
   const shareText = affiliate ? buildReferralShareText(affiliate, config ? config.companyName : '', shareMessage) : '';

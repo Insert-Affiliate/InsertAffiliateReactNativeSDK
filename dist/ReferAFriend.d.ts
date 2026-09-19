@@ -4,6 +4,8 @@ export type ReferAFriendProps = {
     onClose: () => void;
     email?: string;
     name?: string;
+    appUserId?: string;
+    playPurchaseToken?: string;
     shareMessage?: string;
     primaryColor?: string;
     headline?: string;

@@ -1173,6 +1173,7 @@ const [showReferrals, setShowReferrals] = useState(false);
   onClose={() => setShowReferrals(false)}
   email={currentUser.email}   // prefill with your logged-in user
   name={currentUser.name}
+  appUserId={revenueCatAppUserId} // optional, for automatic rewards
 />
 ```
 
@@ -1181,6 +1182,7 @@ const [showReferrals, setShowReferrals] = useState(false);
 | `visible` | Shows or hides the screen |
 | `onClose` | Called when the user closes the screen |
 | `email`, `name` | Prefill the sign-up fields, usually from your logged-in user |
+| `appUserId`, `playPurchaseToken` | Optional. The user's accounts for automatic rewards (see `options` below). Sent on sign-up, and saved with `setReferrerAccount` each time the screen opens for a user who already joined |
 | `shareMessage` | Message shared with the link. May use `{link}` and `{code}` placeholders |
 | `primaryColor` | Button and accent colour. Falls back to the dashboard setting, then `#6A0DAD` |
 | `headline`, `rewardText` | Override the copy set in your dashboard |

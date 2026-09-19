@@ -75,8 +75,8 @@ const formatDate = (iso) => {
         return date.toDateString();
     }
 };
-const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, shareMessage, primaryColor: primaryColorProp, headline: headlineProp, rewardText: rewardTextProp, }) => {
-    const { createAffiliateForUser, verifyAffiliateCode, getMyAffiliateDetails, isUserAnAffiliate, getReferralProgramConfig, } = (0, useDeepLinkIapProvider_1.default)();
+const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appUserId, playPurchaseToken, shareMessage, primaryColor: primaryColorProp, headline: headlineProp, rewardText: rewardTextProp, }) => {
+    const { createAffiliateForUser, verifyAffiliateCode, setReferrerAccount, getMyAffiliateDetails, isUserAnAffiliate, getReferralProgramConfig, } = (0, useDeepLinkIapProvider_1.default)();
     const [step, setStep] = (0, react_1.useState)('loading');
     const [config, setConfig] = (0, react_1.useState)(null);
     const [affiliate, setAffiliate] = (0, react_1.useState)(null);
@@ -89,6 +89,7 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, shar
     const [notice, setNotice] = (0, react_1.useState)('');
     const primaryColor = primaryColorProp || (config && config.primaryColor) || DEFAULT_PRIMARY_COLOR;
     const headline = headlineProp || (config && config.headline) || DEFAULT_HEADLINE;
+    const accountOptions = appUserId || playPurchaseToken ? { appUserId, playPurchaseToken } : undefined;
     const rewardText = rewardTextProp || (config && config.rewardText) || '';
     const showEnrolled = (0, react_1.useCallback)((fallback) => __awaiter(void 0, void 0, void 0, function* () {
         const loaded = yield getMyAffiliateDetails();
@@ -120,6 +121,12 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, shar
             if (cancelled)
                 return;
             setConfig(loadedConfig);
+            // Already enrolled: save the accounts first so waiting rewards show below
+            if (enrolled && accountOptions) {
+                yield setReferrerAccount(accountOptions);
+                if (cancelled)
+                    return;
+            }
             const shown = enrolled ? yield showEnrolled() : false;
             if (cancelled)
                 return;
@@ -160,13 +167,13 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, shar
     });
     const onGetLink = () => run(() => __awaiter(void 0, void 0, void 0, function* () {
         setNotice('');
-        yield handleResult(yield createAffiliateForUser(email.trim(), name.trim()));
+        yield handleResult(yield createAffiliateForUser(email.trim(), name.trim(), accountOptions));
     }));
     const onVerify = () => run(() => __awaiter(void 0, void 0, void 0, function* () {
-        yield handleResult(yield verifyAffiliateCode(email.trim(), code, name.trim()));
+        yield handleResult(yield verifyAffiliateCode(email.trim(), code, name.trim(), accountOptions));
     }));
     const onResend = () => run(() => __awaiter(void 0, void 0, void 0, function* () {
-        yield handleResult(yield createAffiliateForUser(email.trim(), name.trim()));
+        yield handleResult(yield createAffiliateForUser(email.trim(), name.trim(), accountOptions));
     }));
     const shareText = affiliate ? (0, referrals_1.buildReferralShareText)(affiliate, config ? config.companyName : '', shareMessage) : '';
     const hasLink = !!affiliate && /^http/i.test(affiliate.deeplinkurl);
