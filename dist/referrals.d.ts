@@ -63,6 +63,7 @@ export declare const parseEnrolResponse: (httpStatus: number, data: any) => {
     token: string | null;
 };
 export declare const buildReferralShareText: (affiliate: ReferrerAffiliate, companyName: string, message?: string) => string;
+export declare const isTokenRejected: (httpStatus: number, data: any) => boolean;
 export declare const createAffiliateForUser: (deps: ReferralDeps, email: string, name: string, options?: ReferrerAccountOptions) => Promise<ReferralEnrolResult>;
 export declare const verifyAffiliateCode: (deps: ReferralDeps, email: string, code: string, name?: string, options?: ReferrerAccountOptions) => Promise<ReferralEnrolResult>;
 export declare const getMyAffiliateDetails: (deps: ReferralDeps) => Promise<MyAffiliateDetails | null>;

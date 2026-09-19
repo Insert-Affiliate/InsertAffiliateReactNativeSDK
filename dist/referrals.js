@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.openShareSheet = exports.shareReferralLink = exports.getReferralProgramConfig = exports.signOutAffiliate = exports.isUserAnAffiliate = exports.setReferrerAccount = exports.getMyAffiliateDetails = exports.verifyAffiliateCode = exports.createAffiliateForUser = exports.buildReferralShareText = exports.parseEnrolResponse = exports.parseReferralProgramConfig = exports.parseMyAffiliateDetails = exports.isPremiumActive = exports.rewardCodesForPlatform = exports.parseRewardCodes = exports.parseReferrerAffiliate = void 0;
+exports.openShareSheet = exports.shareReferralLink = exports.getReferralProgramConfig = exports.signOutAffiliate = exports.isUserAnAffiliate = exports.setReferrerAccount = exports.getMyAffiliateDetails = exports.verifyAffiliateCode = exports.createAffiliateForUser = exports.isTokenRejected = exports.buildReferralShareText = exports.parseEnrolResponse = exports.parseReferralProgramConfig = exports.parseMyAffiliateDetails = exports.isPremiumActive = exports.rewardCodesForPlatform = exports.parseRewardCodes = exports.parseReferrerAffiliate = void 0;
 // In-app referrals: turn the app's own user into an affiliate, read their
 // referral stats and share their link. Backend: /V1/sdk/affiliate.
 //
@@ -142,6 +142,20 @@ const saveToken = (companyId, token) => __awaiter(void 0, void 0, void 0, functi
 const clearToken = (companyId) => __awaiter(void 0, void 0, void 0, function* () {
     yield async_storage_1.default.removeItem(tokenKey(companyId));
 });
+// True only when the server says the token itself is no longer valid. Any
+// other 401 or 404 (a proxy, a route that is not live yet) keeps the token.
+const isTokenRejected = (httpStatus, data) => {
+    const code = asString(data && data.code);
+    return (httpStatus === 401 && code === 'INVALID_TOKEN') || (httpStatus === 404 && code === 'AFFILIATE_NOT_FOUND');
+};
+exports.isTokenRejected = isTokenRejected;
+// Clears the rejected token, unless an enrol or verify saved a newer one while
+// the request was in flight.
+const clearRejectedToken = (companyId, rejectedToken) => __awaiter(void 0, void 0, void 0, function* () {
+    if ((yield readToken(companyId)) === rejectedToken) {
+        yield clearToken(companyId);
+    }
+});
 // Accept every status so error bodies ({ error, code }) can be read.
 const requestOptions = (headers = {}) => ({
     headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
@@ -222,9 +236,9 @@ const getMyAffiliateDetails = (deps) => __awaiter(void 0, void 0, void 0, functi
     }
     try {
         const response = yield axios_1.default.get(`${API_BASE}/me`, requestOptions({ [TOKEN_HEADER]: token }));
-        if (response.status === 401 || response.status === 404) {
+        if ((0, exports.isTokenRejected)(response.status, response.data)) {
             deps.verboseLog(`Referrer token rejected (${response.status}); clearing it`);
-            yield clearToken(companyId);
+            yield clearRejectedToken(companyId, token);
             return null;
         }
         if (response.status !== 200 || !response.data) {
@@ -254,9 +268,9 @@ const setReferrerAccount = (deps, options) => __awaiter(void 0, void 0, void 0, 
     }
     try {
         const response = yield axios_1.default.post(`${API_BASE}/me/identity`, yield identityBody(deps, options), requestOptions({ [TOKEN_HEADER]: token }));
-        if (response.status === 401 || response.status === 404) {
+        if ((0, exports.isTokenRejected)(response.status, response.data)) {
             deps.verboseLog(`Referrer token rejected (${response.status}); clearing it`);
-            yield clearToken(companyId);
+            yield clearRejectedToken(companyId, token);
             return false;
         }
         const saved = response.status === 200 && !!response.data && response.data.saved === true;

@@ -247,6 +247,21 @@ const clearToken = async (companyId: string) => {
   await AsyncStorage.removeItem(tokenKey(companyId));
 };
 
+// True only when the server says the token itself is no longer valid. Any
+// other 401 or 404 (a proxy, a route that is not live yet) keeps the token.
+export const isTokenRejected = (httpStatus: number, data: any): boolean => {
+  const code = asString(data && data.code);
+  return (httpStatus === 401 && code === 'INVALID_TOKEN') || (httpStatus === 404 && code === 'AFFILIATE_NOT_FOUND');
+};
+
+// Clears the rejected token, unless an enrol or verify saved a newer one while
+// the request was in flight.
+const clearRejectedToken = async (companyId: string, rejectedToken: string) => {
+  if ((await readToken(companyId)) === rejectedToken) {
+    await clearToken(companyId);
+  }
+};
+
 // Accept every status so error bodies ({ error, code }) can be read.
 const requestOptions = (headers: Record<string, string> = {}) => ({
   headers: { 'Content-Type': 'application/json', ...headers },
@@ -355,9 +370,9 @@ export const getMyAffiliateDetails = async (deps: ReferralDeps): Promise<MyAffil
   }
   try {
     const response = await axios.get(`${API_BASE}/me`, requestOptions({ [TOKEN_HEADER]: token }));
-    if (response.status === 401 || response.status === 404) {
+    if (isTokenRejected(response.status, response.data)) {
       deps.verboseLog(`Referrer token rejected (${response.status}); clearing it`);
-      await clearToken(companyId);
+      await clearRejectedToken(companyId, token);
       return null;
     }
     if (response.status !== 200 || !response.data) {
@@ -393,9 +408,9 @@ export const setReferrerAccount = async (
       await identityBody(deps, options),
       requestOptions({ [TOKEN_HEADER]: token })
     );
-    if (response.status === 401 || response.status === 404) {
+    if (isTokenRejected(response.status, response.data)) {
       deps.verboseLog(`Referrer token rejected (${response.status}); clearing it`);
-      await clearToken(companyId);
+      await clearRejectedToken(companyId, token);
       return false;
     }
     const saved = response.status === 200 && !!response.data && response.data.saved === true;
