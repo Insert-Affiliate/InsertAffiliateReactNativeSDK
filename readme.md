@@ -1186,8 +1186,47 @@ const [showReferrals, setShowReferrals] = useState(false);
 | `shareMessage` | Message shared with the link. May use `{link}` and `{code}` placeholders |
 | `primaryColor` | Button and accent colour. Falls back to the dashboard setting, then `#6A0DAD` |
 | `headline`, `rewardText` | Override the copy set in your dashboard |
+| `fontFamily` | Font for every label and field. Falls back to the system font |
+| `cornerRadius` | One radius (0 and up) for the sheet, the fields and the buttons. Falls back to the built-in radii |
+| `strings` | Every other label on the screen, for translations and rewording (see below) |
 
 Headline, reward text and colour set in your dashboard are applied without an app release.
+
+#### Translating the screen
+
+Pass `strings` with the keys you want. A key you leave out, or set to a blank string, keeps the English default, and a key we do not know is ignored. `headline` and `rewardText` stay separate props because they come from your dashboard.
+
+```typescript
+import { ReferAFriend } from 'insert-affiliate-react-native-sdk';
+import type { ReferralStrings } from 'insert-affiliate-react-native-sdk';
+
+const spanish: Partial<ReferralStrings> = {
+  emailLabel: 'Correo',
+  nameLabel: 'Nombre',
+  joinButton: 'Obtener mi enlace',
+  codeLabel: 'Introduce el codigo de 6 digitos',
+  codeSentNotice: 'Enviamos un codigo de 6 digitos a {email}.',
+  verifyButton: 'Verificar',
+  codeLabelTitle: 'Tu codigo',
+  copyButton: 'Copiar',
+  shareButton: 'Compartir',
+  premiumUntil: 'Premium gratis hasta el {date}',
+};
+
+<ReferAFriend visible={open} onClose={close} headline="Invita a un amigo" strings={spanish} />
+```
+
+Keep the `{email}` and `{date}` placeholders in any string that has one; they are filled in at runtime. `DEFAULT_REFERRAL_STRINGS` is exported if you want to read the English text.
+
+| Group | Keys |
+|-------|------|
+| Joining | `emailLabel`, `emailPlaceholder`, `nameLabel`, `namePlaceholder`, `joinButton` |
+| Email code step | `codeLabel`, `codePlaceholder`, `codeSentNotice` (`{email}`), `verifyButton`, `resendButton`, `codeResentNotice` (`{email}`), `differentEmailButton` |
+| Joined | `codeLabelTitle`, `linkLabelTitle`, `copyButton`, `copiedNotice`, `shareButton`, `referralsLabel`, `earnedLabel`, `premiumUntil` (`{date}`), `rewardsHeading`, `redeemButton`, `dashboardLink` |
+| Frame and states | `closeButton` (the close button's accessibility label), `tryAgainButton`, `loadFailed` |
+| Errors | `errorProgramDisabled`, `errorAffiliateLimitReached`, `errorInvalidCode`, `errorTooManyCodes`, `errorRateLimited`, `errorInvalidEmail`, `errorNetwork`, `errorServer` |
+
+`errorServer` also covers codes without their own message, such as `NOT_INITIALIZED` and `HTTP_<status>`.
 
 ### Referral methods
 
@@ -1255,6 +1294,25 @@ await signOutAffiliate();
 
 - `INVALID_RESPONSE`: the server answered with success but without the expected data.
 - `HTTP_<status>` (for example `HTTP_500`): the server returned an error without a code.
+
+### Build your own screen
+
+`ReferAFriend` is optional. Every step it takes is a method on `useDeepLinkIapProvider()`, so you can build the screen yourself:
+
+1. **On open:** `getReferralProgramConfig()` for the program's on/off state, name, headline, reward text and colour, and `isUserAnAffiliate()` for whether this device is already connected.
+2. **Not enrolled:** collect an email and name, then `createAffiliateForUser(email, name, options)`.
+   - `status: 'created'`: they are in. `result.affiliate` has the code and link.
+   - `status: 'verificationRequired'`: the email already belongs to an affiliate and we emailed a 6-digit code.
+   - `status: 'error'`: show your own wording for `result.errorCode`.
+3. **Code needed:** collect the 6 digits, then `verifyAffiliateCode(email, code, name, options)`. Call `createAffiliateForUser` again to send a new code. `INVALID_CODE` means it was wrong or has expired.
+4. **Enrolled:** `getMyAffiliateDetails()` for the code, link and stats. `null` means either this device is not connected or the call failed, so check `isUserAnAffiliate()` before sending the user back to your sign-up step.
+5. **Rewards:** the same details carry `rewardsGranted`, `premiumUntil` (ISO date or `null`) and `rewardCodes`. Show only the codes this phone can redeem: `store === 'app_store'` on iOS and `store === 'google_play'` on Android, then open `redeemUrl`.
+6. **Sharing:** `shareReferralLink(message?)` opens the system share sheet with the link (or the short code for Short Code Only companies). Copy the code or link to the clipboard yourself.
+7. **Later:** `setReferrerAccount(options)` when the user subscribes or logs in, and `signOutAffiliate()` on logout.
+
+Errors always come back as `errorCode` on the result, so you can map every state to your own copy. The list is above.
+
+A screen you build yourself cannot reach four small helpers the drop-in screen uses internally: filtering `rewardCodes` by store, checking `premiumUntil` against now, turning typed digits into ASCII, and building the share text. Each is a couple of lines over data the methods already return, and `shareReferralLink` covers the share text.
 
 **How the device stays connected:** after sign-up or verification the SDK stores a private token for your company in AsyncStorage. If the app is deleted or the token is lost, call `createAffiliateForUser` again with the same email; the user gets an emailed code and reconnects to the same affiliate account.
 
