@@ -22,6 +22,12 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard';
 import useDeepLinkIapProvider from './useDeepLinkIapProvider';
 import {
+  formatReferralString,
+  referralString,
+  ReferralStrings,
+  REFERRAL_ERROR_STRING_KEYS,
+} from './referralStrings';
+import {
   buildReferralShareText,
   isPremiumActive,
   normalizeVerificationCode,
@@ -52,24 +58,14 @@ export type ReferAFriendProps = {
   primaryColor?: string;
   headline?: string;
   rewardText?: string;
+  // Every label on the screen. Keys left out keep the English default.
+  strings?: Partial<ReferralStrings>;
 };
 
 type Step = 'loading' | 'enrol' | 'code' | 'enrolled' | 'failed';
 
-const ERROR_MESSAGES: Record<string, string> = {
-  PROGRAM_DISABLED: 'Referrals are not available in this app right now.',
-  AFFILIATE_LIMIT_REACHED: 'The referral program is full right now. Please try again later.',
-  INVALID_CODE: 'That code is wrong or has expired.',
-  TOO_MANY_CODES: 'Too many codes requested. Please wait a while and try again.',
-  RATE_LIMITED: 'Too many attempts. Please try again later.',
-  INVALID_EMAIL: 'Please enter a valid email address.',
-  NETWORK_ERROR: 'Could not connect. Check your connection and try again.',
-};
-
-const LOAD_FAILED_MESSAGE = 'Could not load your referral details. Check your connection and try again.';
-
-const errorText = (result: ReferralEnrolResult) =>
-  (result.errorCode && ERROR_MESSAGES[result.errorCode]) || 'Something went wrong. Please try again.';
+const errorStringKey = (result: ReferralEnrolResult): keyof ReferralStrings =>
+  (result.errorCode && REFERRAL_ERROR_STRING_KEYS[result.errorCode]) || 'errorServer';
 
 const formatMoney = (amount: number, currency: string) => {
   try {
@@ -99,6 +95,7 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
   primaryColor: primaryColorProp,
   headline: headlineProp,
   rewardText: rewardTextProp,
+  strings,
 }) => {
   const {
     createAffiliateForUser,
@@ -124,6 +121,9 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
   const headline = headlineProp || (config && config.headline) || DEFAULT_HEADLINE;
   const accountOptions = appUserId || playPurchaseToken ? { appUserId, playPurchaseToken } : undefined;
   const rewardText = rewardTextProp || (config && config.rewardText) || '';
+  // The app's label for a key, or the English default.
+  const t = (key: keyof ReferralStrings) => referralString(strings, key);
+  const errorText = (result: ReferralEnrolResult) => t(errorStringKey(result));
 
   const showEnrolled = useCallback(async (fallback?: ReferrerAffiliate) => {
     const loaded = await getMyAffiliateDetails();
@@ -209,10 +209,12 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     };
   }, [visible]);
 
-  const handleResult = async (result: ReferralEnrolResult) => {
+  // noticeKey is the text shown once a code is on its way: the first one, or
+  // the one "Send a new code" asked for.
+  const handleResult = async (result: ReferralEnrolResult, noticeKey: keyof ReferralStrings = 'codeSentNotice') => {
     if (result.status === 'verificationRequired') {
       setCode('');
-      setNotice(`We sent a 6-digit code to ${email.trim()}.`);
+      setNotice(formatReferralString(t(noticeKey), { email: email.trim() }));
       setStep('code');
       return;
     }
@@ -257,7 +259,7 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
   });
 
   const onResend = () => run(async () => {
-    await handleResult(await createAffiliateForUser(email.trim(), name.trim(), accountOptions));
+    await handleResult(await createAffiliateForUser(email.trim(), name.trim(), accountOptions), 'codeResentNotice');
   });
 
   const shareText = affiliate ? buildReferralShareText(affiliate, config ? config.companyName : '', shareMessage) : '';
@@ -266,7 +268,7 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
   const onCopy = () => {
     if (!affiliate) return;
     Clipboard.setString(hasLink ? affiliate.deeplinkurl : affiliate.affiliateShortCode);
-    setNotice('Copied');
+    setNotice(t('copiedNotice'));
   };
 
   const onShare = () => {
@@ -316,38 +318,38 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     if (step === 'failed') {
       return (
         <View>
-          <Text style={styles.rewardText}>{LOAD_FAILED_MESSAGE}</Text>
-          {primaryButton('Try again', onRetry)}
+          <Text style={styles.rewardText}>{t('loadFailed')}</Text>
+          {primaryButton(t('tryAgainButton'), onRetry)}
         </View>
       );
     }
 
     if (step === 'enrol') {
       if (config && !config.enabled) {
-        return <Text style={styles.rewardText}>{ERROR_MESSAGES.PROGRAM_DISABLED}</Text>;
+        return <Text style={styles.rewardText}>{t('errorProgramDisabled')}</Text>;
       }
       return (
         <View>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('emailLabel')}</Text>
           <TextInput
             style={styles.input}
             value={email}
             onChangeText={setEmail}
-            placeholder="you@example.com"
+            placeholder={t('emailPlaceholder')}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="email-address"
             textContentType="emailAddress"
           />
-          <Text style={styles.label}>Name</Text>
+          <Text style={styles.label}>{t('nameLabel')}</Text>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="Your name"
+            placeholder={t('namePlaceholder')}
             textContentType="name"
           />
-          {primaryButton('Get my link', onGetLink, !email.trim())}
+          {primaryButton(t('joinButton'), onGetLink, !email.trim())}
         </View>
       );
     }
@@ -355,18 +357,18 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     if (step === 'code') {
       return (
         <View>
-          <Text style={styles.label}>Enter the 6-digit code</Text>
+          <Text style={styles.label}>{t('codeLabel')}</Text>
           <TextInput
             style={[styles.input, styles.codeInput]}
             value={code}
             onChangeText={(value) => setCode(normalizeVerificationCode(value).slice(0, 6))}
-            placeholder="123456"
+            placeholder={t('codePlaceholder')}
             keyboardType="number-pad"
             textContentType="oneTimeCode"
           />
-          {primaryButton('Verify', onVerify, code.length !== 6)}
-          {linkButton('Send a new code', onResend)}
-          {linkButton('Use a different email', () => { setError(''); setNotice(''); setStep('enrol'); })}
+          {primaryButton(t('verifyButton'), onVerify, code.length !== 6)}
+          {linkButton(t('resendButton'), onResend)}
+          {linkButton(t('differentEmailButton'), () => { setError(''); setNotice(''); setStep('enrol'); })}
         </View>
       );
     }
@@ -374,11 +376,11 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     if (!affiliate) return null;
     return (
       <View>
-        <Text style={styles.label}>Your code</Text>
+        <Text style={styles.label}>{t('codeLabelTitle')}</Text>
         <Text style={styles.code} selectable>{affiliate.affiliateShortCode}</Text>
         {hasLink ? (
           <>
-            <Text style={styles.label}>Your link</Text>
+            <Text style={styles.label}>{t('linkLabelTitle')}</Text>
             <Text style={styles.link} selectable numberOfLines={2}>{affiliate.deeplinkurl}</Text>
           </>
         ) : null}
@@ -388,14 +390,14 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
             onPress={onCopy}
             style={({ pressed }) => [styles.button, styles.rowButton, styles.rowButtonSpacer, styles.outlineButton, { borderColor: primaryColor, opacity: pressed ? 0.8 : 1 }]}
           >
-            <Text style={[styles.buttonText, { color: primaryColor }]}>Copy</Text>
+            <Text style={[styles.buttonText, { color: primaryColor }]}>{t('copyButton')}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             onPress={onShare}
             style={({ pressed }) => [styles.button, styles.rowButton, { backgroundColor: primaryColor, opacity: pressed ? 0.8 : 1 }]}
           >
-            <Text style={styles.buttonText}>Share</Text>
+            <Text style={styles.buttonText}>{t('shareButton')}</Text>
           </Pressable>
         </View>
         {details ? (
@@ -403,19 +405,21 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
             <View style={styles.stats}>
               <View style={styles.stat}>
                 <Text style={styles.statValue}>{details.referralCount}</Text>
-                <Text style={styles.statLabel}>Referrals</Text>
+                <Text style={styles.statLabel}>{t('referralsLabel')}</Text>
               </View>
               <View style={styles.stat}>
                 <Text style={styles.statValue}>{formatMoney(details.totalEarned, details.currency)}</Text>
-                <Text style={styles.statLabel}>Earned</Text>
+                <Text style={styles.statLabel}>{t('earnedLabel')}</Text>
               </View>
             </View>
             {details.premiumUntil && isPremiumActive(details.premiumUntil) ? (
-              <Text style={styles.premium}>Free premium until {formatDate(details.premiumUntil)}</Text>
+              <Text style={styles.premium}>
+                {formatReferralString(t('premiumUntil'), { date: formatDate(details.premiumUntil) })}
+              </Text>
             ) : null}
             {rewardCodes.length > 0 ? (
               <View style={styles.rewards}>
-                <Text style={styles.rewardsTitle}>Your rewards</Text>
+                <Text style={styles.rewardsTitle}>{t('rewardsHeading')}</Text>
                 {rewardCodes.map((reward) => (
                   <View key={reward.code} style={styles.rewardRow}>
                     <Text style={styles.rewardCode} selectable>{reward.code}</Text>
@@ -425,13 +429,13 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
                       disabled={!reward.redeemUrl}
                       style={({ pressed }) => [styles.redeemButton, { backgroundColor: primaryColor, opacity: !reward.redeemUrl ? 0.5 : pressed ? 0.8 : 1 }]}
                     >
-                      <Text style={styles.redeemText}>Redeem</Text>
+                      <Text style={styles.redeemText}>{t('redeemButton')}</Text>
                     </Pressable>
                   </View>
                 ))}
               </View>
             ) : null}
-            {details.dashboardUrl ? linkButton('Open my dashboard', onOpenDashboard) : null}
+            {details.dashboardUrl ? linkButton(t('dashboardLink'), onOpenDashboard) : null}
           </>
         ) : null}
       </View>
@@ -445,7 +449,7 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
           <ScrollView keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
               <Text style={styles.headline}>{headline}</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} hitSlop={12}>
+              <Pressable accessibilityRole="button" accessibilityLabel={t('closeButton')} onPress={onClose} hitSlop={12}>
                 <Text style={styles.close}>✕</Text>
               </Pressable>
             </View>

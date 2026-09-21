@@ -19,3 +19,5 @@ export type {
   ReferrerAccountOptions,
 } from "./referrals";
 export type { ReferAFriendProps } from "./ReferAFriend";
+export type { ReferralStrings } from "./referralStrings";
+export { DEFAULT_REFERRAL_STRINGS } from "./referralStrings";

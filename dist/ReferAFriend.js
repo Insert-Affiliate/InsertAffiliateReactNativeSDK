@@ -47,20 +47,11 @@ const react_1 = __importStar(require("react"));
 const react_native_1 = require("react-native");
 const clipboard_1 = __importDefault(require("@react-native-clipboard/clipboard"));
 const useDeepLinkIapProvider_1 = __importDefault(require("./useDeepLinkIapProvider"));
+const referralStrings_1 = require("./referralStrings");
 const referrals_1 = require("./referrals");
 const DEFAULT_PRIMARY_COLOR = '#6A0DAD';
 const DEFAULT_HEADLINE = 'Refer a friend';
-const ERROR_MESSAGES = {
-    PROGRAM_DISABLED: 'Referrals are not available in this app right now.',
-    AFFILIATE_LIMIT_REACHED: 'The referral program is full right now. Please try again later.',
-    INVALID_CODE: 'That code is wrong or has expired.',
-    TOO_MANY_CODES: 'Too many codes requested. Please wait a while and try again.',
-    RATE_LIMITED: 'Too many attempts. Please try again later.',
-    INVALID_EMAIL: 'Please enter a valid email address.',
-    NETWORK_ERROR: 'Could not connect. Check your connection and try again.',
-};
-const LOAD_FAILED_MESSAGE = 'Could not load your referral details. Check your connection and try again.';
-const errorText = (result) => (result.errorCode && ERROR_MESSAGES[result.errorCode]) || 'Something went wrong. Please try again.';
+const errorStringKey = (result) => (result.errorCode && referralStrings_1.REFERRAL_ERROR_STRING_KEYS[result.errorCode]) || 'errorServer';
 const formatMoney = (amount, currency) => {
     try {
         return amount.toLocaleString(undefined, { style: 'currency', currency });
@@ -78,7 +69,7 @@ const formatDate = (iso) => {
         return date.toDateString();
     }
 };
-const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appUserId, playPurchaseToken, shareMessage, primaryColor: primaryColorProp, headline: headlineProp, rewardText: rewardTextProp, }) => {
+const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appUserId, playPurchaseToken, shareMessage, primaryColor: primaryColorProp, headline: headlineProp, rewardText: rewardTextProp, strings, }) => {
     const { createAffiliateForUser, verifyAffiliateCode, setReferrerAccount, getMyAffiliateDetails, isUserAnAffiliate, getReferralProgramConfig, } = (0, useDeepLinkIapProvider_1.default)();
     const [step, setStep] = (0, react_1.useState)('loading');
     const [config, setConfig] = (0, react_1.useState)(null);
@@ -94,6 +85,9 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
     const headline = headlineProp || (config && config.headline) || DEFAULT_HEADLINE;
     const accountOptions = appUserId || playPurchaseToken ? { appUserId, playPurchaseToken } : undefined;
     const rewardText = rewardTextProp || (config && config.rewardText) || '';
+    // The app's label for a key, or the English default.
+    const t = (key) => (0, referralStrings_1.referralString)(strings, key);
+    const errorText = (result) => t(errorStringKey(result));
     const showEnrolled = (0, react_1.useCallback)((fallback) => __awaiter(void 0, void 0, void 0, function* () {
         const loaded = yield getMyAffiliateDetails();
         if (loaded) {
@@ -179,10 +173,12 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
             loadIdRef.current += 1;
         };
     }, [visible]);
-    const handleResult = (result) => __awaiter(void 0, void 0, void 0, function* () {
+    // noticeKey is the text shown once a code is on its way: the first one, or
+    // the one "Send a new code" asked for.
+    const handleResult = (result_1, ...args_1) => __awaiter(void 0, [result_1, ...args_1], void 0, function* (result, noticeKey = 'codeSentNotice') {
         if (result.status === 'verificationRequired') {
             setCode('');
-            setNotice(`We sent a 6-digit code to ${email.trim()}.`);
+            setNotice((0, referralStrings_1.formatReferralString)(t(noticeKey), { email: email.trim() }));
             setStep('code');
             return;
         }
@@ -224,7 +220,7 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
         yield handleResult(yield verifyAffiliateCode(email.trim(), code, name.trim(), accountOptions));
     }));
     const onResend = () => run(() => __awaiter(void 0, void 0, void 0, function* () {
-        yield handleResult(yield createAffiliateForUser(email.trim(), name.trim(), accountOptions));
+        yield handleResult(yield createAffiliateForUser(email.trim(), name.trim(), accountOptions), 'codeResentNotice');
     }));
     const shareText = affiliate ? (0, referrals_1.buildReferralShareText)(affiliate, config ? config.companyName : '', shareMessage) : '';
     const hasLink = !!affiliate && /^http/i.test(affiliate.deeplinkurl);
@@ -232,7 +228,7 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
         if (!affiliate)
             return;
         clipboard_1.default.setString(hasLink ? affiliate.deeplinkurl : affiliate.affiliateShortCode);
-        setNotice('Copied');
+        setNotice(t('copiedNotice'));
     };
     const onShare = () => {
         if (shareText)
@@ -262,59 +258,57 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
         }
         if (step === 'failed') {
             return (react_1.default.createElement(react_native_1.View, null,
-                react_1.default.createElement(react_native_1.Text, { style: styles.rewardText }, LOAD_FAILED_MESSAGE),
-                primaryButton('Try again', onRetry)));
+                react_1.default.createElement(react_native_1.Text, { style: styles.rewardText }, t('loadFailed')),
+                primaryButton(t('tryAgainButton'), onRetry)));
         }
         if (step === 'enrol') {
             if (config && !config.enabled) {
-                return react_1.default.createElement(react_native_1.Text, { style: styles.rewardText }, ERROR_MESSAGES.PROGRAM_DISABLED);
+                return react_1.default.createElement(react_native_1.Text, { style: styles.rewardText }, t('errorProgramDisabled'));
             }
             return (react_1.default.createElement(react_native_1.View, null,
-                react_1.default.createElement(react_native_1.Text, { style: styles.label }, "Email"),
-                react_1.default.createElement(react_native_1.TextInput, { style: styles.input, value: email, onChangeText: setEmail, placeholder: "you@example.com", autoCapitalize: "none", autoCorrect: false, keyboardType: "email-address", textContentType: "emailAddress" }),
-                react_1.default.createElement(react_native_1.Text, { style: styles.label }, "Name"),
-                react_1.default.createElement(react_native_1.TextInput, { style: styles.input, value: name, onChangeText: setName, placeholder: "Your name", textContentType: "name" }),
-                primaryButton('Get my link', onGetLink, !email.trim())));
+                react_1.default.createElement(react_native_1.Text, { style: styles.label }, t('emailLabel')),
+                react_1.default.createElement(react_native_1.TextInput, { style: styles.input, value: email, onChangeText: setEmail, placeholder: t('emailPlaceholder'), autoCapitalize: "none", autoCorrect: false, keyboardType: "email-address", textContentType: "emailAddress" }),
+                react_1.default.createElement(react_native_1.Text, { style: styles.label }, t('nameLabel')),
+                react_1.default.createElement(react_native_1.TextInput, { style: styles.input, value: name, onChangeText: setName, placeholder: t('namePlaceholder'), textContentType: "name" }),
+                primaryButton(t('joinButton'), onGetLink, !email.trim())));
         }
         if (step === 'code') {
             return (react_1.default.createElement(react_native_1.View, null,
-                react_1.default.createElement(react_native_1.Text, { style: styles.label }, "Enter the 6-digit code"),
-                react_1.default.createElement(react_native_1.TextInput, { style: [styles.input, styles.codeInput], value: code, onChangeText: (value) => setCode((0, referrals_1.normalizeVerificationCode)(value).slice(0, 6)), placeholder: "123456", keyboardType: "number-pad", textContentType: "oneTimeCode" }),
-                primaryButton('Verify', onVerify, code.length !== 6),
-                linkButton('Send a new code', onResend),
-                linkButton('Use a different email', () => { setError(''); setNotice(''); setStep('enrol'); })));
+                react_1.default.createElement(react_native_1.Text, { style: styles.label }, t('codeLabel')),
+                react_1.default.createElement(react_native_1.TextInput, { style: [styles.input, styles.codeInput], value: code, onChangeText: (value) => setCode((0, referrals_1.normalizeVerificationCode)(value).slice(0, 6)), placeholder: t('codePlaceholder'), keyboardType: "number-pad", textContentType: "oneTimeCode" }),
+                primaryButton(t('verifyButton'), onVerify, code.length !== 6),
+                linkButton(t('resendButton'), onResend),
+                linkButton(t('differentEmailButton'), () => { setError(''); setNotice(''); setStep('enrol'); })));
         }
         if (!affiliate)
             return null;
         return (react_1.default.createElement(react_native_1.View, null,
-            react_1.default.createElement(react_native_1.Text, { style: styles.label }, "Your code"),
+            react_1.default.createElement(react_native_1.Text, { style: styles.label }, t('codeLabelTitle')),
             react_1.default.createElement(react_native_1.Text, { style: styles.code, selectable: true }, affiliate.affiliateShortCode),
             hasLink ? (react_1.default.createElement(react_1.default.Fragment, null,
-                react_1.default.createElement(react_native_1.Text, { style: styles.label }, "Your link"),
+                react_1.default.createElement(react_native_1.Text, { style: styles.label }, t('linkLabelTitle')),
                 react_1.default.createElement(react_native_1.Text, { style: styles.link, selectable: true, numberOfLines: 2 }, affiliate.deeplinkurl))) : null,
             react_1.default.createElement(react_native_1.View, { style: styles.row },
                 react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: onCopy, style: ({ pressed }) => [styles.button, styles.rowButton, styles.rowButtonSpacer, styles.outlineButton, { borderColor: primaryColor, opacity: pressed ? 0.8 : 1 }] },
-                    react_1.default.createElement(react_native_1.Text, { style: [styles.buttonText, { color: primaryColor }] }, "Copy")),
+                    react_1.default.createElement(react_native_1.Text, { style: [styles.buttonText, { color: primaryColor }] }, t('copyButton'))),
                 react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: onShare, style: ({ pressed }) => [styles.button, styles.rowButton, { backgroundColor: primaryColor, opacity: pressed ? 0.8 : 1 }] },
-                    react_1.default.createElement(react_native_1.Text, { style: styles.buttonText }, "Share"))),
+                    react_1.default.createElement(react_native_1.Text, { style: styles.buttonText }, t('shareButton')))),
             details ? (react_1.default.createElement(react_1.default.Fragment, null,
                 react_1.default.createElement(react_native_1.View, { style: styles.stats },
                     react_1.default.createElement(react_native_1.View, { style: styles.stat },
                         react_1.default.createElement(react_native_1.Text, { style: styles.statValue }, details.referralCount),
-                        react_1.default.createElement(react_native_1.Text, { style: styles.statLabel }, "Referrals")),
+                        react_1.default.createElement(react_native_1.Text, { style: styles.statLabel }, t('referralsLabel'))),
                     react_1.default.createElement(react_native_1.View, { style: styles.stat },
                         react_1.default.createElement(react_native_1.Text, { style: styles.statValue }, formatMoney(details.totalEarned, details.currency)),
-                        react_1.default.createElement(react_native_1.Text, { style: styles.statLabel }, "Earned"))),
-                details.premiumUntil && (0, referrals_1.isPremiumActive)(details.premiumUntil) ? (react_1.default.createElement(react_native_1.Text, { style: styles.premium },
-                    "Free premium until ",
-                    formatDate(details.premiumUntil))) : null,
+                        react_1.default.createElement(react_native_1.Text, { style: styles.statLabel }, t('earnedLabel')))),
+                details.premiumUntil && (0, referrals_1.isPremiumActive)(details.premiumUntil) ? (react_1.default.createElement(react_native_1.Text, { style: styles.premium }, (0, referralStrings_1.formatReferralString)(t('premiumUntil'), { date: formatDate(details.premiumUntil) }))) : null,
                 rewardCodes.length > 0 ? (react_1.default.createElement(react_native_1.View, { style: styles.rewards },
-                    react_1.default.createElement(react_native_1.Text, { style: styles.rewardsTitle }, "Your rewards"),
+                    react_1.default.createElement(react_native_1.Text, { style: styles.rewardsTitle }, t('rewardsHeading')),
                     rewardCodes.map((reward) => (react_1.default.createElement(react_native_1.View, { key: reward.code, style: styles.rewardRow },
                         react_1.default.createElement(react_native_1.Text, { style: styles.rewardCode, selectable: true }, reward.code),
                         react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: () => onRedeem(reward.redeemUrl), disabled: !reward.redeemUrl, style: ({ pressed }) => [styles.redeemButton, { backgroundColor: primaryColor, opacity: !reward.redeemUrl ? 0.5 : pressed ? 0.8 : 1 }] },
-                            react_1.default.createElement(react_native_1.Text, { style: styles.redeemText }, "Redeem"))))))) : null,
-                details.dashboardUrl ? linkButton('Open my dashboard', onOpenDashboard) : null)) : null));
+                            react_1.default.createElement(react_native_1.Text, { style: styles.redeemText }, t('redeemButton')))))))) : null,
+                details.dashboardUrl ? linkButton(t('dashboardLink'), onOpenDashboard) : null)) : null));
     };
     return (react_1.default.createElement(react_native_1.Modal, { visible: visible, animationType: "slide", transparent: true, onRequestClose: onClose },
         react_1.default.createElement(react_native_1.View, { style: styles.backdrop },
@@ -322,7 +316,7 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
                 react_1.default.createElement(react_native_1.ScrollView, { keyboardShouldPersistTaps: "handled" },
                     react_1.default.createElement(react_native_1.View, { style: styles.header },
                         react_1.default.createElement(react_native_1.Text, { style: styles.headline }, headline),
-                        react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", accessibilityLabel: "Close", onPress: onClose, hitSlop: 12 },
+                        react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", accessibilityLabel: t('closeButton'), onPress: onClose, hitSlop: 12 },
                             react_1.default.createElement(react_native_1.Text, { style: styles.close }, "\u2715"))),
                     rewardText ? react_1.default.createElement(react_native_1.Text, { style: styles.rewardText }, rewardText) : null,
                     notice ? react_1.default.createElement(react_native_1.Text, { style: styles.notice }, notice) : null,
