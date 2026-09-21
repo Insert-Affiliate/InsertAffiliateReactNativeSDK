@@ -12,6 +12,8 @@ export type ReferAFriendProps = {
     headline?: string;
     rewardText?: string;
     strings?: Partial<ReferralStrings>;
+    fontFamily?: string;
+    cornerRadius?: number;
 };
 declare const ReferAFriend: React.FC<ReferAFriendProps>;
 export default ReferAFriend;

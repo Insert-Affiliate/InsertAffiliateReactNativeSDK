@@ -69,7 +69,7 @@ const formatDate = (iso) => {
         return date.toDateString();
     }
 };
-const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appUserId, playPurchaseToken, shareMessage, primaryColor: primaryColorProp, headline: headlineProp, rewardText: rewardTextProp, strings, }) => {
+const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appUserId, playPurchaseToken, shareMessage, primaryColor: primaryColorProp, headline: headlineProp, rewardText: rewardTextProp, strings, fontFamily, cornerRadius, }) => {
     const { createAffiliateForUser, verifyAffiliateCode, setReferrerAccount, getMyAffiliateDetails, isUserAnAffiliate, getReferralProgramConfig, } = (0, useDeepLinkIapProvider_1.default)();
     const [step, setStep] = (0, react_1.useState)('loading');
     const [config, setConfig] = (0, react_1.useState)(null);
@@ -88,6 +88,12 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
     // The app's label for a key, or the English default.
     const t = (key) => (0, referralStrings_1.referralString)(strings, key);
     const errorText = (result) => t(errorStringKey(result));
+    // The app's font goes on every label, and cornerRadius (0 and up) on the
+    // sheet, the fields and the buttons.
+    const fontStyle = fontFamily ? { fontFamily } : null;
+    const radius = typeof cornerRadius === 'number' && Number.isFinite(cornerRadius) && cornerRadius >= 0 ? cornerRadius : null;
+    const controlRadius = radius === null ? null : { borderRadius: radius };
+    const sheetRadius = radius === null ? null : { borderTopLeftRadius: radius, borderTopRightRadius: radius };
     const showEnrolled = (0, react_1.useCallback)((fallback) => __awaiter(void 0, void 0, void 0, function* () {
         const loaded = yield getMyAffiliateDetails();
         if (loaded) {
@@ -248,34 +254,35 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
     };
     const primaryButton = (label, onPress, disabled = false) => (react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: onPress, disabled: disabled || busy, style: ({ pressed }) => [
             styles.button,
+            controlRadius,
             { backgroundColor: primaryColor, opacity: disabled || busy ? 0.5 : pressed ? 0.8 : 1 },
-        ] }, busy ? react_1.default.createElement(react_native_1.ActivityIndicator, { color: "#FFFFFF" }) : react_1.default.createElement(react_native_1.Text, { style: styles.buttonText }, label)));
+        ] }, busy ? react_1.default.createElement(react_native_1.ActivityIndicator, { color: "#FFFFFF" }) : react_1.default.createElement(react_native_1.Text, { style: [styles.buttonText, fontStyle] }, label)));
     const linkButton = (label, onPress) => (react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: onPress, disabled: busy, style: styles.linkButton },
-        react_1.default.createElement(react_native_1.Text, { style: [styles.linkText, { color: primaryColor }] }, label)));
+        react_1.default.createElement(react_native_1.Text, { style: [styles.linkText, { color: primaryColor }, fontStyle] }, label)));
     const renderBody = () => {
         if (step === 'loading') {
             return react_1.default.createElement(react_native_1.ActivityIndicator, { style: styles.loading, color: primaryColor });
         }
         if (step === 'failed') {
             return (react_1.default.createElement(react_native_1.View, null,
-                react_1.default.createElement(react_native_1.Text, { style: styles.rewardText }, t('loadFailed')),
+                react_1.default.createElement(react_native_1.Text, { style: [styles.rewardText, fontStyle] }, t('loadFailed')),
                 primaryButton(t('tryAgainButton'), onRetry)));
         }
         if (step === 'enrol') {
             if (config && !config.enabled) {
-                return react_1.default.createElement(react_native_1.Text, { style: styles.rewardText }, t('errorProgramDisabled'));
+                return react_1.default.createElement(react_native_1.Text, { style: [styles.rewardText, fontStyle] }, t('errorProgramDisabled'));
             }
             return (react_1.default.createElement(react_native_1.View, null,
-                react_1.default.createElement(react_native_1.Text, { style: styles.label }, t('emailLabel')),
-                react_1.default.createElement(react_native_1.TextInput, { style: styles.input, value: email, onChangeText: setEmail, placeholder: t('emailPlaceholder'), autoCapitalize: "none", autoCorrect: false, keyboardType: "email-address", textContentType: "emailAddress" }),
-                react_1.default.createElement(react_native_1.Text, { style: styles.label }, t('nameLabel')),
-                react_1.default.createElement(react_native_1.TextInput, { style: styles.input, value: name, onChangeText: setName, placeholder: t('namePlaceholder'), textContentType: "name" }),
+                react_1.default.createElement(react_native_1.Text, { style: [styles.label, fontStyle] }, t('emailLabel')),
+                react_1.default.createElement(react_native_1.TextInput, { style: [styles.input, controlRadius, fontStyle], value: email, onChangeText: setEmail, placeholder: t('emailPlaceholder'), autoCapitalize: "none", autoCorrect: false, keyboardType: "email-address", textContentType: "emailAddress" }),
+                react_1.default.createElement(react_native_1.Text, { style: [styles.label, fontStyle] }, t('nameLabel')),
+                react_1.default.createElement(react_native_1.TextInput, { style: [styles.input, controlRadius, fontStyle], value: name, onChangeText: setName, placeholder: t('namePlaceholder'), textContentType: "name" }),
                 primaryButton(t('joinButton'), onGetLink, !email.trim())));
         }
         if (step === 'code') {
             return (react_1.default.createElement(react_native_1.View, null,
-                react_1.default.createElement(react_native_1.Text, { style: styles.label }, t('codeLabel')),
-                react_1.default.createElement(react_native_1.TextInput, { style: [styles.input, styles.codeInput], value: code, onChangeText: (value) => setCode((0, referrals_1.normalizeVerificationCode)(value).slice(0, 6)), placeholder: t('codePlaceholder'), keyboardType: "number-pad", textContentType: "oneTimeCode" }),
+                react_1.default.createElement(react_native_1.Text, { style: [styles.label, fontStyle] }, t('codeLabel')),
+                react_1.default.createElement(react_native_1.TextInput, { style: [styles.input, styles.codeInput, controlRadius, fontStyle], value: code, onChangeText: (value) => setCode((0, referrals_1.normalizeVerificationCode)(value).slice(0, 6)), placeholder: t('codePlaceholder'), keyboardType: "number-pad", textContentType: "oneTimeCode" }),
                 primaryButton(t('verifyButton'), onVerify, code.length !== 6),
                 linkButton(t('resendButton'), onResend),
                 linkButton(t('differentEmailButton'), () => { setError(''); setNotice(''); setStep('enrol'); })));
@@ -283,44 +290,44 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
         if (!affiliate)
             return null;
         return (react_1.default.createElement(react_native_1.View, null,
-            react_1.default.createElement(react_native_1.Text, { style: styles.label }, t('codeLabelTitle')),
-            react_1.default.createElement(react_native_1.Text, { style: styles.code, selectable: true }, affiliate.affiliateShortCode),
+            react_1.default.createElement(react_native_1.Text, { style: [styles.label, fontStyle] }, t('codeLabelTitle')),
+            react_1.default.createElement(react_native_1.Text, { style: [styles.code, fontStyle], selectable: true }, affiliate.affiliateShortCode),
             hasLink ? (react_1.default.createElement(react_1.default.Fragment, null,
-                react_1.default.createElement(react_native_1.Text, { style: styles.label }, t('linkLabelTitle')),
-                react_1.default.createElement(react_native_1.Text, { style: styles.link, selectable: true, numberOfLines: 2 }, affiliate.deeplinkurl))) : null,
+                react_1.default.createElement(react_native_1.Text, { style: [styles.label, fontStyle] }, t('linkLabelTitle')),
+                react_1.default.createElement(react_native_1.Text, { style: [styles.link, fontStyle], selectable: true, numberOfLines: 2 }, affiliate.deeplinkurl))) : null,
             react_1.default.createElement(react_native_1.View, { style: styles.row },
-                react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: onCopy, style: ({ pressed }) => [styles.button, styles.rowButton, styles.rowButtonSpacer, styles.outlineButton, { borderColor: primaryColor, opacity: pressed ? 0.8 : 1 }] },
-                    react_1.default.createElement(react_native_1.Text, { style: [styles.buttonText, { color: primaryColor }] }, t('copyButton'))),
-                react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: onShare, style: ({ pressed }) => [styles.button, styles.rowButton, { backgroundColor: primaryColor, opacity: pressed ? 0.8 : 1 }] },
-                    react_1.default.createElement(react_native_1.Text, { style: styles.buttonText }, t('shareButton')))),
+                react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: onCopy, style: ({ pressed }) => [styles.button, styles.rowButton, styles.rowButtonSpacer, styles.outlineButton, controlRadius, { borderColor: primaryColor, opacity: pressed ? 0.8 : 1 }] },
+                    react_1.default.createElement(react_native_1.Text, { style: [styles.buttonText, { color: primaryColor }, fontStyle] }, t('copyButton'))),
+                react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: onShare, style: ({ pressed }) => [styles.button, styles.rowButton, controlRadius, { backgroundColor: primaryColor, opacity: pressed ? 0.8 : 1 }] },
+                    react_1.default.createElement(react_native_1.Text, { style: [styles.buttonText, fontStyle] }, t('shareButton')))),
             details ? (react_1.default.createElement(react_1.default.Fragment, null,
                 react_1.default.createElement(react_native_1.View, { style: styles.stats },
                     react_1.default.createElement(react_native_1.View, { style: styles.stat },
-                        react_1.default.createElement(react_native_1.Text, { style: styles.statValue }, details.referralCount),
-                        react_1.default.createElement(react_native_1.Text, { style: styles.statLabel }, t('referralsLabel'))),
+                        react_1.default.createElement(react_native_1.Text, { style: [styles.statValue, fontStyle] }, details.referralCount),
+                        react_1.default.createElement(react_native_1.Text, { style: [styles.statLabel, fontStyle] }, t('referralsLabel'))),
                     react_1.default.createElement(react_native_1.View, { style: styles.stat },
-                        react_1.default.createElement(react_native_1.Text, { style: styles.statValue }, formatMoney(details.totalEarned, details.currency)),
-                        react_1.default.createElement(react_native_1.Text, { style: styles.statLabel }, t('earnedLabel')))),
-                details.premiumUntil && (0, referrals_1.isPremiumActive)(details.premiumUntil) ? (react_1.default.createElement(react_native_1.Text, { style: styles.premium }, (0, referralStrings_1.formatReferralString)(t('premiumUntil'), { date: formatDate(details.premiumUntil) }))) : null,
+                        react_1.default.createElement(react_native_1.Text, { style: [styles.statValue, fontStyle] }, formatMoney(details.totalEarned, details.currency)),
+                        react_1.default.createElement(react_native_1.Text, { style: [styles.statLabel, fontStyle] }, t('earnedLabel')))),
+                details.premiumUntil && (0, referrals_1.isPremiumActive)(details.premiumUntil) ? (react_1.default.createElement(react_native_1.Text, { style: [styles.premium, fontStyle] }, (0, referralStrings_1.formatReferralString)(t('premiumUntil'), { date: formatDate(details.premiumUntil) }))) : null,
                 rewardCodes.length > 0 ? (react_1.default.createElement(react_native_1.View, { style: styles.rewards },
-                    react_1.default.createElement(react_native_1.Text, { style: styles.rewardsTitle }, t('rewardsHeading')),
+                    react_1.default.createElement(react_native_1.Text, { style: [styles.rewardsTitle, fontStyle] }, t('rewardsHeading')),
                     rewardCodes.map((reward) => (react_1.default.createElement(react_native_1.View, { key: reward.code, style: styles.rewardRow },
-                        react_1.default.createElement(react_native_1.Text, { style: styles.rewardCode, selectable: true }, reward.code),
-                        react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: () => onRedeem(reward.redeemUrl), disabled: !reward.redeemUrl, style: ({ pressed }) => [styles.redeemButton, { backgroundColor: primaryColor, opacity: !reward.redeemUrl ? 0.5 : pressed ? 0.8 : 1 }] },
-                            react_1.default.createElement(react_native_1.Text, { style: styles.redeemText }, t('redeemButton')))))))) : null,
+                        react_1.default.createElement(react_native_1.Text, { style: [styles.rewardCode, fontStyle], selectable: true }, reward.code),
+                        react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", onPress: () => onRedeem(reward.redeemUrl), disabled: !reward.redeemUrl, style: ({ pressed }) => [styles.redeemButton, controlRadius, { backgroundColor: primaryColor, opacity: !reward.redeemUrl ? 0.5 : pressed ? 0.8 : 1 }] },
+                            react_1.default.createElement(react_native_1.Text, { style: [styles.redeemText, fontStyle] }, t('redeemButton')))))))) : null,
                 details.dashboardUrl ? linkButton(t('dashboardLink'), onOpenDashboard) : null)) : null));
     };
     return (react_1.default.createElement(react_native_1.Modal, { visible: visible, animationType: "slide", transparent: true, onRequestClose: onClose },
         react_1.default.createElement(react_native_1.View, { style: styles.backdrop },
-            react_1.default.createElement(react_native_1.View, { style: styles.sheet },
+            react_1.default.createElement(react_native_1.View, { style: [styles.sheet, sheetRadius] },
                 react_1.default.createElement(react_native_1.ScrollView, { keyboardShouldPersistTaps: "handled" },
                     react_1.default.createElement(react_native_1.View, { style: styles.header },
-                        react_1.default.createElement(react_native_1.Text, { style: styles.headline }, headline),
+                        react_1.default.createElement(react_native_1.Text, { style: [styles.headline, fontStyle] }, headline),
                         react_1.default.createElement(react_native_1.Pressable, { accessibilityRole: "button", accessibilityLabel: t('closeButton'), onPress: onClose, hitSlop: 12 },
-                            react_1.default.createElement(react_native_1.Text, { style: styles.close }, "\u2715"))),
-                    rewardText ? react_1.default.createElement(react_native_1.Text, { style: styles.rewardText }, rewardText) : null,
-                    notice ? react_1.default.createElement(react_native_1.Text, { style: styles.notice }, notice) : null,
-                    error ? react_1.default.createElement(react_native_1.Text, { style: styles.error }, error) : null,
+                            react_1.default.createElement(react_native_1.Text, { style: [styles.close, fontStyle] }, "\u2715"))),
+                    rewardText ? react_1.default.createElement(react_native_1.Text, { style: [styles.rewardText, fontStyle] }, rewardText) : null,
+                    notice ? react_1.default.createElement(react_native_1.Text, { style: [styles.notice, fontStyle] }, notice) : null,
+                    error ? react_1.default.createElement(react_native_1.Text, { style: [styles.error, fontStyle] }, error) : null,
                     renderBody())))));
 };
 const styles = react_native_1.StyleSheet.create({

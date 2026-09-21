@@ -60,6 +60,12 @@ export type ReferAFriendProps = {
   rewardText?: string;
   // Every label on the screen. Keys left out keep the English default.
   strings?: Partial<ReferralStrings>;
+  // The app's font for every label on the screen. Left out, labels use the
+  // system font.
+  fontFamily?: string;
+  // One corner radius for the sheet, the fields and the buttons. Left out,
+  // each keeps its own.
+  cornerRadius?: number;
 };
 
 type Step = 'loading' | 'enrol' | 'code' | 'enrolled' | 'failed';
@@ -96,6 +102,8 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
   headline: headlineProp,
   rewardText: rewardTextProp,
   strings,
+  fontFamily,
+  cornerRadius,
 }) => {
   const {
     createAffiliateForUser,
@@ -124,6 +132,12 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
   // The app's label for a key, or the English default.
   const t = (key: keyof ReferralStrings) => referralString(strings, key);
   const errorText = (result: ReferralEnrolResult) => t(errorStringKey(result));
+  // The app's font goes on every label, and cornerRadius (0 and up) on the
+  // sheet, the fields and the buttons.
+  const fontStyle = fontFamily ? { fontFamily } : null;
+  const radius = typeof cornerRadius === 'number' && Number.isFinite(cornerRadius) && cornerRadius >= 0 ? cornerRadius : null;
+  const controlRadius = radius === null ? null : { borderRadius: radius };
+  const sheetRadius = radius === null ? null : { borderTopLeftRadius: radius, borderTopRightRadius: radius };
 
   const showEnrolled = useCallback(async (fallback?: ReferrerAffiliate) => {
     const loaded = await getMyAffiliateDetails();
@@ -297,16 +311,17 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
       disabled={disabled || busy}
       style={({ pressed }) => [
         styles.button,
+        controlRadius,
         { backgroundColor: primaryColor, opacity: disabled || busy ? 0.5 : pressed ? 0.8 : 1 },
       ]}
     >
-      {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>{label}</Text>}
+      {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={[styles.buttonText, fontStyle]}>{label}</Text>}
     </Pressable>
   );
 
   const linkButton = (label: string, onPress: () => void) => (
     <Pressable accessibilityRole="button" onPress={onPress} disabled={busy} style={styles.linkButton}>
-      <Text style={[styles.linkText, { color: primaryColor }]}>{label}</Text>
+      <Text style={[styles.linkText, { color: primaryColor }, fontStyle]}>{label}</Text>
     </Pressable>
   );
 
@@ -318,7 +333,7 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     if (step === 'failed') {
       return (
         <View>
-          <Text style={styles.rewardText}>{t('loadFailed')}</Text>
+          <Text style={[styles.rewardText, fontStyle]}>{t('loadFailed')}</Text>
           {primaryButton(t('tryAgainButton'), onRetry)}
         </View>
       );
@@ -326,13 +341,13 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
 
     if (step === 'enrol') {
       if (config && !config.enabled) {
-        return <Text style={styles.rewardText}>{t('errorProgramDisabled')}</Text>;
+        return <Text style={[styles.rewardText, fontStyle]}>{t('errorProgramDisabled')}</Text>;
       }
       return (
         <View>
-          <Text style={styles.label}>{t('emailLabel')}</Text>
+          <Text style={[styles.label, fontStyle]}>{t('emailLabel')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, controlRadius, fontStyle]}
             value={email}
             onChangeText={setEmail}
             placeholder={t('emailPlaceholder')}
@@ -341,9 +356,9 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
             keyboardType="email-address"
             textContentType="emailAddress"
           />
-          <Text style={styles.label}>{t('nameLabel')}</Text>
+          <Text style={[styles.label, fontStyle]}>{t('nameLabel')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, controlRadius, fontStyle]}
             value={name}
             onChangeText={setName}
             placeholder={t('namePlaceholder')}
@@ -357,9 +372,9 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     if (step === 'code') {
       return (
         <View>
-          <Text style={styles.label}>{t('codeLabel')}</Text>
+          <Text style={[styles.label, fontStyle]}>{t('codeLabel')}</Text>
           <TextInput
-            style={[styles.input, styles.codeInput]}
+            style={[styles.input, styles.codeInput, controlRadius, fontStyle]}
             value={code}
             onChangeText={(value) => setCode(normalizeVerificationCode(value).slice(0, 6))}
             placeholder={t('codePlaceholder')}
@@ -376,60 +391,60 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     if (!affiliate) return null;
     return (
       <View>
-        <Text style={styles.label}>{t('codeLabelTitle')}</Text>
-        <Text style={styles.code} selectable>{affiliate.affiliateShortCode}</Text>
+        <Text style={[styles.label, fontStyle]}>{t('codeLabelTitle')}</Text>
+        <Text style={[styles.code, fontStyle]} selectable>{affiliate.affiliateShortCode}</Text>
         {hasLink ? (
           <>
-            <Text style={styles.label}>{t('linkLabelTitle')}</Text>
-            <Text style={styles.link} selectable numberOfLines={2}>{affiliate.deeplinkurl}</Text>
+            <Text style={[styles.label, fontStyle]}>{t('linkLabelTitle')}</Text>
+            <Text style={[styles.link, fontStyle]} selectable numberOfLines={2}>{affiliate.deeplinkurl}</Text>
           </>
         ) : null}
         <View style={styles.row}>
           <Pressable
             accessibilityRole="button"
             onPress={onCopy}
-            style={({ pressed }) => [styles.button, styles.rowButton, styles.rowButtonSpacer, styles.outlineButton, { borderColor: primaryColor, opacity: pressed ? 0.8 : 1 }]}
+            style={({ pressed }) => [styles.button, styles.rowButton, styles.rowButtonSpacer, styles.outlineButton, controlRadius, { borderColor: primaryColor, opacity: pressed ? 0.8 : 1 }]}
           >
-            <Text style={[styles.buttonText, { color: primaryColor }]}>{t('copyButton')}</Text>
+            <Text style={[styles.buttonText, { color: primaryColor }, fontStyle]}>{t('copyButton')}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             onPress={onShare}
-            style={({ pressed }) => [styles.button, styles.rowButton, { backgroundColor: primaryColor, opacity: pressed ? 0.8 : 1 }]}
+            style={({ pressed }) => [styles.button, styles.rowButton, controlRadius, { backgroundColor: primaryColor, opacity: pressed ? 0.8 : 1 }]}
           >
-            <Text style={styles.buttonText}>{t('shareButton')}</Text>
+            <Text style={[styles.buttonText, fontStyle]}>{t('shareButton')}</Text>
           </Pressable>
         </View>
         {details ? (
           <>
             <View style={styles.stats}>
               <View style={styles.stat}>
-                <Text style={styles.statValue}>{details.referralCount}</Text>
-                <Text style={styles.statLabel}>{t('referralsLabel')}</Text>
+                <Text style={[styles.statValue, fontStyle]}>{details.referralCount}</Text>
+                <Text style={[styles.statLabel, fontStyle]}>{t('referralsLabel')}</Text>
               </View>
               <View style={styles.stat}>
-                <Text style={styles.statValue}>{formatMoney(details.totalEarned, details.currency)}</Text>
-                <Text style={styles.statLabel}>{t('earnedLabel')}</Text>
+                <Text style={[styles.statValue, fontStyle]}>{formatMoney(details.totalEarned, details.currency)}</Text>
+                <Text style={[styles.statLabel, fontStyle]}>{t('earnedLabel')}</Text>
               </View>
             </View>
             {details.premiumUntil && isPremiumActive(details.premiumUntil) ? (
-              <Text style={styles.premium}>
+              <Text style={[styles.premium, fontStyle]}>
                 {formatReferralString(t('premiumUntil'), { date: formatDate(details.premiumUntil) })}
               </Text>
             ) : null}
             {rewardCodes.length > 0 ? (
               <View style={styles.rewards}>
-                <Text style={styles.rewardsTitle}>{t('rewardsHeading')}</Text>
+                <Text style={[styles.rewardsTitle, fontStyle]}>{t('rewardsHeading')}</Text>
                 {rewardCodes.map((reward) => (
                   <View key={reward.code} style={styles.rewardRow}>
-                    <Text style={styles.rewardCode} selectable>{reward.code}</Text>
+                    <Text style={[styles.rewardCode, fontStyle]} selectable>{reward.code}</Text>
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => onRedeem(reward.redeemUrl)}
                       disabled={!reward.redeemUrl}
-                      style={({ pressed }) => [styles.redeemButton, { backgroundColor: primaryColor, opacity: !reward.redeemUrl ? 0.5 : pressed ? 0.8 : 1 }]}
+                      style={({ pressed }) => [styles.redeemButton, controlRadius, { backgroundColor: primaryColor, opacity: !reward.redeemUrl ? 0.5 : pressed ? 0.8 : 1 }]}
                     >
-                      <Text style={styles.redeemText}>{t('redeemButton')}</Text>
+                      <Text style={[styles.redeemText, fontStyle]}>{t('redeemButton')}</Text>
                     </Pressable>
                   </View>
                 ))}
@@ -445,17 +460,17 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, sheetRadius]}>
           <ScrollView keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
-              <Text style={styles.headline}>{headline}</Text>
+              <Text style={[styles.headline, fontStyle]}>{headline}</Text>
               <Pressable accessibilityRole="button" accessibilityLabel={t('closeButton')} onPress={onClose} hitSlop={12}>
-                <Text style={styles.close}>✕</Text>
+                <Text style={[styles.close, fontStyle]}>✕</Text>
               </Pressable>
             </View>
-            {rewardText ? <Text style={styles.rewardText}>{rewardText}</Text> : null}
-            {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {rewardText ? <Text style={[styles.rewardText, fontStyle]}>{rewardText}</Text> : null}
+            {notice ? <Text style={[styles.notice, fontStyle]}>{notice}</Text> : null}
+            {error ? <Text style={[styles.error, fontStyle]}>{error}</Text> : null}
             {renderBody()}
           </ScrollView>
         </View>
