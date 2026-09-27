@@ -15,23 +15,13 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -54,6 +44,7 @@ const clipboard_1 = __importDefault(require("@react-native-clipboard/clipboard")
 const netinfo_1 = __importDefault(require("@react-native-community/netinfo"));
 const react_native_device_info_1 = __importDefault(require("react-native-device-info"));
 const react_native_play_install_referrer_1 = require("react-native-play-install-referrer");
+const referrals = __importStar(require("./referrals"));
 // Development environment check for React Native
 const isDevelopmentEnvironment = typeof __DEV__ !== 'undefined' && __DEV__;
 const ASYNC_KEYS = {
@@ -96,6 +87,14 @@ exports.DeepLinkIapContext = (0, react_1.createContext)({
     initialize: (code, verboseLogging, insertLinksEnabled, insertLinksClipboardEnabled, affiliateAttributionActiveTime, preventAffiliateTransfer) => __awaiter(void 0, void 0, void 0, function* () { }),
     setLogger: (logger) => { },
     isInitialized: false,
+    createAffiliateForUser: (email, name, options) => __awaiter(void 0, void 0, void 0, function* () { return ({ status: 'error', errorCode: 'NOT_INITIALIZED' }); }),
+    verifyAffiliateCode: (email, code, name, options) => __awaiter(void 0, void 0, void 0, function* () { return ({ status: 'error', errorCode: 'NOT_INITIALIZED' }); }),
+    setReferrerAccount: (options) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
+    getMyAffiliateDetails: () => __awaiter(void 0, void 0, void 0, function* () { return null; }),
+    isUserAnAffiliate: () => __awaiter(void 0, void 0, void 0, function* () { return false; }),
+    signOutAffiliate: () => __awaiter(void 0, void 0, void 0, function* () { }),
+    getReferralProgramConfig: () => __awaiter(void 0, void 0, void 0, function* () { return null; }),
+    shareReferralLink: (message) => __awaiter(void 0, void 0, void 0, function* () { return false; }),
 });
 const DeepLinkIapProvider = ({ children, }) => {
     const [referrerLink, setReferrerLink] = (0, react_1.useState)('');
@@ -131,6 +130,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     const trackEventImplRef = (0, react_1.useRef)(null);
     const setInsertAffiliateIdentifierImplRef = (0, react_1.useRef)(null);
     const handleInsertLinksImplRef = (0, react_1.useRef)(null);
+    const referralDepsRef = (0, react_1.useRef)(null);
     // MARK: Initialize the SDK
     const initializeImpl = (companyCodeParam_1, ...args_1) => __awaiter(void 0, [companyCodeParam_1, ...args_1], void 0, function* (companyCodeParam, verboseLoggingParam = false, insertLinksEnabledParam = false, insertLinksClipboardEnabledParam = false, affiliateAttributionActiveTimeParam, preventAffiliateTransferParam = false) {
         // Prevent multiple concurrent initialization attempts
@@ -1883,6 +1883,13 @@ const DeepLinkIapProvider = ({ children, }) => {
     trackEventImplRef.current = trackEventImpl;
     setInsertAffiliateIdentifierImplRef.current = setInsertAffiliateIdentifierImpl;
     handleInsertLinksImplRef.current = handleInsertLinksImpl;
+    referralDepsRef.current = {
+        getCompanyId: getActiveCompanyCode,
+        // Same id as in the "{shortCode}-{deviceId}" identifier; created and saved if missing.
+        getDeviceId: generateThenSetUserID,
+        verboseLog,
+        errorLog: (message) => loggerRef.current.error(message),
+    };
     // ============================================================================
     // STABLE WRAPPERS: useCallback with [] deps that delegate to refs
     // These provide stable function references that always call current implementations
@@ -1950,6 +1957,31 @@ const DeepLinkIapProvider = ({ children, }) => {
     const setLogger = (0, react_1.useCallback)((logger) => {
         loggerRef.current = logger;
     }, []);
+    // In-app referrals: logic lives in referrals.ts
+    const createAffiliateForUser = (0, react_1.useCallback)((email, name, options) => __awaiter(void 0, void 0, void 0, function* () {
+        return referrals.createAffiliateForUser(referralDepsRef.current, email, name, options);
+    }), []);
+    const verifyAffiliateCode = (0, react_1.useCallback)((email, code, name, options) => __awaiter(void 0, void 0, void 0, function* () {
+        return referrals.verifyAffiliateCode(referralDepsRef.current, email, code, name, options);
+    }), []);
+    const setReferrerAccount = (0, react_1.useCallback)((options) => __awaiter(void 0, void 0, void 0, function* () {
+        return referrals.setReferrerAccount(referralDepsRef.current, options);
+    }), []);
+    const getMyAffiliateDetails = (0, react_1.useCallback)(() => __awaiter(void 0, void 0, void 0, function* () {
+        return referrals.getMyAffiliateDetails(referralDepsRef.current);
+    }), []);
+    const isUserAnAffiliate = (0, react_1.useCallback)(() => __awaiter(void 0, void 0, void 0, function* () {
+        return referrals.isUserAnAffiliate(referralDepsRef.current);
+    }), []);
+    const signOutAffiliate = (0, react_1.useCallback)(() => __awaiter(void 0, void 0, void 0, function* () {
+        return referrals.signOutAffiliate(referralDepsRef.current);
+    }), []);
+    const getReferralProgramConfig = (0, react_1.useCallback)(() => __awaiter(void 0, void 0, void 0, function* () {
+        return referrals.getReferralProgramConfig(referralDepsRef.current);
+    }), []);
+    const shareReferralLink = (0, react_1.useCallback)((message) => __awaiter(void 0, void 0, void 0, function* () {
+        return referrals.shareReferralLink(referralDepsRef.current, message);
+    }), []);
     return (react_1.default.createElement(exports.DeepLinkIapContext.Provider, { value: {
             referrerLink,
             userId,
@@ -1971,6 +2003,14 @@ const DeepLinkIapProvider = ({ children, }) => {
             initialize,
             setLogger,
             isInitialized,
+            createAffiliateForUser,
+            verifyAffiliateCode,
+            setReferrerAccount,
+            getMyAffiliateDetails,
+            isUserAnAffiliate,
+            signOutAffiliate,
+            getReferralProgramConfig,
+            shareReferralLink,
         } }, children));
 };
 exports.default = DeepLinkIapProvider;
