@@ -199,6 +199,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // Refs for values that need to be current inside callbacks (to avoid stale closures)
   const companyCodeRef = useRef<string | null>(null);
   const verboseLoggingRef = useRef<boolean>(false);
+  const insertLinksClipboardEnabledRef = useRef<boolean>(false);
   const preventAffiliateTransferRef = useRef<boolean>(false);
 
   // Refs for implementation functions (ref callback pattern for stable + fresh)
@@ -230,6 +231,9 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
     verboseLoggingRef.current = verboseLoggingParam;
     setInsertLinksEnabled(insertLinksEnabledParam);
     setInsertLinksClipboardEnabled(insertLinksClipboardEnabledParam);
+    // The clipboard read happens later in this same call, before React has re-rendered,
+    // so it must read the ref rather than the state value captured by this closure.
+    insertLinksClipboardEnabledRef.current = insertLinksClipboardEnabledParam;
     if (affiliateAttributionActiveTimeParam !== undefined) {
       setAffiliateAttributionActiveTime(affiliateAttributionActiveTimeParam);
     }
@@ -1004,7 +1008,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         return;
       }
 
-      if (verboseLogging) {
+      if (verboseLoggingRef.current) {
         loggerRef.current.info('Reporting SDK initialization for onboarding verification...');
       }
 
@@ -1018,15 +1022,15 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
       if (response.ok) {
         await AsyncStorage.setItem(ASYNC_KEYS.SDK_INIT_REPORTED, 'true');
-        if (verboseLogging) {
+        if (verboseLoggingRef.current) {
           loggerRef.current.info('SDK initialization reported successfully');
         }
-      } else if (verboseLogging) {
+      } else if (verboseLoggingRef.current) {
         loggerRef.current.info(`SDK initialization report failed with status: ${response.status}`);
       }
     } catch (error) {
       // Silently fail - this is non-critical telemetry
-      if (verboseLogging) {
+      if (verboseLoggingRef.current) {
         loggerRef.current.info(`SDK initialization report error: ${error}`);
       }
     }
@@ -1037,7 +1041,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
   // Retrieves and validates clipboard content for UUID format
   const getClipboardUUID = async (): Promise<string | null> => {
     // Check if clipboard access is enabled
-    if (!insertLinksClipboardEnabled) {
+    if (!insertLinksClipboardEnabledRef.current) {
       return null;
     }
     
@@ -1264,7 +1268,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       systemInfo.deviceType = 'unknown';
     }
 
-    if (verboseLogging) {
+    if (verboseLoggingRef.current) {
       loggerRef.current.info('system info:', systemInfo);
     }
 
@@ -1323,7 +1327,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         systemInfo.clipboardID = clipboardUUID;
         verboseLog(`Found valid clipboard UUID: ${clipboardUUID}`);
       } else {
-        if (insertLinksClipboardEnabled) {
+        if (insertLinksClipboardEnabledRef.current) {
           verboseLog('Clipboard UUID not available - it may require NSPasteboardGeneralUseDescription in Info.plist');
         } else {
           verboseLog('Clipboard access is disabled - it may require NSPasteboardGeneralUseDescription in Info.plist');
@@ -1425,7 +1429,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
 
   // Sends enhanced system info to the backend API for deep link event tracking
   const sendSystemInfoToBackend = async (systemInfo: {[key: string]: any}): Promise<void> => {
-    if (verboseLogging) {
+    if (verboseLoggingRef.current) {
       loggerRef.current.info('Sending system info to backend...');
     }
     

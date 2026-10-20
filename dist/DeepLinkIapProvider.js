@@ -114,6 +114,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     // Refs for values that need to be current inside callbacks (to avoid stale closures)
     const companyCodeRef = (0, react_1.useRef)(null);
     const verboseLoggingRef = (0, react_1.useRef)(false);
+    const insertLinksClipboardEnabledRef = (0, react_1.useRef)(false);
     const preventAffiliateTransferRef = (0, react_1.useRef)(false);
     // Refs for implementation functions (ref callback pattern for stable + fresh)
     const initializeImplRef = (0, react_1.useRef)(null);
@@ -142,6 +143,9 @@ const DeepLinkIapProvider = ({ children, }) => {
         verboseLoggingRef.current = verboseLoggingParam;
         setInsertLinksEnabled(insertLinksEnabledParam);
         setInsertLinksClipboardEnabled(insertLinksClipboardEnabledParam);
+        // The clipboard read happens later in this same call, before React has re-rendered,
+        // so it must read the ref rather than the state value captured by this closure.
+        insertLinksClipboardEnabledRef.current = insertLinksClipboardEnabledParam;
         if (affiliateAttributionActiveTimeParam !== undefined) {
             setAffiliateAttributionActiveTime(affiliateAttributionActiveTimeParam);
         }
@@ -839,7 +843,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             if (alreadyReported === 'true') {
                 return;
             }
-            if (verboseLogging) {
+            if (verboseLoggingRef.current) {
                 loggerRef.current.info('Reporting SDK initialization for onboarding verification...');
             }
             const response = yield fetch('https://api.insertaffiliate.com/V1/onboarding/sdk-init', {
@@ -851,17 +855,17 @@ const DeepLinkIapProvider = ({ children, }) => {
             });
             if (response.ok) {
                 yield async_storage_1.default.setItem(ASYNC_KEYS.SDK_INIT_REPORTED, 'true');
-                if (verboseLogging) {
+                if (verboseLoggingRef.current) {
                     loggerRef.current.info('SDK initialization reported successfully');
                 }
             }
-            else if (verboseLogging) {
+            else if (verboseLoggingRef.current) {
                 loggerRef.current.info(`SDK initialization report failed with status: ${response.status}`);
             }
         }
         catch (error) {
             // Silently fail - this is non-critical telemetry
-            if (verboseLogging) {
+            if (verboseLoggingRef.current) {
                 loggerRef.current.info(`SDK initialization report error: ${error}`);
             }
         }
@@ -870,7 +874,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     // Retrieves and validates clipboard content for UUID format
     const getClipboardUUID = () => __awaiter(void 0, void 0, void 0, function* () {
         // Check if clipboard access is enabled
-        if (!insertLinksClipboardEnabled) {
+        if (!insertLinksClipboardEnabledRef.current) {
             return null;
         }
         verboseLog('Getting clipboard UUID');
@@ -1074,7 +1078,7 @@ const DeepLinkIapProvider = ({ children, }) => {
             systemInfo.bundleId = 'null'; // Fallback if we can't get bundle ID
             systemInfo.deviceType = 'unknown';
         }
-        if (verboseLogging) {
+        if (verboseLoggingRef.current) {
             loggerRef.current.info('system info:', systemInfo);
         }
         return systemInfo;
@@ -1122,7 +1126,7 @@ const DeepLinkIapProvider = ({ children, }) => {
                 verboseLog(`Found valid clipboard UUID: ${clipboardUUID}`);
             }
             else {
-                if (insertLinksClipboardEnabled) {
+                if (insertLinksClipboardEnabledRef.current) {
                     verboseLog('Clipboard UUID not available - it may require NSPasteboardGeneralUseDescription in Info.plist');
                 }
                 else {
@@ -1210,7 +1214,7 @@ const DeepLinkIapProvider = ({ children, }) => {
     });
     // Sends enhanced system info to the backend API for deep link event tracking
     const sendSystemInfoToBackend = (systemInfo) => __awaiter(void 0, void 0, void 0, function* () {
-        if (verboseLogging) {
+        if (verboseLoggingRef.current) {
             loggerRef.current.info('Sending system info to backend...');
         }
         try {
