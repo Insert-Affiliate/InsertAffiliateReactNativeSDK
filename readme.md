@@ -958,7 +958,7 @@ console.log('Current affiliate ID:', affiliateId);
 ## 🔧 Advanced Features
 
 <details>
-<summary><h3>Event Tracking (Beta)</h3></summary>
+<summary><h3>Event Tracking</h3></summary>
 
 Track custom events beyond purchases (e.g., signups, referrals) to incentivize affiliates for specific actions.
 
