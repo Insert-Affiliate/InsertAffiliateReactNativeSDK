@@ -34,6 +34,13 @@ const asNumber = (value) => {
 };
 const asNullableString = (value) => typeof value === 'string' && value ? value : null;
 const asTrigger = (value) => value === 'install' || value === 'event' ? value : 'purchase';
+const asDays = (value) => Math.max(0, Math.floor(asNumber(value)));
+const asEarnedDisplay = (value) => {
+    if (!value || typeof value !== 'object')
+        return { cash: true, days: false };
+    const display = value;
+    return { cash: display.cash === true, days: display.days === true };
+};
 const parseReferrerAffiliate = (data) => ({
     affiliateName: asString(data && data.affiliateName),
     affiliateShortCode: asString(data && data.affiliateShortCode),
@@ -69,7 +76,7 @@ const isPremiumActive = (premiumUntil, now = Date.now()) => {
     return Number.isFinite(time) && time > now;
 };
 exports.isPremiumActive = isPremiumActive;
-const parseMyAffiliateDetails = (data) => (Object.assign(Object.assign({}, (0, exports.parseReferrerAffiliate)(data)), { referralTrigger: asTrigger(data && data.referralTrigger), referralCount: asNumber(data && data.referralCount), installCount: asNumber(data && data.installCount), eventCount: asNumber(data && data.eventCount), purchaseCount: asNumber(data && data.purchaseCount), totalEarned: asNumber(data && data.totalEarned), totalPaid: asNumber(data && data.totalPaid), totalUnpaid: asNumber(data && data.totalUnpaid), currency: asString(data && data.currency) || 'USD', dashboardUrl: asString(data && data.dashboardUrl), rewardsGranted: asNumber(data && data.rewardsGranted), premiumUntil: asNullableString(data && data.premiumUntil), rewardCodes: (0, exports.parseRewardCodes)(data && data.rewardCodes) }));
+const parseMyAffiliateDetails = (data) => (Object.assign(Object.assign({}, (0, exports.parseReferrerAffiliate)(data)), { referralTrigger: asTrigger(data && data.referralTrigger), referralCount: asNumber(data && data.referralCount), installCount: asNumber(data && data.installCount), eventCount: asNumber(data && data.eventCount), purchaseCount: asNumber(data && data.purchaseCount), totalEarned: asNumber(data && data.totalEarned), totalPaid: asNumber(data && data.totalPaid), totalUnpaid: asNumber(data && data.totalUnpaid), currency: asString(data && data.currency) || 'USD', dashboardUrl: asString(data && data.dashboardUrl), rewardsGranted: asNumber(data && data.rewardsGranted), rewardDaysEarned: asDays(data && data.rewardDaysEarned), earnedDisplay: asEarnedDisplay(data && data.earnedDisplay), premiumUntil: asNullableString(data && data.premiumUntil), rewardCodes: (0, exports.parseRewardCodes)(data && data.rewardCodes) }));
 exports.parseMyAffiliateDetails = parseMyAffiliateDetails;
 const parseReferralProgramConfig = (data) => ({
     enabled: !!data && data.enabled === true,
@@ -78,6 +85,7 @@ const parseReferralProgramConfig = (data) => ({
     headline: asString(data && data.headline),
     rewardText: asString(data && data.rewardText),
     primaryColor: asString(data && data.primaryColor),
+    showCode: !data || data.showCode !== false,
 });
 exports.parseReferralProgramConfig = parseReferralProgramConfig;
 // Turns an enrol/verify HTTP response into the public result. `token` is

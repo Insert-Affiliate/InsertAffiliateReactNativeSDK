@@ -10,6 +10,7 @@ export type {
   ReferrerAffiliate,
   MyAffiliateDetails,
   ReferralProgramConfig,
+  ReferralEarnedDisplay,
   ReferralTrigger,
   ReferralEnrolStatus,
   ReferralEnrolResult,
