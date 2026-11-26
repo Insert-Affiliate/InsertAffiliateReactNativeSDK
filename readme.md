@@ -1159,7 +1159,7 @@ Every referrer is a normal affiliate: they get the usual welcome email, dashboar
 
 ### Drop-in "Refer a friend" screen
 
-Render `ReferAFriend` anywhere inside `DeepLinkIapProvider`. It handles every step: signing up, the email code step, and showing the code, link, stats and share button. When the user has earned rewards it also shows "Free premium until {date}" and a "Your rewards" list of reward codes, each with a Redeem button. It lists only the codes this phone can redeem: App Store offer codes on iOS, Google Play promo codes on Android.
+Render `ReferAFriend` anywhere inside `DeepLinkIapProvider`. It handles every step: signing up, the email code step, and showing the code, link, stats and share button. The stats show Referrals, plus Earned (cash) and Days earned (free premium days) when the program pays that kind of reward or the referrer has already earned it. The code is hidden when you turn it off in the dashboard; the link, Copy and Share still work, and Copy copies the link. The exception is a program with no web link to share (Short Code Only): the code is then always shown and Copy copies it, because it is all the referrer can share. When the user has earned rewards it also shows "Free premium until {date}" and a "Your rewards" list of reward codes, each with a Redeem button. It lists only the codes this phone can redeem: App Store offer codes on iOS, Google Play promo codes on Android.
 
 ```javascript
 import { ReferAFriend } from 'insert-affiliate-react-native-sdk';
@@ -1216,13 +1216,13 @@ const spanish: Partial<ReferralStrings> = {
 <ReferAFriend visible={open} onClose={close} headline="Invita a un amigo" strings={spanish} />
 ```
 
-Keep the `{email}` and `{date}` placeholders in any string that has one; they are filled in at runtime. `DEFAULT_REFERRAL_STRINGS` is exported if you want to read the English text.
+Keep the `{email}`, `{date}` and `{count}` placeholders in any string that has one; they are filled in at runtime. `dayUnitOne` is used for exactly 1 day and `dayUnitOther` for every other number. `DEFAULT_REFERRAL_STRINGS` is exported if you want to read the English text.
 
 | Group | Keys |
 |-------|------|
 | Joining | `emailLabel`, `emailPlaceholder`, `nameLabel`, `namePlaceholder`, `joinButton` |
 | Email code step | `codeLabel`, `codePlaceholder`, `codeSentNotice` (`{email}`), `verifyButton`, `resendButton`, `codeResentNotice` (`{email}`), `differentEmailButton` |
-| Joined | `codeLabelTitle`, `linkLabelTitle`, `copyButton`, `copiedNotice`, `shareButton`, `referralsLabel`, `earnedLabel`, `premiumUntil` (`{date}`), `rewardsHeading`, `redeemButton`, `dashboardLink` |
+| Joined | `codeLabelTitle`, `linkLabelTitle`, `copyButton`, `copiedNotice`, `shareButton`, `referralsLabel`, `earnedLabel`, `daysEarnedLabel`, `dayUnitOne` (`{count}`), `dayUnitOther` (`{count}`), `premiumUntil` (`{date}`), `rewardsHeading`, `redeemButton`, `dashboardLink` |
 | Frame and states | `closeButton` (the close button's accessibility label), `tryAgainButton`, `loadFailed` |
 | Errors | `errorProgramDisabled`, `errorAffiliateLimitReached`, `errorInvalidCode`, `errorTooManyCodes`, `errorRateLimited`, `errorInvalidEmail`, `errorNetwork`, `errorServer` |
 
@@ -1283,10 +1283,10 @@ await signOutAffiliate();
 | `getMyAffiliateDetails()` | The user's details and stats, or `null` when they are not a referrer on this device |
 | `isUserAnAffiliate()` | `true` when this device is connected to a referrer (no network call) |
 | `signOutAffiliate()` | Disconnects this device. The affiliate account is untouched |
-| `getReferralProgramConfig()` | `{ enabled, companyName, referralTrigger, headline, rewardText, primaryColor }`, or `null` |
+| `getReferralProgramConfig()` | `{ enabled, companyName, referralTrigger, headline, rewardText, primaryColor, showCode }` (`showCode` is `true` on older servers), or `null` |
 | `shareReferralLink(message?)` | Opens the share sheet. `false` when the user is not a referrer |
 
-`getMyAffiliateDetails()` returns `affiliateName`, `affiliateShortCode`, `deeplinkurl`, `referralTrigger`, `referralCount`, `installCount`, `eventCount`, `purchaseCount`, `totalEarned`, `totalPaid`, `totalUnpaid`, `currency`, `dashboardUrl`, `rewardsGranted`, `premiumUntil` (ISO date or `null`) and `rewardCodes` (`[{ code, redeemUrl, store, grantedAt }]`, newest first). `store` is `'app_store'` for an App Store one-time offer code or `'google_play'` for a Google Play promo code (its `redeemUrl` is `https://play.google.com/redeem?code=...`); codes from older servers have no store and are read as `'app_store'`. `referralCount` is the count for the trigger you chose in the dashboard and only ever goes up.
+`getMyAffiliateDetails()` returns `affiliateName`, `affiliateShortCode`, `deeplinkurl`, `referralTrigger`, `referralCount`, `installCount`, `eventCount`, `purchaseCount`, `totalEarned`, `totalPaid`, `totalUnpaid`, `currency`, `dashboardUrl`, `rewardsGranted`, `rewardDaysEarned` (total free-premium days granted automatically), `earnedDisplay` (`{ cash, days }`, which earnings to show; older servers read as `{ cash: true, days: false }` and `rewardDaysEarned` as `0`), `premiumUntil` (ISO date or `null`) and `rewardCodes` (`[{ code, redeemUrl, store, grantedAt }]`, newest first). `store` is `'app_store'` for an App Store one-time offer code or `'google_play'` for a Google Play promo code (its `redeemUrl` is `https://play.google.com/redeem?code=...`); codes from older servers have no store and are read as `'app_store'`. `referralCount` is the count for the trigger you chose in the dashboard and only ever goes up.
 
 **`options`:** `{ appUserId?, playPurchaseToken? }`. `appUserId` is the user's RevenueCat app user id or Adapty customer user id. `playPurchaseToken` is the user's own Google Play subscription purchase token (Android). The SDK also sends the same device id it uses in the insert affiliate identifier, so a referrer who installs through their own link isn't counted. If the user subscribes or logs in after joining, call `setReferrerAccount` then; any rewards that were waiting for them are granted.
 
@@ -1299,15 +1299,15 @@ await signOutAffiliate();
 
 `ReferAFriend` is optional. Every step it takes is a method on `useDeepLinkIapProvider()`, so you can build the screen yourself:
 
-1. **On open:** `getReferralProgramConfig()` for the program's on/off state, name, headline, reward text and colour, and `isUserAnAffiliate()` for whether this device is already connected.
+1. **On open:** `getReferralProgramConfig()` for the program's on/off state, name, headline, reward text, colour and `showCode`, and `isUserAnAffiliate()` for whether this device is already connected.
 2. **Not enrolled:** collect an email and name, then `createAffiliateForUser(email, name, options)`.
    - `status: 'created'`: they are in. `result.affiliate` has the code and link.
    - `status: 'verificationRequired'`: the email already belongs to an affiliate and we emailed a 6-digit code.
    - `status: 'error'`: show your own wording for `result.errorCode`.
 3. **Code needed:** collect the 6 digits, then `verifyAffiliateCode(email, code, name, options)`. Call `createAffiliateForUser` again to send a new code. `INVALID_CODE` means it was wrong or has expired.
-4. **Enrolled:** `getMyAffiliateDetails()` for the code, link and stats. `null` means either this device is not connected or the call failed, so check `isUserAnAffiliate()` before sending the user back to your sign-up step.
-5. **Rewards:** the same details carry `rewardsGranted`, `premiumUntil` (ISO date or `null`) and `rewardCodes`. Show only the codes this phone can redeem: `store === 'app_store'` on iOS and `store === 'google_play'` on Android, then open `redeemUrl`.
-6. **Sharing:** `shareReferralLink(message?)` opens the system share sheet with the link (or the short code for Short Code Only companies). Copy the code or link to the clipboard yourself.
+4. **Enrolled:** `getMyAffiliateDetails()` for the code, link and stats. Show the earned cash (`totalEarned`) only when `earnedDisplay.cash` is true and the earned days (`rewardDaysEarned`) only when `earnedDisplay.days` is true. `null` means either this device is not connected or the call failed, so check `isUserAnAffiliate()` before sending the user back to your sign-up step.
+5. **Rewards:** the same details carry `rewardsGranted`, `rewardDaysEarned` (free-premium days granted automatically), `premiumUntil` (ISO date or `null`) and `rewardCodes`. Show only the codes this phone can redeem: `store === 'app_store'` on iOS and `store === 'google_play'` on Android, then open `redeemUrl`.
+6. **Sharing:** `shareReferralLink(message?)` opens the system share sheet with the link (or the short code for Short Code Only companies). Copy the code or link to the clipboard yourself. Honour `showCode` when you show or copy the code: hide it when `false`, unless there is no web link to share, in which case the code is all the referrer has.
 7. **Later:** `setReferrerAccount(options)` when the user subscribes or logs in, and `signOutAffiliate()` on logout.
 
 Errors always come back as `errorCode` on the result, so you can map every state to your own copy. The list is above.

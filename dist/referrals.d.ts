@@ -15,6 +15,10 @@ export type ReferrerAccountOptions = {
     appUserId?: string;
     playPurchaseToken?: string;
 };
+export type ReferralEarnedDisplay = {
+    cash: boolean;
+    days: boolean;
+};
 export type MyAffiliateDetails = ReferrerAffiliate & {
     referralTrigger: ReferralTrigger;
     referralCount: number;
@@ -27,6 +31,8 @@ export type MyAffiliateDetails = ReferrerAffiliate & {
     currency: string;
     dashboardUrl: string;
     rewardsGranted: number;
+    rewardDaysEarned: number;
+    earnedDisplay: ReferralEarnedDisplay;
     premiumUntil: string | null;
     rewardCodes: ReferralRewardCode[];
 };
@@ -37,6 +43,7 @@ export type ReferralProgramConfig = {
     headline: string;
     rewardText: string;
     primaryColor: string;
+    showCode: boolean;
 };
 export type ReferralEnrolStatus = 'created' | 'connected' | 'verificationRequired' | 'error';
 export type ReferralErrorCode = 'INVALID_EMAIL' | 'INVALID_COMPANY_ID' | 'INVALID_CODE' | 'PROGRAM_DISABLED' | 'AFFILIATE_LIMIT_REACHED' | 'COMPANY_NOT_FOUND' | 'TOO_MANY_CODES' | 'RATE_LIMITED' | 'NETWORK_ERROR' | 'NOT_INITIALIZED' | string;

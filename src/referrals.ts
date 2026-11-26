@@ -44,6 +44,13 @@ export type ReferrerAccountOptions = {
   playPurchaseToken?: string;
 };
 
+// Which earnings the program shows the referrer. Older servers send nothing,
+// which reads as cash only.
+export type ReferralEarnedDisplay = {
+  cash: boolean;
+  days: boolean;
+};
+
 export type MyAffiliateDetails = ReferrerAffiliate & {
   referralTrigger: ReferralTrigger;
   referralCount: number;
@@ -56,6 +63,9 @@ export type MyAffiliateDetails = ReferrerAffiliate & {
   currency: string;
   dashboardUrl: string;
   rewardsGranted: number;
+  // Total free-premium days granted automatically. 0 on older servers.
+  rewardDaysEarned: number;
+  earnedDisplay: ReferralEarnedDisplay;
   premiumUntil: string | null;
   rewardCodes: ReferralRewardCode[];
 };
@@ -67,6 +77,8 @@ export type ReferralProgramConfig = {
   headline: string;
   rewardText: string;
   primaryColor: string;
+  // False hides the short code on the screen. True on older servers.
+  showCode: boolean;
 };
 
 export type ReferralEnrolStatus = 'created' | 'connected' | 'verificationRequired' | 'error';
@@ -116,6 +128,14 @@ const asNullableString = (value: unknown): string | null =>
 const asTrigger = (value: unknown): ReferralTrigger =>
   value === 'install' || value === 'event' ? value : 'purchase';
 
+const asDays = (value: unknown): number => Math.max(0, Math.floor(asNumber(value)));
+
+const asEarnedDisplay = (value: unknown): ReferralEarnedDisplay => {
+  if (!value || typeof value !== 'object') return { cash: true, days: false };
+  const display = value as { cash?: unknown; days?: unknown };
+  return { cash: display.cash === true, days: display.days === true };
+};
+
 export const parseReferrerAffiliate = (data: any): ReferrerAffiliate => ({
   affiliateName: asString(data && data.affiliateName),
   affiliateShortCode: asString(data && data.affiliateShortCode),
@@ -162,6 +182,8 @@ export const parseMyAffiliateDetails = (data: any): MyAffiliateDetails => ({
   currency: asString(data && data.currency) || 'USD',
   dashboardUrl: asString(data && data.dashboardUrl),
   rewardsGranted: asNumber(data && data.rewardsGranted),
+  rewardDaysEarned: asDays(data && data.rewardDaysEarned),
+  earnedDisplay: asEarnedDisplay(data && data.earnedDisplay),
   premiumUntil: asNullableString(data && data.premiumUntil),
   rewardCodes: parseRewardCodes(data && data.rewardCodes),
 });
@@ -173,6 +195,7 @@ export const parseReferralProgramConfig = (data: any): ReferralProgramConfig => 
   headline: asString(data && data.headline),
   rewardText: asString(data && data.rewardText),
   primaryColor: asString(data && data.primaryColor),
+  showCode: !data || data.showCode !== false,
 });
 
 // Turns an enrol/verify HTTP response into the public result. `token` is

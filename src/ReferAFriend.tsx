@@ -278,6 +278,11 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
 
   const shareText = affiliate ? buildReferralShareText(affiliate, config ? config.companyName : '', shareMessage) : '';
   const hasLink = !!affiliate && /^http/i.test(affiliate.deeplinkurl);
+  // The code box is hidden when the program says so (shown on older servers),
+  // except with no link: then the code is all the referrer can share.
+  const showCode = !config || config.showCode !== false || !hasLink;
+  const dayText = (days: number) =>
+    formatReferralString(t(days === 1 ? 'dayUnitOne' : 'dayUnitOther'), { count: String(days) });
 
   const onCopy = () => {
     if (!affiliate) return;
@@ -391,8 +396,12 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
     if (!affiliate) return null;
     return (
       <View>
-        <Text style={[styles.label, fontStyle]}>{t('codeLabelTitle')}</Text>
-        <Text style={[styles.code, fontStyle]} selectable>{affiliate.affiliateShortCode}</Text>
+        {showCode ? (
+          <>
+            <Text style={[styles.label, fontStyle]}>{t('codeLabelTitle')}</Text>
+            <Text style={[styles.code, fontStyle]} selectable>{affiliate.affiliateShortCode}</Text>
+          </>
+        ) : null}
         {hasLink ? (
           <>
             <Text style={[styles.label, fontStyle]}>{t('linkLabelTitle')}</Text>
@@ -419,13 +428,21 @@ const ReferAFriend: React.FC<ReferAFriendProps> = ({
           <>
             <View style={styles.stats}>
               <View style={styles.stat}>
-                <Text style={[styles.statValue, fontStyle]}>{details.referralCount}</Text>
+                <Text style={[styles.statValue, fontStyle]} numberOfLines={1} adjustsFontSizeToFit>{details.referralCount}</Text>
                 <Text style={[styles.statLabel, fontStyle]}>{t('referralsLabel')}</Text>
               </View>
-              <View style={styles.stat}>
-                <Text style={[styles.statValue, fontStyle]}>{formatMoney(details.totalEarned, details.currency)}</Text>
-                <Text style={[styles.statLabel, fontStyle]}>{t('earnedLabel')}</Text>
-              </View>
+              {details.earnedDisplay.cash ? (
+                <View style={styles.stat}>
+                  <Text style={[styles.statValue, fontStyle]} numberOfLines={1} adjustsFontSizeToFit>{formatMoney(details.totalEarned, details.currency)}</Text>
+                  <Text style={[styles.statLabel, fontStyle]}>{t('earnedLabel')}</Text>
+                </View>
+              ) : null}
+              {details.earnedDisplay.days ? (
+                <View style={styles.stat}>
+                  <Text style={[styles.statValue, fontStyle]} numberOfLines={1} adjustsFontSizeToFit>{dayText(details.rewardDaysEarned)}</Text>
+                  <Text style={[styles.statLabel, fontStyle]}>{t('daysEarnedLabel')}</Text>
+                </View>
+              ) : null}
             </View>
             {details.premiumUntil && isPremiumActive(details.premiumUntil) ? (
               <Text style={[styles.premium, fontStyle]}>

@@ -24,6 +24,11 @@ export type ReferralStrings = {
   shareButton: string;
   referralsLabel: string;
   earnedLabel: string;
+  // Free premium days earned. The value is dayUnitOne for 1 and dayUnitOther
+  // otherwise; both use {count}.
+  daysEarnedLabel: string;
+  dayUnitOne: string;
+  dayUnitOther: string;
   premiumUntil: string;
   rewardsHeading: string;
   redeemButton: string;
@@ -63,6 +68,9 @@ export const DEFAULT_REFERRAL_STRINGS: ReferralStrings = {
   shareButton: 'Share',
   referralsLabel: 'Referrals',
   earnedLabel: 'Earned',
+  daysEarnedLabel: 'Days earned',
+  dayUnitOne: '{count} day',
+  dayUnitOther: '{count} days',
   premiumUntil: 'Free premium until {date}',
   rewardsHeading: 'Your rewards',
   redeemButton: 'Redeem',

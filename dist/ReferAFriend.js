@@ -230,6 +230,10 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
     }));
     const shareText = affiliate ? (0, referrals_1.buildReferralShareText)(affiliate, config ? config.companyName : '', shareMessage) : '';
     const hasLink = !!affiliate && /^http/i.test(affiliate.deeplinkurl);
+    // The code box is hidden when the program says so (shown on older servers),
+    // except with no link: then the code is all the referrer can share.
+    const showCode = !config || config.showCode !== false || !hasLink;
+    const dayText = (days) => (0, referralStrings_1.formatReferralString)(t(days === 1 ? 'dayUnitOne' : 'dayUnitOther'), { count: String(days) });
     const onCopy = () => {
         if (!affiliate)
             return;
@@ -290,8 +294,9 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
         if (!affiliate)
             return null;
         return (react_1.default.createElement(react_native_1.View, null,
-            react_1.default.createElement(react_native_1.Text, { style: [styles.label, fontStyle] }, t('codeLabelTitle')),
-            react_1.default.createElement(react_native_1.Text, { style: [styles.code, fontStyle], selectable: true }, affiliate.affiliateShortCode),
+            showCode ? (react_1.default.createElement(react_1.default.Fragment, null,
+                react_1.default.createElement(react_native_1.Text, { style: [styles.label, fontStyle] }, t('codeLabelTitle')),
+                react_1.default.createElement(react_native_1.Text, { style: [styles.code, fontStyle], selectable: true }, affiliate.affiliateShortCode))) : null,
             hasLink ? (react_1.default.createElement(react_1.default.Fragment, null,
                 react_1.default.createElement(react_native_1.Text, { style: [styles.label, fontStyle] }, t('linkLabelTitle')),
                 react_1.default.createElement(react_native_1.Text, { style: [styles.link, fontStyle], selectable: true, numberOfLines: 2 }, affiliate.deeplinkurl))) : null,
@@ -303,11 +308,14 @@ const ReferAFriend = ({ visible, onClose, email: emailProp, name: nameProp, appU
             details ? (react_1.default.createElement(react_1.default.Fragment, null,
                 react_1.default.createElement(react_native_1.View, { style: styles.stats },
                     react_1.default.createElement(react_native_1.View, { style: styles.stat },
-                        react_1.default.createElement(react_native_1.Text, { style: [styles.statValue, fontStyle] }, details.referralCount),
+                        react_1.default.createElement(react_native_1.Text, { style: [styles.statValue, fontStyle], numberOfLines: 1, adjustsFontSizeToFit: true }, details.referralCount),
                         react_1.default.createElement(react_native_1.Text, { style: [styles.statLabel, fontStyle] }, t('referralsLabel'))),
-                    react_1.default.createElement(react_native_1.View, { style: styles.stat },
-                        react_1.default.createElement(react_native_1.Text, { style: [styles.statValue, fontStyle] }, formatMoney(details.totalEarned, details.currency)),
-                        react_1.default.createElement(react_native_1.Text, { style: [styles.statLabel, fontStyle] }, t('earnedLabel')))),
+                    details.earnedDisplay.cash ? (react_1.default.createElement(react_native_1.View, { style: styles.stat },
+                        react_1.default.createElement(react_native_1.Text, { style: [styles.statValue, fontStyle], numberOfLines: 1, adjustsFontSizeToFit: true }, formatMoney(details.totalEarned, details.currency)),
+                        react_1.default.createElement(react_native_1.Text, { style: [styles.statLabel, fontStyle] }, t('earnedLabel')))) : null,
+                    details.earnedDisplay.days ? (react_1.default.createElement(react_native_1.View, { style: styles.stat },
+                        react_1.default.createElement(react_native_1.Text, { style: [styles.statValue, fontStyle], numberOfLines: 1, adjustsFontSizeToFit: true }, dayText(details.rewardDaysEarned)),
+                        react_1.default.createElement(react_native_1.Text, { style: [styles.statLabel, fontStyle] }, t('daysEarnedLabel')))) : null),
                 details.premiumUntil && (0, referrals_1.isPremiumActive)(details.premiumUntil) ? (react_1.default.createElement(react_native_1.Text, { style: [styles.premium, fontStyle] }, (0, referralStrings_1.formatReferralString)(t('premiumUntil'), { date: formatDate(details.premiumUntil) }))) : null,
                 rewardCodes.length > 0 ? (react_1.default.createElement(react_native_1.View, { style: styles.rewards },
                     react_1.default.createElement(react_native_1.Text, { style: [styles.rewardsTitle, fontStyle] }, t('rewardsHeading')),

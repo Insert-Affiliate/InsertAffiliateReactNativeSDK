@@ -18,6 +18,9 @@ export type ReferralStrings = {
     shareButton: string;
     referralsLabel: string;
     earnedLabel: string;
+    daysEarnedLabel: string;
+    dayUnitOne: string;
+    dayUnitOther: string;
     premiumUntil: string;
     rewardsHeading: string;
     redeemButton: string;
