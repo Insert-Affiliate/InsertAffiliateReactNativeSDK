@@ -787,7 +787,7 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
         loggerRef.current.info(`Warning: URL company code (${companyCode}) doesn't match initialized company code (${activeCompanyCode})`);
       }
 
-      await storeInsertAffiliateIdentifier({ link: shortCode, source: Platform.OS === 'android' ? 'app_link' : 'universal_link' });
+      await validateAndStoreShortCode(shortCode, companyCode, Platform.OS === 'android' ? 'app_link' : 'universal_link');
       return true;
     } catch (error) {
       loggerRef.current.error('Error handling universal link:', error);
@@ -819,12 +819,91 @@ const DeepLinkIapProvider: React.FC<T_DEEPLINK_IAP_PROVIDER> = ({
       }
 
       loggerRef.current.info(`Custom domain universal link detected - Short code: ${shortCode}`);
-      await storeInsertAffiliateIdentifier({ link: shortCode, source: Platform.OS === 'android' ? 'app_link' : 'universal_link' });
+      await validateAndStoreShortCode(shortCode, activeCompanyCode, Platform.OS === 'android' ? 'app_link' : 'universal_link');
       return true;
     } catch (error) {
       loggerRef.current.error('Error handling custom domain universal link:', error);
       return false;
     }
+  };
+
+  // Asks the backend to validate a short code from a link, then stores the server's user code.
+  // An explicit "not found" (404, or an error in the body) discards the code. When the server can't
+  // confirm or reject it (network failure, server error, unreadable response), the code from the
+  // link is stored rather than losing the attribution.
+  const validateAndStoreShortCode = async (shortCode: string, linkCompanyCode: string, source: AffiliateAssociationSource): Promise<void> => {
+    const uppercasedShortCode = shortCode.toUpperCase();
+
+    // Storing the same code is a no-op, so skip the call (it counts as a click)
+    const existingLink = await getValueFromAsync(ASYNC_KEYS.REFERRER_LINK);
+    if (existingLink && existingLink.toUpperCase() === uppercasedShortCode) {
+      verboseLog(`Short code ${uppercasedShortCode} is already stored, skipping lookup`);
+      return;
+    }
+
+    let userCode: string | null = null;
+    let unverifiedReason: string | null = null;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    try {
+      const url = `https://insertaffiliate.link/V1/getDeepLinkData/${encodeURIComponent(linkCompanyCode)}/${encodeURIComponent(uppercasedShortCode)}`;
+      verboseLog(`Fetching deep link data from: ${url}`);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      });
+      verboseLog(`Deep link data response status: ${response.status}`);
+
+      if (response.status === 404) {
+        loggerRef.current.error(`Deep link not found. The short code '${uppercasedShortCode}' may not exist for company '${linkCompanyCode}'. Not storing it.`);
+        return;
+      }
+
+      if (response.status !== 200) {
+        verboseLog(`Deep link data API error (${response.status})`);
+        unverifiedReason = 'The server could not confirm the short code';
+      } else {
+        const responseText = await response.text();
+        if (!responseText) {
+          unverifiedReason = 'The server returned no data';
+        } else {
+          let json: any = null;
+          try {
+            json = JSON.parse(responseText);
+          } catch (parseError) {
+            verboseLog(`Failed to parse deep link data: ${parseError}`);
+          }
+
+          if (json === null || typeof json !== 'object') {
+            unverifiedReason = 'The server response could not be parsed';
+          } else if (typeof json.error === 'string') {
+            loggerRef.current.error(`API returned error: ${json.error}. The short code '${uppercasedShortCode}' was not found. Not storing it.`);
+            return;
+          } else if (typeof json.data?.deepLink?.userCode === 'string' && json.data.deepLink.userCode.length > 0) {
+            verboseLog(`User code extracted: ${json.data.deepLink.userCode}`);
+            userCode = json.data.deepLink.userCode;
+          } else {
+            unverifiedReason = 'The server response did not include a user code';
+          }
+        }
+      }
+    } catch (error) {
+      verboseLog(`Error fetching deep link data: ${error}`);
+      unverifiedReason = 'Could not reach the server';
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (userCode) {
+      await storeInsertAffiliateIdentifier({ link: userCode, source });
+      return;
+    }
+
+    loggerRef.current.info(`${unverifiedReason}. Storing short code '${uppercasedShortCode}' from the link without server confirmation.`);
+    await storeInsertAffiliateIdentifier({ link: uppercasedShortCode, source });
   };
 
   // Parse short code from URL
